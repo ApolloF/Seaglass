@@ -23,7 +23,7 @@ export interface Settings {
     "detectUnofficial": boolean;
 
     /**
-     * keep low-confidence matches in Found on this PC
+     * keep low-confidence matches in New on this PC for a check
      */
     "reviewUncertain": boolean;
 

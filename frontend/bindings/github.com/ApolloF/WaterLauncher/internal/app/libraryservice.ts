@@ -29,7 +29,7 @@ export function ChooseExe(id: number): $CancellablePromise<library$0.Game> {
 }
 
 /**
- * ConfirmMatch accepts the game's identity, so it leaves Found on this PC.
+ * ConfirmMatch accepts the game's identity, so it no longer waits for a check in New on this PC.
  */
 export function ConfirmMatch(id: number): $CancellablePromise<library$0.Game> {
     return $Call.ByID(3836606500, id);

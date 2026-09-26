@@ -6,6 +6,7 @@ import (
 	"embed"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ApolloF/WaterLauncher/internal/app"
@@ -27,6 +28,10 @@ const uniqueID = "nl.apollof.waterlauncher"
 
 func main() {
 	args := app.ParseArgs(os.Args[1:])
+	dev := args.Dev.Any() && app.DevAllowed(version)
+	if dev && args.Dev.DataDir != "" {
+		platform.UseAppDir(args.Dev.DataDir)
+	}
 	if args.Diagnostics {
 		// Works while WaterLauncher runs, or when its interface won't open.
 		core, err := app.NewCore(version)
@@ -66,10 +71,15 @@ func main() {
 		logx.Printf("start: %v", err)
 		log.Fatal(err)
 	}
+	core.Frozen = dev && args.Dev.DataDir != ""
 	logx.Printf("WaterLauncher %s starting", version)
 	shell := app.NewShell(core)
 	launcher := app.NewLaunchService(core)
 
+	var browserArgs []string
+	if dev && args.Dev.CDPPort > 0 {
+		browserArgs = append(browserArgs, "--remote-debugging-port="+strconv.Itoa(args.Dev.CDPPort))
+	}
 	wa := application.New(application.Options{
 		Name:        "WaterLauncher",
 		Description: "Game launcher that finds every game on your PC",
@@ -108,8 +118,12 @@ func main() {
 			// The interface closes while a game runs; WaterLauncher keeps
 			// going in the tray. Closing the window yourself still quits.
 			DisableQuitOnLastWindowClosed: true,
+			AdditionalBrowserArgs:         browserArgs,
 		},
 	})
+	if dev {
+		app.StartDev(core, args.Dev)
+	}
 	switch {
 	case args.Play != 0:
 		// "--play <id>" starts a game straight away, without the interface.

@@ -55,6 +55,9 @@ type Core struct {
 	Settings *settings.Store
 	Manifest *identify.Manager
 	Launch   *launch.Manager
+	// Frozen keeps the library as it is: no scans, metadata, store
+	// accounts or update checks (the test harness's --dev-data).
+	Frozen   bool
 	addons   *addonState
 	owned    *ownedState
 	updates  *updater
@@ -100,6 +103,12 @@ func NewCore(version string) (*Core, error) {
 // Start runs the first scan, keeps the game database fresh and watches
 // the folders games install into.
 func (c *Core) Start() {
+	if c.Frozen {
+		c.external = newExternalWatch(c)
+		c.external.set(c.Settings.Get().NoticeExternal)
+		c.setState(func(s *ScanState) { s.LastScan, s.Games = time.Now().Unix(), len(c.Lib.Games()) })
+		return
+	}
 	go c.scanLoop()
 	heapDiag("idle")
 	go c.meta.run(c.ctx)

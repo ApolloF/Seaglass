@@ -1,0 +1,14 @@
+{
+  "name": "waterlauncher-harness",
+  "private": true,
+  "type": "module",
+  "description": "Drives the real WaterLauncher.exe: WebView2 over CDP, a virtual controller over the dev pipe, a fake game.",
+  "scripts": {
+    "tour": "node tour.mjs",
+    "launches": "node launches.mjs",
+    "perf": "node perf.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}

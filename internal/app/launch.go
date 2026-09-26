@@ -334,6 +334,8 @@ type Args struct {
 	// --diagnostics: write a diagnostics report to the desktop and exit,
 	// for when the interface won't open.
 	Diagnostics bool
+	// Dev flags for the test harness (dev builds only; see dev.go).
+	Dev DevArgs
 }
 
 // ParseArgs reads the command line; unknown arguments are ignored.
@@ -350,6 +352,8 @@ func ParseArgs(args []string) Args {
 			a.Updated = true
 		case "--diagnostics":
 			a.Diagnostics = true
+		default:
+			parseDevArg(&a.Dev, s)
 		}
 	}
 	return a

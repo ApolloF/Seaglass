@@ -35,7 +35,18 @@ func known(id *windows.KNOWNFOLDERID) string {
 }
 
 // AppDir is WaterLauncher's settings folder (%APPDATA%\WaterLauncher), created on demand.
-func AppDir() string { return ensure(filepath.Join(Roaming, "WaterLauncher")) }
+func AppDir() string {
+	if appDirOverride != "" {
+		return ensure(appDirOverride)
+	}
+	return ensure(filepath.Join(Roaming, "WaterLauncher"))
+}
+
+var appDirOverride string
+
+// UseAppDir puts the library, settings and log in dir instead (a test
+// harness's own data). Call it before anything is opened.
+func UseAppDir(dir string) { appDirOverride = filepath.Clean(dir) }
 
 // CacheDir is a folder under %LOCALAPPDATA%\WaterLauncher, created on demand.
 func CacheDir(sub ...string) string {

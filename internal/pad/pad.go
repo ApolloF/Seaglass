@@ -145,6 +145,10 @@ type Manager struct {
 	state State
 	mode  Mode
 
+	// The virtual controller (dev flag --virtual-pad), made again whenever
+	// SDL starts over.
+	virtual *virtualPad
+
 	// The rumble effect playing, only touched on the SDL thread.
 	pulses  []pulse
 	pulseAt time.Time
@@ -473,6 +477,8 @@ func (m *Manager) loop() {
 			if !off {
 				if err := m.start(s, mode == Passive); err != nil {
 					m.setState(func(st *State) { st.Error = "controller support unavailable: " + err.Error() })
+				} else if err := m.attachVirtual(s); err != nil {
+					m.setState(func(st *State) { st.Error = err.Error() })
 				}
 			}
 			m.refreshState(s)

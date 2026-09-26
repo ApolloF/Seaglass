@@ -311,3 +311,56 @@ func TestVirtualHatNotTwice(t *testing.T) {
 		t.Errorf("hat up gave %v, want [up]", got)
 	}
 }
+
+// The dev flag's virtual controller: plugged in through the exported API,
+// it looks like the controller asked for and survives a mode change.
+func TestPlugVirtual(t *testing.T) {
+	actions := make(chan string, 16)
+	m := Start(func(a string, repeat bool) {
+		if !repeat {
+			actions <- a
+		}
+	}, func(State) {})
+	defer m.Stop()
+	time.Sleep(300 * time.Millisecond)
+	if err := m.PlugVirtual(Xbox); err != nil {
+		t.Fatal(err)
+	}
+	waitFor := func(what string, ok func(State) bool) {
+		for k := 0; k < 60 && !ok(m.State()); k++ {
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !ok(m.State()) {
+			t.Fatalf("%s: state %+v", what, m.State())
+		}
+	}
+	waitFor("xbox pad", func(s State) bool { return s.Connected && s.Kind == Xbox })
+	press := func(b int) {
+		if err := m.VirtualButton(b, true); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(60 * time.Millisecond)
+		_ = m.VirtualButton(b, false)
+	}
+	expect := func(want string) {
+		select {
+		case a := <-actions:
+			if a != want {
+				t.Errorf("action %q, want %q", a, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Errorf("no action, want %q", want)
+		}
+	}
+	press(VirtualButtons["south"])
+	expect(Confirm)
+	m.SetMode(Passive)
+	time.Sleep(400 * time.Millisecond)
+	waitFor("still plugged in after the mode change", func(s State) bool { return s.Connected })
+	press(VirtualButtons["guide"])
+	expect(Home)
+	if err := m.UnplugVirtual(); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("unplugged", func(s State) bool { return !s.Connected })
+}
