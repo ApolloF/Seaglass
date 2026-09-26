@@ -49,6 +49,9 @@ type Settings struct {
 
 	// Updates
 	AutoUpdate bool `json:"autoUpdate"` // check GitHub for new versions and install them on the next start
+
+	// Welcomed: the first-start welcome was seen (or skipped).
+	Welcomed bool `json:"welcomed"`
 }
 
 // Defaults are the settings on first start.
@@ -76,6 +79,14 @@ func Open(path string) *Store {
 	if b, err := os.ReadFile(path); err == nil {
 		v := Defaults()
 		if json.Unmarshal(b, &v) == nil {
+			// Settings saved before the welcome existed belong to someone
+			// who has used WaterLauncher already.
+			var keys map[string]json.RawMessage
+			if json.Unmarshal(b, &keys) == nil {
+				if _, ok := keys["welcomed"]; !ok {
+					v.Welcomed = true
+				}
+			}
 			s.cur = normalize(v)
 		}
 	}

@@ -16,6 +16,7 @@ import (
 const (
 	EventPadAction = "pad:action"
 	EventPadState  = "pad:state"
+	EventPadRaw    = "pad:raw" // every button and axis, while the test screen is open
 )
 
 // PadAction is one controller action.
@@ -27,6 +28,7 @@ type PadAction struct {
 func init() {
 	application.RegisterEvent[PadAction](EventPadAction)
 	application.RegisterEvent[pad.State](EventPadState)
+	application.RegisterEvent[pad.Raw](EventPadRaw)
 }
 
 // PadService is the controller: actions, glyph family, rumble and lightbar.
@@ -104,6 +106,19 @@ func (s *PadService) onState(st pad.State) {
 		}
 	}
 	s.c.emit(EventPadState, st)
+}
+
+// TestInput turns the stream of raw buttons and axes ("pad:raw") on or
+// off, for the controller test screen.
+func (s *PadService) TestInput(on bool) {
+	if s.mgr == nil {
+		return
+	}
+	if !on {
+		s.mgr.SetRawListener(nil)
+		return
+	}
+	s.mgr.SetRawListener(func(r pad.Raw) { s.c.emit(EventPadRaw, r) })
 }
 
 // State returns the controller in use.

@@ -184,6 +184,76 @@ func (s *LibraryService) SetMatch(id int64, steamAppID int, name string) (librar
 	return g, err
 }
 
+// artKinds are the pictures of a game that can be chosen.
+var artKinds = map[string]meta.Kind{"cover": meta.Cover, "backdrop": meta.Backdrop, "hero": meta.Hero, "logo": meta.Logo}
+
+// ArtChoices finds the pictures a game's cover, backdrop, hero or logo
+// could be (kind), stored and ready to show; the current one comes first.
+// It asks the stores, so it can take a few seconds.
+func (s *LibraryService) ArtChoices(id int64, kind string) ([]meta.Choice, error) {
+	k, ok := artKinds[kind]
+	if !ok {
+		return nil, errors.New("unknown kind of art")
+	}
+	g, ok := s.c.Lib.Get(id)
+	if !ok {
+		return nil, library.ErrNotFound
+	}
+	app := g.SteamAppID
+	if app == 0 {
+		app = g.MetaAppID
+	}
+	ctx, cancel := context.WithTimeout(s.c.ctx, 45*time.Second)
+	defer cancel()
+	list, err := s.c.meta.client.ArtChoices(ctx, meta.Request{Title: g.DisplayTitle(), SteamAppID: app, GogID: g.GogID}, k, g.Meta)
+	if list == nil {
+		list = []meta.Choice{}
+	}
+	return list, err
+}
+
+// SetArt makes a picture from ArtChoices the game's cover, backdrop, hero
+// or logo, kept through later refreshes.
+func (s *LibraryService) SetArt(id int64, kind, art string) (library.Game, error) {
+	k, ok := artKinds[kind]
+	if !ok {
+		return library.Game{}, errors.New("unknown kind of art")
+	}
+	var set bool
+	g, err := s.update(id, func(g *library.Game) {
+		if g.Meta == nil {
+			g.Meta = &library.Meta{}
+		}
+		set = meta.SetArt(g.Meta, k, art, platform.CacheDir("art"))
+	})
+	if err == nil && !set {
+		err = errors.New("that picture isn't available anymore")
+	}
+	return g, err
+}
+
+// SetCollections puts a game in these collections (and out of others).
+func (s *LibraryService) SetCollections(id int64, names []string) (library.Game, error) {
+	return s.update(id, func(g *library.Game) { g.Collections = library.CleanCollections(names) })
+}
+
+// RenameCollection renames a collection in every game; an empty name
+// deletes it (the games stay).
+func (s *LibraryService) RenameCollection(old, name string) error {
+	clean := library.CleanCollections([]string{name})
+	if strings.TrimSpace(name) != "" && len(clean) == 0 {
+		return errors.New("that name can't be used")
+	}
+	next := ""
+	if len(clean) > 0 {
+		next = clean[0]
+	}
+	if ids := s.c.Lib.RenameCollection(old, next); len(ids) > 0 {
+		s.c.gamesChanged(ids...)
+	}
+	return nil
+}
+
 // OpenFolder shows the game's folder in Explorer.
 func (s *LibraryService) OpenFolder(id int64) error {
 	g, ok := s.c.Lib.Get(id)

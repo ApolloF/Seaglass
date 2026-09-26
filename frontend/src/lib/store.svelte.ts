@@ -3,7 +3,11 @@ import type { AppInfo, Game, MetaState, ScanState, Session, Settings, UpdateStat
 import { lastPlayed, ownedOnly, played, title } from "./types";
 
 export type FilterKind = "all" | "installed" | "notinstalled" | "favorites" | "recent" | "found" | "hidden";
-export type Filter = { kind: FilterKind } | { kind: "source"; source: string };
+export type Filter = { kind: FilterKind } | { kind: "source"; source: string } | { kind: "collection"; name: string };
+
+/** A collection's key: names differing only in case are one collection. */
+export const collectionKey = (name: string) => name.trim().toLowerCase();
+export const inCollection = (g: Game, name: string) => !!g.collections?.some((c) => collectionKey(c) === collectionKey(name));
 export type Sort = "title" | "recent" | "added" | "playtime";
 
 export interface Toast {
@@ -62,6 +66,7 @@ class LibraryStore {
     const f = this.filter;
     let list: Game[];
     if (f.kind === "hidden") list = this.games.filter((g) => g.hidden);
+    else if (f.kind === "collection") list = this.base.filter((g) => inCollection(g, f.name));
     else if (f.kind === "source") {
       const group = SOURCE_GROUPS.find((s) => s.id === f.source);
       list = this.base.filter((g) => (group ? group.match(g) : true));
@@ -117,6 +122,18 @@ class LibraryStore {
       found: b.filter((g) => g.needsReview || isFresh(g)).length,
       hidden: this.games.filter((g) => g.hidden).length,
     };
+  });
+
+  /** The user's collections, A–Z, with how many shown games each has. */
+  collections = $derived.by(() => {
+    const m = new Map<string, { name: string; count: number }>();
+    for (const g of this.base)
+      for (const c of g.collections ?? []) {
+        const e = m.get(collectionKey(c)) ?? { name: c, count: 0 };
+        e.count++;
+        m.set(collectionKey(c), e);
+      }
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
   });
 
   sources = $derived.by(() =>

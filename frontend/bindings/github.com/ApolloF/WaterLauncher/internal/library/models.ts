@@ -115,6 +115,12 @@ export interface Game {
      * "" = auto, "native", "steam"
      */
     "padMode"?: string;
+
+    /**
+     * Collections are the user's own groups ("Co-op", "Finished"); a game
+     * can be in several.
+     */
+    "collections"?: string[] | null;
     "meta"?: Meta | null;
 }
 

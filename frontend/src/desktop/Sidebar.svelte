@@ -54,6 +54,22 @@
       </button>
     {/each}
 
+    {#if lib.collections.length}
+      <span class="label">Collections</span>
+      {#each lib.collections as c (c.name.toLowerCase())}
+        <button
+          type="button"
+          class="nav small"
+          class:active={lib.filter.kind === "collection" && lib.filter.name.toLowerCase() === c.name.toLowerCase()}
+          onclick={() => (lib.filter = { kind: "collection", name: c.name })}
+        >
+          <span class="dot-wrap"><Icon name="layers" size={16} stroke={2} /></span>
+          <span class="grow">{c.name}</span>
+          <span class="count">{c.count}</span>
+        </button>
+      {/each}
+    {/if}
+
     {#if lib.sources.length}
       <span class="label">Sources</span>
       {#each lib.sources as s (s.id)}

@@ -92,6 +92,8 @@ let settings: Settings = {
   syncWait: 60,
   startSyncer: true,
   autoUpdate: true,
+  // ?welcome=1 shows the first-start welcome.
+  welcomed: mockParams.get("welcome") !== "1",
 };
 
 let startup: Startup = { on: false, disabledByUser: false };
@@ -275,6 +277,28 @@ export const mockApi: Api = {
       { appId: 717850, name: `${q} Deluxe Edition`, image: "" },
       { appId: 941900, name: `${q} Soundtrack`, image: "" },
     ];
+  },
+  async artChoices(id, kind) {
+    await wait(700);
+    const key = { cover: "cover", backdrop: "backdrop", hero: "hero", logo: "logo" } as const;
+    const seen = new Set<string>();
+    const out = [];
+    const cur = games.find((x) => x.id === id)?.meta?.[key[kind]];
+    if (cur) (seen.add(cur), out.push({ art: cur, source: "Current", width: 0, height: 0 }));
+    for (const x of games) {
+      const a = x.meta?.[key[kind]];
+      if (a && !seen.has(a) && out.length < 9) (seen.add(a), out.push({ art: a, source: x.title, width: 0, height: 0 }));
+    }
+    return out;
+  },
+  setArt: (id, kind, art) => update(id, (g) => (g.meta = { ...g.meta, [kind]: art, artOverrides: [...(g.meta?.artOverrides ?? []), kind] })),
+  setCollections: (id, names) => update(id, (g) => (g.collections = [...new Set(names.map((n) => n.trim()).filter(Boolean))])),
+  async renameCollection(old, name) {
+    for (const g of games)
+      if (g.collections?.some((c) => c.toLowerCase() === old.toLowerCase())) {
+        g.collections = g.collections.map((c) => (c.toLowerCase() === old.toLowerCase() ? name : c)).filter(Boolean);
+      }
+    libListeners.forEach((cb) => cb());
   },
   setMatch: (id, appId, name) => update(id, (g) => ((g.steamAppId = appId), (g.title = name), (g.confirmed = true), (g.needsReview = false), (g.matchHow = "Chosen by you"), (g.confidence = 100))),
 
@@ -495,6 +519,12 @@ export const mockApi: Api = {
     },
     rumble() {},
     setLight() {},
+    testInput() {},
+    onRaw(cb) {
+      // window.mockRaw(buttons, axes) shows a controller state on the test screen.
+      (window as unknown as { mockRaw: (b: number, a?: number[]) => void }).mockRaw = (b, a = [0, 0, 0, 0, 0, 0]) => cb({ buttons: b, axes: a });
+      return () => {};
+    },
     onAction(cb) {
       // window.mockPad("down") presses a controller button, for trying things out.
       padListeners.add(cb);

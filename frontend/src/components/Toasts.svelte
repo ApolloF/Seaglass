@@ -24,6 +24,14 @@
     max-width: 420px;
     pointer-events: none;
   }
+  /* Big picture keeps its button prompts along the bottom: toasts sit
+     above them, a little larger for the distance to a TV. */
+  :global(html[data-mode="bigpicture"]) .toasts {
+    right: 4vw;
+    bottom: 12vh;
+    max-width: min(640px, 40vw);
+    font-size: max(15px, 1.4vh);
+  }
   .toast {
     display: flex;
     align-items: flex-start;

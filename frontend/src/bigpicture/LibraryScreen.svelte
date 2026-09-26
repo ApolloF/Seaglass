@@ -6,7 +6,7 @@
   import GameArt from "../components/GameArt.svelte";
   import { byRecent, byTitle, newFinds } from "../lib/bp";
   import { feedback, useInput } from "../lib/input.svelte";
-  import { lib } from "../lib/store.svelte";
+  import { inCollection, lib } from "../lib/store.svelte";
   import { title, type Game } from "../lib/types";
   import Glyph from "./Glyph.svelte";
   import Hints from "./Hints.svelte";
@@ -35,17 +35,27 @@
     onsection: (s: Section) => void;
   } = $props();
 
-  const tabs = [
+  // The filters, then the user's collections (L2 / R2 go through them all).
+  const tabs = $derived([
     { id: "all", label: "All" },
     { id: "fav", label: "Favorites" },
     { id: "recent", label: "Recently played" },
     { id: "new", label: "New" },
-  ] as const;
+    ...lib.collections.map((c) => ({ id: `c:${c.name}`, label: c.name })),
+  ]);
   let tab = $state(0);
+  $effect(() => {
+    if (tab >= tabs.length) tab = 0;
+  });
+  // With many collections only the tabs around the current one fit.
+  const TABS_SHOWN = 7;
+  const tabStart = $derived(Math.max(0, Math.min(tab - 3, tabs.length - TABS_SHOWN)));
   const games = $derived.by(() => {
     if (only) return only;
     const base = lib.base.filter((g) => g.installed);
-    switch (tabs[tab].id) {
+    const id = tabs[tab]?.id ?? "all";
+    if (id.startsWith("c:")) return base.filter((g) => inCollection(g, id.slice(2))).sort(byTitle);
+    switch (id) {
       case "fav":
         return base.filter((g) => g.favorite).sort(byTitle);
       case "recent":
@@ -133,9 +143,12 @@
       <span class="count">{games.length} {games.length === 1 ? "game" : "games"}</span>
       <div class="tabs">
         <Glyph button="lt" size={28} />
-        {#each tabs as t, k (t.id)}
+        {#if tabStart > 0}<span class="more">…</span>{/if}
+        {#each tabs.slice(tabStart, tabStart + TABS_SHOWN) as t, n (t.id)}
+          {@const k = tabStart + n}
           <button type="button" tabindex="-1" class:on={k === tab} onclick={() => ((tab = k), (i = 0))}>{t.label}</button>
         {/each}
+        {#if tabStart + TABS_SHOWN < tabs.length}<span class="more">…</span>{/if}
         <Glyph button="rt" size={28} />
       </div>
     {/if}
@@ -150,7 +163,7 @@
     </p>
   {/if}
   {#if games.length === 0}
-    <p class="empty" style:top="{TOP + 20}px">{review ? "Nothing new. Games you install show up here for a week." : tabs[tab].id === "fav" ? "No favorites yet. Add one from a game's page." : "Nothing here yet."}</p>
+    <p class="empty" style:top="{TOP + 20}px">{review ? "Nothing new. Games you install show up here for a week." : tabs[tab]?.id === "fav" ? "No favorites yet. Add one from a game's page." : "Nothing here yet."}</p>
   {/if}
   <div class="view" style:top="{TOP - 24}px" style:bottom="{BOTTOM}px">
     <div class="grid" style:transform="translateY({-firstRow * ROW}px)" style:height="{Math.ceil(games.length / COLS) * ROW}px">
@@ -229,7 +242,13 @@
   .tabs > :global(:last-child) {
     margin-left: 8px;
   }
+  .tabs .more {
+    color: rgba(232, 237, 242, 0.5);
+    font-size: 20px;
+    padding: 0 4px;
+  }
   .tabs button {
+    white-space: nowrap;
     height: 44px;
     padding: 0 18px;
     border: 0;

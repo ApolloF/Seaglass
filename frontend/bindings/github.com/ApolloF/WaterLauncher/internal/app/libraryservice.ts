@@ -22,6 +22,15 @@ import * as meta$0 from "../meta/models.js";
 import * as $models from "./models.js";
 
 /**
+ * ArtChoices finds the pictures a game's cover, backdrop, hero or logo
+ * could be (kind), stored and ready to show; the current one comes first.
+ * It asks the stores, so it can take a few seconds.
+ */
+export function ArtChoices(id: number, kind: string): $CancellablePromise<meta$0.Choice[] | null> {
+    return $Call.ByID(640068882, id, kind);
+}
+
+/**
  * ChooseExe lets the user pick the executable that starts the game.
  */
 export function ChooseExe(id: number): $CancellablePromise<library$0.Game> {
@@ -85,6 +94,14 @@ export function Rename(id: number, title: string): $CancellablePromise<library$0
 }
 
 /**
+ * RenameCollection renames a collection in every game; an empty name
+ * deletes it (the games stay).
+ */
+export function RenameCollection(old: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(1212202047, old, name);
+}
+
+/**
  * Rescan looks for games again now.
  */
 export function Rescan(): $CancellablePromise<void> {
@@ -103,6 +120,21 @@ export function ScanState(): $CancellablePromise<$models.ScanState> {
  */
 export function SearchSteam(query: string): $CancellablePromise<meta$0.StoreHit[] | null> {
     return $Call.ByID(582756011, query);
+}
+
+/**
+ * SetArt makes a picture from ArtChoices the game's cover, backdrop, hero
+ * or logo, kept through later refreshes.
+ */
+export function SetArt(id: number, kind: string, art: string): $CancellablePromise<library$0.Game> {
+    return $Call.ByID(2411251804, id, kind, art);
+}
+
+/**
+ * SetCollections puts a game in these collections (and out of others).
+ */
+export function SetCollections(id: number, names: string[] | null): $CancellablePromise<library$0.Game> {
+    return $Call.ByID(4088671900, id, names);
 }
 
 /**

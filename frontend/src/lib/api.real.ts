@@ -1,7 +1,7 @@
 import { Events, Window } from "@wailsio/runtime";
 import { AccountsService, AddonsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/WaterLauncher/internal/app";
 import type { Api } from "./api";
-import type { Accounts, AddonGame, AddonView, AppInfo, Game, MetaState, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, AddonGame, AddonView, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 
 // The generated bindings return the Go structs; their JSON matches ./types.
 const g = (p: Promise<unknown>) => p as Promise<Game>;
@@ -22,6 +22,10 @@ export const realApi: Api = {
   refreshMetadata: (id) => LibraryService.RefreshMetadata(id),
   searchSteam: (q) => LibraryService.SearchSteam(q).then((h) => (h ?? []) as unknown as StoreHit[]),
   setMatch: (id, appId, name) => g(LibraryService.SetMatch(id, appId, name)),
+  artChoices: (id, kind) => LibraryService.ArtChoices(id, kind).then((c) => (c ?? []) as unknown as ArtChoice[]),
+  setArt: (id, kind, art) => g(LibraryService.SetArt(id, kind, art)),
+  setCollections: (id, names) => g(LibraryService.SetCollections(id, names)),
+  renameCollection: (old, name) => LibraryService.RenameCollection(old, name),
 
   settings: () => SettingsService.Get() as Promise<unknown> as Promise<Settings>,
   saveSettings: (s) => SettingsService.Save(s as never) as Promise<unknown> as Promise<Settings>,
@@ -122,5 +126,7 @@ export const realApi: Api = {
         cb(d.action, d.repeat);
       }),
     onState: (cb) => Events.On("pad:state", (e) => cb(e.data as unknown as PadState)),
+    testInput: (on) => void PadService.TestInput(on),
+    onRaw: (cb) => Events.On("pad:raw", (e) => cb(e.data as unknown as PadRaw)),
   },
 };

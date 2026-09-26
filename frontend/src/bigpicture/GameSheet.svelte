@@ -11,6 +11,8 @@
   import { lib } from "../lib/store.svelte";
   import { savesSummary } from "../lib/saves";
   import { storeName, title, type AddonBadge, type Game, type Saves, type StoreHit } from "../lib/types";
+  import ArtPicker from "./ArtPicker.svelte";
+  import CollectionPicker from "./CollectionPicker.svelte";
   import Hints from "./Hints.svelte";
 
   let { game, onplay, onclose }: { game: Game; onplay: () => void; onclose: () => void } = $props();
@@ -56,6 +58,8 @@
           { id: "play", label: game.installed ? "Play" : game.installUri ? "Install with " + storeName(game) : "Not installed", icon: "play" },
           { id: "fav", label: game.favorite ? "Favorite" : "Add to favorites", icon: "star" },
           { id: "pad", label: `Controller: ${modeLabel[game.padMode ?? ""]}`, icon: "pad" },
+          { id: "art", label: "Art", icon: "image" },
+          { id: "coll", label: game.collections?.length ? `Collections · ${game.collections.length}` : "Collections", icon: "layers" },
         ],
   );
   $effect(() => {
@@ -90,8 +94,19 @@
     lib.run(() => api.setMatch(game.id, x.appId, x.name).then(() => lib.toast(`${x.name}: fetching its details and art`)));
   }
 
+  let choosingArt = $state(false);
+  let choosingColl = $state(false);
+
   function press(id: string) {
     feedback.confirm();
+    if (id === "art") {
+      choosingArt = true;
+      return;
+    }
+    if (id === "coll") {
+      choosingColl = true;
+      return;
+    }
     if (id === "play" && game.installed) onplay();
     else if (id === "play" && game.installUri) lib.run(() => api.install(game.id).then(() => lib.toast(storeName(game) + " will install " + title(game))));
     else if (id === "fav") lib.run(() => api.setFavorite(game.id, !game.favorite));
@@ -195,6 +210,13 @@
     </div>
   {/if}
 
+  {#if choosingColl}
+    <CollectionPicker {game} onclose={() => ((choosingColl = false), feedback.move())} />
+  {/if}
+  {#if choosingArt}
+    <ArtPicker {game} onclose={() => ((choosingArt = false), feedback.move())} />
+  {/if}
+
   <div class="hints">
     <Hints hints={picking ? [{ button: "confirm", label: "Choose" }, { button: "back", label: "Back" }] : [{ button: "confirm", label: "Select" }, { button: "back", label: "Back" }]} />
   </div>
@@ -230,7 +252,7 @@
     position: absolute;
     left: 110px;
     bottom: 150px;
-    width: 1100px;
+    width: 1500px;
     display: flex;
     flex-direction: column;
     gap: 22px;
@@ -304,12 +326,12 @@
   .buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 14px;
     margin-top: 6px;
   }
   .btn {
     height: 72px;
-    padding: 0 30px;
+    padding: 0 26px;
     border-radius: 36px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(14, 18, 24, 0.6);

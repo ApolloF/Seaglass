@@ -385,7 +385,7 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 | 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | done |
 | 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | done |
 | 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | done |
-| 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | |
+| 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | done |
 
 **Maintainer's additions (2026-09-26):** hide the mouse pointer in big picture while the controller is used (done in phase 2); Orbit flickers and stutters while swiping (phase 3); backdrops picked better and sharper (done, PR #14); Alan Wake II (a DODI repack of a game only Epic sells) had no art and "no controller support known" (done, PR #14: PCGamingWiki and the Epic store's page content).
 
@@ -441,6 +441,14 @@ Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame co
 - Common short names and first words are written out (`scan.Aliases`: SkyrimSE, L4D2, KOTOR, HoMM3, AC Valhalla, ACOdyssey, RE Village, MHWilds, MK1, Civ 6, "Mafia 2 DE", …).
 - The game database is also searched without little words ("Indiana Jones Great Circle"), by subtitle ("Infinite Wealth", "Bannerlord"), with "Edition" added ("Mass Effect Legendary"), and for names run together with their edition ("Fallout3GameoftheYearEdition"); the looser ones wait for a check, and each gives up when two games fit.
 - Folders that aren't games (`scan.NotAGame`: Tools, Redist, Mods, Steam, Vortex, Discord, emulators, …) are never matched or looked up; "Vortex" and "Steam" had matched games.
+
+**Phase 5.** Each was driven in the real app with the virtual controller:
+
+- **Art in big picture**: the game page's *Art* opens a picker for the cover, the background (backdrop), the banner (hero) and the logo, switched with L1 / R1. Pictures come from Steam (its library art and every screenshot, originals first), the Epic store's page for games only Epic sells, PCGamingWiki's cover and, with a key, SteamGridDB; each is downloaded and stored like fetched art (the page's security policy only shows local art), and a choice goes into `artOverrides`, so refreshes keep it. Without a SteamGridDB key a line says where to add one. (`LibraryService.ArtChoices` / `SetArt`; only stored art names are accepted.)
+- **Controller test**: *Settings → Test controller*. The controller layer streams every button and axis while the screen is open (`PadService.TestInput`, event `pad:raw`); buttons light up while held and stay marked once they've worked, triggers show how far they're pressed, sticks move and show their values (drift shows as movement at rest). Holding ✕ plays each rumble effect, holding ○ leaves (every button is being tested), Esc leaves at once.
+- **Welcome**: a new install opens with four steps (what WaterLauncher finds, with the games found so far; where it looks, with *Add a folder*; how you play: layout, big picture when a controller connects, start in big picture; ready). Mouse, keyboard and controller all work, in either mode; the rest of the window is inert behind it. `settings.welcomed`; settings saved before it existed count as welcomed, so updating doesn't show it.
+- **Collections**: games can be in collections of your own (`Game.collections`, kept through scans and merged with owned-game records). Desktop mode lists them in the sidebar, and a collection's heading renames or deletes it; the game's details add and remove them (with suggestions). Big picture shows them as Library tabs (L2 / R2, the tabs around the current one when there are many) and has a *Collections* picker on the game page with a few common ones to start with. New names are typed in desktop mode.
+- Also: toasts sit above big picture's prompts, and the game page's five buttons fit on one line.
 
 ## To-do (maintainer)
 

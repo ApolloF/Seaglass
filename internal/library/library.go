@@ -67,6 +67,9 @@ type Game struct {
 	Favorite bool   `json:"favorite,omitempty"`
 	Hidden   bool   `json:"hidden,omitempty"`
 	PadMode  string `json:"padMode,omitempty"` // "" = auto, "native", "steam"
+	// Collections are the user's own groups ("Co-op", "Finished"); a game
+	// can be in several.
+	Collections []string `json:"collections,omitempty"`
 
 	Meta *Meta `json:"meta,omitempty"`
 }
@@ -344,6 +347,7 @@ func writeAtomic(path string, b []byte) error {
 
 func copyGame(g *Game) Game {
 	c := *g
+	c.Collections = append([]string(nil), g.Collections...)
 	if g.Meta != nil {
 		m := *g.Meta
 		m.Developers = append([]string(nil), g.Meta.Developers...)

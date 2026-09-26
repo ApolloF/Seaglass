@@ -19,6 +19,8 @@ export interface Meta {
   accent?: string;
   fetchedAt?: number;
   source?: string;
+  /** Art the user chose (cover, hero, backdrop, logo): kept through refreshes. */
+  artOverrides?: string[];
 }
 
 export interface Game {
@@ -61,6 +63,8 @@ export interface Game {
   storePlaytime?: number;
   storeLastPlayed?: number;
   favorite?: boolean;
+  /** The user's own groups the game is in ("Co-op", "Finished"). */
+  collections?: string[];
   hidden?: boolean;
   padMode?: string; // "" | "native" | "steam"
   meta?: Meta;
@@ -95,6 +99,8 @@ export interface Settings {
   /** Start Syncer (without its window) when it isn't running. */
   startSyncer: boolean;
   autoUpdate: boolean;
+  /** The first-start welcome was seen (or skipped). */
+  welcomed: boolean;
 }
 
 /** One save folder Syncer looks after. */
@@ -159,10 +165,25 @@ export interface MetaState {
   total: number;
 }
 
+/** A picture a game's art can be changed to (already stored). */
+export interface ArtChoice {
+  art: string;
+  source: string;
+  width: number;
+  height: number;
+}
+export type ArtKind = "cover" | "backdrop" | "hero" | "logo";
+
 export interface StoreHit {
   appId: number;
   name: string;
   image: string;
+}
+
+/** Every button (bit n = SDL gamepad button n) and axis of the controller in use. */
+export interface PadRaw {
+  buttons: number;
+  axes: number[]; // left x, y, right x, y, left trigger, right trigger
 }
 
 export type PadKind = "playstation" | "xbox" | "nintendo" | "other";

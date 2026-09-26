@@ -44,7 +44,8 @@ var VirtualButtons = map[string]int{
 	"up": 11, "down": 12, "left": 13, "right": 14, "misc": 15, "touchpad": 20,
 }
 
-// VirtualAxes names its axes (values -32768 to 32767; triggers 0 to 32767).
+// VirtualAxes names its axes (values -32768 to 32767; a trigger rests at
+// -32768, which the gamepad reports as 0).
 var VirtualAxes = map[string]int{"lx": 0, "ly": 1, "rx": 2, "ry": 3, "lt": 4, "rt": 5}
 
 type virtualPad struct {
