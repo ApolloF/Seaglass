@@ -25,7 +25,7 @@ let base = opt("base", "1920x1080").split("x").map(Number);
 backupAppData();
 const settings = { bigPictureLayout: opt("layout", "deck") };
 if (argv.includes("--bp")) settings.startInBigPicture = true;
-const data = argv.includes("--real") ? undefined : makeDevData(run, { extra: Number(opt("extra", 0)), settings });
+const data = argv.includes("--real") ? undefined : makeDevData(run, { extra: Number(opt("extra", 0)), settings: argv.includes("--fresh") ? null : settings });
 let app;
 try {
   app = await startApp({ data, pad: opt("pad", "ps") });

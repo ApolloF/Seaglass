@@ -110,4 +110,9 @@ export interface Settings {
      * check GitHub for new versions and install them on the next start
      */
     "autoUpdate": boolean;
+
+    /**
+     * Welcomed: the first-start welcome was seen (or skipped).
+     */
+    "welcomed": boolean;
 }

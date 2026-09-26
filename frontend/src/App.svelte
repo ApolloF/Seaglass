@@ -1,6 +1,7 @@
 <script lang="ts">
   import BigPicture from "./bigpicture/BigPicture.svelte";
   import Toasts from "./components/Toasts.svelte";
+  import Welcome from "./components/Welcome.svelte";
   import Desktop from "./desktop/Desktop.svelte";
   import { api } from "./lib/api";
   import { desktopPad } from "./lib/desknav";
@@ -8,6 +9,7 @@
   import { errText, lib } from "./lib/store.svelte";
 
   let failed = $state("");
+  const welcome = $derived(!!lib.settings && !lib.settings.welcomed);
   let mode = $state<"desktop" | "bigpicture">("desktop");
 
   function enterBigPicture() {
@@ -96,14 +98,23 @@
     <h1>WaterLauncher couldn't start</h1>
     <p>{failed}</p>
   </div>
-{:else if mode === "bigpicture"}
-  <BigPicture onexit={exitBigPicture} />
 {:else}
-  <Desktop onbigpicture={enterBigPicture} />
+  <!-- Behind the first-start welcome, nothing takes focus. -->
+  <div class="mode" inert={welcome}>
+    {#if mode === "bigpicture"}
+      <BigPicture onexit={exitBigPicture} />
+    {:else}
+      <Desktop onbigpicture={enterBigPicture} />
+    {/if}
+  </div>
+  {#if welcome}<Welcome {mode} onbigpicture={enterBigPicture} />{/if}
 {/if}
 <Toasts />
 
 <style>
+  .mode {
+    display: contents;
+  }
   .fatal {
     height: 100%;
     display: flex;

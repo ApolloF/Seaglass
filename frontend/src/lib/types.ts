@@ -97,6 +97,8 @@ export interface Settings {
   /** Start Syncer (without its window) when it isn't running. */
   startSyncer: boolean;
   autoUpdate: boolean;
+  /** The first-start welcome was seen (or skipped). */
+  welcomed: boolean;
 }
 
 /** One save folder Syncer looks after. */

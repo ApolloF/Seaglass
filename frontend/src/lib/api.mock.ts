@@ -92,6 +92,8 @@ let settings: Settings = {
   syncWait: 60,
   startSyncer: true,
   autoUpdate: true,
+  // ?welcome=1 shows the first-start welcome.
+  welcomed: mockParams.get("welcome") !== "1",
 };
 
 let startup: Startup = { on: false, disabledByUser: false };

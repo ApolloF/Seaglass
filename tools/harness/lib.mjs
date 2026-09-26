@@ -136,8 +136,11 @@ export function makeDevData(name, { extra = 0, settings = {}, fake = true } = {}
     });
   }
   fs.writeFileSync(path.join(dir, "library.json"), JSON.stringify({ version: 1, nextId: id, games }, null, 1));
-  const s = { folders: [], autoFolders: false, autoUpdate: false, startSyncer: false, syncSavesBefore: false, backupSavesAfter: false, noticeExternal: false, ...settings };
-  fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify(s, null, 1));
+  // settings: null starts without a settings file, like a new install.
+  if (settings !== null) {
+    const s = { folders: [], autoFolders: false, autoUpdate: false, startSyncer: false, syncSavesBefore: false, backupSavesAfter: false, noticeExternal: false, ...settings };
+    fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify(s, null, 1));
+  }
   return dir;
 }
 
