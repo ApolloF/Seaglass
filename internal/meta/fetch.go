@@ -15,8 +15,10 @@ import (
 
 // Version marks what Fetch gathers; metadata from an older version is
 // fetched again (2: backdrops; 3: full-size backdrops, round tiles, Steam's
-// own art files when its store lists none).
-const Version = 3
+// own art files when its store lists none; 4: PCGamingWiki's controller
+// support, the Epic store's art for games only Epic sells, backdrops
+// picked from several and kept up to 4K).
+const Version = 4
 
 // reShotSize is the size Steam puts in a screenshot's file name.
 var reShotSize = regexp.MustCompile(`\.\d+x\d+(\.jpg)`)
@@ -28,6 +30,9 @@ type Request struct {
 	GogID      string
 	EpicApp    string        // namespace:item:appName, for games Steam doesn't have
 	Keep       *library.Meta // previous metadata: user-chosen art is kept
+	// PCGW is the game's PCGamingWiki page when the caller already looked
+	// it up; otherwise Fetch looks it up by Title.
+	PCGW *PCGW
 }
 
 // Fetch gathers metadata and art for one game. Missing pieces are simply
@@ -35,9 +40,16 @@ type Request struct {
 // ErrRateLimited when the caller should back off).
 func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 	m := &library.Meta{FetchedAt: time.Now().Unix(), Version: Version}
-	var urls struct{ cover, hero, backdrop, logo, icon []string }
+	var urls struct{ cover, hero, logo, icon []string }
+	var backdrops []backdropCandidate
 	var errs []error
 	found := false
+	wiki := r.PCGW
+	if wiki == nil {
+		if p, err := c.PCGamingWiki(ctx, r.Title); err == nil {
+			wiki = p
+		}
+	}
 
 	if r.SteamAppID > 0 {
 		if d, err := c.steamAppDetails(ctx, r.SteamAppID); err == nil {
@@ -68,12 +80,13 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 			// backdrop that isn't the same picture as the game's tile. The
 			// store lists them at 1920 wide; the file as uploaded (often
 			// 4K) has the same name without the size.
-			for _, s := range d.Screenshots[:min(2, len(d.Screenshots))] {
+			for _, s := range d.Screenshots[:min(4, len(d.Screenshots))] {
 				if s.Full != "" {
+					alts := []string{s.Full}
 					if orig := reShotSize.ReplaceAllString(s.Full, "$1"); orig != s.Full {
-						urls.backdrop = append(urls.backdrop, orig)
+						alts = []string{orig, s.Full}
 					}
-					urls.backdrop = append(urls.backdrop, s.Full)
+					backdrops = append(backdrops, backdropCandidate{alts: alts})
 				}
 			}
 		} else {
@@ -100,7 +113,8 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 		base := fmt.Sprintf("%ssteam/apps/%d/", steamAssetBase, r.SteamAppID)
 		urls.cover = append(urls.cover, base+"library_600x900_2x.jpg", base+"library_600x900.jpg")
 		urls.hero = append(urls.hero, base+"library_hero.jpg", base+"header.jpg")
-		urls.backdrop = append(urls.backdrop, base+"library_hero_2x.jpg")
+		// The library hero is key art without text, 3840 wide.
+		backdrops = append([]backdropCandidate{{alts: []string{base + "library_hero_2x.jpg"}, bonus: keyArt}}, backdrops...)
 	}
 	if r.GogID != "" {
 		if p, err := c.gogProduct(ctx, r.GogID); err == nil {
@@ -146,7 +160,7 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 			// The wide box art is 2560×1440: a backdrop as it is, and a hero.
 			if u := e.image("DieselGameBox", "OfferImageWide", "DieselStoreFrontWide"); u != "" {
 				urls.hero = append(urls.hero, u)
-				urls.backdrop = append(urls.backdrop, u)
+				backdrops = append([]backdropCandidate{{alts: []string{u}, bonus: epicArt}}, backdrops...)
 			}
 			if u := e.image("DieselGameBoxLogo"); u != "" {
 				urls.logo = append(urls.logo, u)
@@ -154,6 +168,10 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 		} else {
 			errs = append(errs, err)
 		}
+	}
+	if wiki != nil {
+		found = true
+		c.addWiki(ctx, m, wiki, r.SteamAppID == 0 && r.EpicApp == "", &urls.cover, &urls.hero, &urls.logo, &urls.icon, &backdrops)
 	}
 	// SteamGridDB fills whatever the stores didn't have.
 	if len(urls.cover) == 0 || len(urls.hero) == 0 || len(urls.logo) == 0 {
@@ -187,12 +205,12 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 	var heroImg, coverImg, logoImg image.Image
 	m.Cover, coverImg = c.firstImage(ctx, urls.cover, Cover)
 	m.Hero, heroImg = c.firstImage(ctx, urls.hero, Hero)
-	// Failing screenshots, the middle of a large hero (Steam's 3840-wide
-	// one) still fills the screen sharply; a small one is left to the hero.
+	// Failing those, the middle of a large hero (Steam's 3840-wide one)
+	// still fills the screen sharply; a small one is left to the hero.
 	if len(urls.hero) > 0 {
-		urls.backdrop = append(urls.backdrop, urls.hero[0])
+		backdrops = append(backdrops, backdropCandidate{alts: []string{urls.hero[0]}})
 	}
-	m.Backdrop, _ = c.firstImage(ctx, urls.backdrop, Backdrop)
+	m.Backdrop = c.pickBackdrop(ctx, backdrops)
 	m.Logo, logoImg = c.firstImage(ctx, urls.logo, Logo)
 	m.Icon, _ = c.firstImage(ctx, urls.icon, Icon)
 	if !found {
@@ -268,4 +286,77 @@ func firstParagraph(s string) string {
 		return s[:600] + "…"
 	}
 	return s
+}
+
+// addWiki adds what PCGamingWiki knows: controller support (Steam's store
+// often doesn't list PlayStation controllers), details Steam didn't give,
+// and, for a game Steam doesn't sell (epic: no Steam app and no Epic
+// library entry), the Epic store's art and the wiki's cover.
+func (c *Client) addWiki(ctx context.Context, m *library.Meta, w *PCGW, epic bool, cover, hero, logo, icon *[]string, backdrops *[]backdropCandidate) {
+	switch {
+	case w.DualSense == "":
+	case m.DualSense == "", m.DualSense == "dualshock" && w.DualSense == "yes":
+		m.DualSense = w.DualSense
+	}
+	if m.Controller == "" {
+		m.Controller = w.Controller
+	}
+	if len(m.Developers) == 0 {
+		m.Developers = w.Developers
+	}
+	if len(m.Genres) == 0 {
+		m.Genres = w.Genres
+	}
+	if m.ReleaseDate == "" && w.ReleaseDate != "" {
+		m.ReleaseDate = w.ReleaseDate
+		m.ReleaseYear = yearOf(w.ReleaseDate)
+	}
+	if epic && w.EpicSlug != "" {
+		if p, err := c.epicStore(ctx, w.EpicSlug); err == nil {
+			d := p.Pages[0].Data
+			if m.Source == "" {
+				m.Source = "Epic"
+			}
+			if m.Description == "" {
+				m.Description = firstParagraph(plainText(firstNonEmpty(d.About.ShortDescription, d.About.Description)))
+			}
+			if len(m.Developers) == 0 && d.About.Developer != "" {
+				m.Developers = []string{d.About.Developer}
+			}
+			if u := firstNonEmpty(d.Hero.Portrait, d.About.Image.Src); u != "" {
+				*cover = append(*cover, u)
+			}
+			if d.Hero.Background != "" {
+				*hero = append(*hero, d.Hero.Background)
+				*backdrops = append([]backdropCandidate{{alts: []string{d.Hero.Background}, bonus: epicArt}}, *backdrops...)
+			}
+			for _, it := range d.Carousel.Items {
+				if it.Image.Src != "" && len(*backdrops) < 6 {
+					*backdrops = append(*backdrops, backdropCandidate{alts: []string{it.Image.Src}})
+				}
+			}
+			// The store's "logo" is sometimes the square icon.
+			if u := d.Hero.Logo.Src; u != "" {
+				*logo = append(*logo, u)
+				*icon = append(*icon, u)
+			}
+		}
+	}
+	if m.Source == "" {
+		m.Source = "PCGamingWiki"
+	}
+	if len(*cover) == 0 {
+		if u, err := c.pcgwImage(ctx, w.Cover); err == nil {
+			*cover = append(*cover, u)
+		}
+	}
+}
+
+func firstNonEmpty(v ...string) string {
+	for _, s := range v {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }

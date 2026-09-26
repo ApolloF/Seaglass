@@ -43,9 +43,9 @@ const (
 )
 
 // Largest stored size per kind; larger images are scaled down. Backdrops
-// are kept at 2560 wide: they fill the screen, and at 1440p and 4K a
-// 1920-wide one is visibly soft.
-var maxWidth = map[Kind]int{Cover: 600, Hero: 1920, Backdrop: 2560, Tile: 384, Logo: 800, Icon: 128}
+// are kept up to 3840 wide: they fill the screen, and on a 4K screen
+// anything smaller is visibly soft.
+var maxWidth = map[Kind]int{Cover: 600, Hero: 1920, Backdrop: 3840, Tile: 384, Logo: 800, Icon: 128}
 
 // minBackdropWidth is the least a backdrop may have after cropping to
 // 16:9: anything smaller looks soft full screen, and the hero does as well.
@@ -61,27 +61,46 @@ var reArtName = regexp.MustCompile(`^[a-f0-9]{40}\.(jpg|png)$`)
 // saveImage downloads an image, checks and re-encodes it, and stores it.
 // It returns the art URL and the decoded image (for accent colours).
 func (c *Client) saveImage(ctx context.Context, src string, kind Kind) (string, image.Image, error) {
-	b, err := c.get(ctx, src, maxImageBytes, nil)
+	img, err := c.loadImage(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return "", nil, fmt.Errorf("not an image: %w", err)
-	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxImagePixels {
-		return "", nil, errors.New("image too large")
-	}
-	img, _, err := image.Decode(bytes.NewReader(b))
-	if err != nil {
-		return "", nil, err
-	}
-	if kind == Backdrop {
+	switch kind {
+	case Backdrop:
 		if img = crop16x9(img); img.Bounds().Dx() < minBackdropWidth {
 			return "", nil, errTooSmall
 		}
+	case Logo:
+		// A title logo is wide; a square one is an icon (the Epic store
+		// lists its icon as the logo for some games).
+		if b := img.Bounds(); b.Dx()*10 < b.Dy()*13 {
+			return "", nil, errors.New("not a title logo")
+		}
 	}
+	return c.keepImage(img, kind)
+}
+
+// loadImage downloads and decodes an image, within the size limits.
+func (c *Client) loadImage(ctx context.Context, src string) (image.Image, error) {
+	b, err := c.get(ctx, src, maxImageBytes, nil)
+	if err != nil {
+		return nil, err
+	}
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
+	if err != nil {
+		return nil, fmt.Errorf("not an image: %w", err)
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxImagePixels {
+		return nil, errors.New("image too large")
+	}
+	img, _, err := image.Decode(bytes.NewReader(b))
+	return img, err
+}
+
+// keepImage re-encodes an image at the kind's size and stores it.
+func (c *Client) keepImage(img image.Image, kind Kind) (string, image.Image, error) {
 	img = fit(img, maxWidth[kind])
+	var err error
 
 	var out bytes.Buffer
 	ext := "jpg"
