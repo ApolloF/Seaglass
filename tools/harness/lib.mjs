@@ -46,7 +46,7 @@ export function restoreAppData() {
 
 /** The real library (from the backup), for its art. */
 export function realLibrary() {
-  for (const p of [path.join(BACKUP, "library.json"), path.join(DATA, "library.json")]) {
+  for (const p of [path.join(OUT, "real-library.json"), path.join(BACKUP, "library.json"), path.join(DATA, "library.json")]) {
     try {
       return JSON.parse(fs.readFileSync(p, "utf8"));
     } catch {}
@@ -212,17 +212,33 @@ export class App {
     throw new Error("main window didn't come back");
   }
 
-  /** Sets the page's size (CSS pixels, device scale 1), like a screen of that size. */
-  async viewport(width, height, page = this.page) {
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-    await cdp.detach();
+  /** Makes the page a screen of width×height pixels at a Windows display
+   * scale (1.5 = 150 %): the page gets width/scale × height/scale CSS pixels. */
+  async viewport(width, height, scale = 1, page = this.page) {
+    const cdp = await this.cdp(page);
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: Math.round(width / scale), height: Math.round(height / scale), deviceScaleFactor: scale, mobile: false });
     await sleep(250);
   }
 
+  /** One DevTools session per page, kept open (the size emulation lives with it). */
+  async cdp(page = this.page) {
+    this.sessions ??= new Map();
+    let s = this.sessions.get(page);
+    if (!s) {
+      s = await page.context().newCDPSession(page);
+      this.sessions.set(page, s);
+      page.once("close", () => this.sessions.delete(page));
+    }
+    return s;
+  }
+
+  /** A screenshot at the emulated screen's own pixels (Playwright's own
+   * screenshot uses the host's display scale instead). */
   async shot(file, page = this.page) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    await page.screenshot({ path: file, animations: "disabled" });
+    const cdp = await this.cdp(page);
+    const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(file, Buffer.from(data, "base64"));
   }
 
   async state() {
@@ -233,8 +249,14 @@ export class App {
     return JSON.parse(await this.pad.send("mem"));
   }
 
-  /** Closes WaterLauncher and waits for it to go. */
+  /** Closes WaterLauncher and waits for it to go (once). */
   async quit() {
+    if (this.quitting) return this.quitting;
+    this.quitting = this.#quit();
+    return this.quitting;
+  }
+
+  async #quit() {
     try {
       await this.pad.send("quit");
     } catch {}
@@ -282,6 +304,7 @@ export class PadClient {
 
   send(cmd) {
     return new Promise((resolve, reject) => {
+      if (!this.sock || this.sock.destroyed || this.sock.writableEnded) return reject(new Error("dev pipe closed"));
       this.waiting.push((line) => (line.startsWith("error:") ? reject(new Error(`${cmd}: ${line}`)) : resolve(line)));
       this.sock.write(cmd + "\n");
     });
