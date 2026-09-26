@@ -100,10 +100,10 @@
     text-align: center;
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 64px;
+    font-size: 27px; /* the tile is 240 pixels (Orbit), only ever scaled */
     line-height: 0.95;
     color: #fff;
-    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 7px rgba(0, 0, 0, 0.6);
     overflow: hidden;
   }
   /* A soft light from above and a thin rim, like glass. */
@@ -114,7 +114,7 @@
     background: linear-gradient(165deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 38%);
     box-shadow:
       inset 0 0 0 2px rgba(255, 255, 255, 0.12),
-      inset 0 -30px 60px rgba(0, 0, 0, 0.22);
+      inset 0 -29px 58px rgba(0, 0, 0, 0.22);
     pointer-events: none;
   }
 </style>
