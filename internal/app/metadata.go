@@ -189,7 +189,23 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 			}
 		}
 	}
-	m, err := w.client.Fetch(ctx, meta.Request{Title: g.DisplayTitle(), SteamAppID: appID, GogID: g.GogID, EpicApp: g.EpicApp, Keep: g.Meta})
+	// Still nothing: PCGamingWiki knows nearly every PC game by name,
+	// including those only Epic sells, and often its Steam app.
+	var wiki *meta.PCGW
+	gogID := g.GogID
+	if appID == 0 && gogID == "" {
+		p, err := w.client.PCGamingWiki(ctx, g.DisplayTitle())
+		if errors.Is(err, meta.ErrRateLimited) {
+			return err
+		}
+		if err == nil {
+			wiki, appID, gogID = p, p.SteamAppID, p.GogID
+			if _, err := w.c.Lib.Update(id, func(g *library.Game) { adoptWikiMatch(g, p) }); err == nil {
+				w.gameChanged(id)
+			}
+		}
+	}
+	m, err := w.client.Fetch(ctx, meta.Request{Title: g.DisplayTitle(), SteamAppID: appID, GogID: gogID, EpicApp: g.EpicApp, Keep: g.Meta, PCGW: wiki})
 	if err != nil {
 		if !errors.Is(err, meta.ErrRateLimited) {
 			w.mu.Lock()
@@ -281,6 +297,28 @@ func adoptStoreMatch(g *library.Game, h meta.StoreHit) {
 		g.SortTitle = scan.SortTitle(g.CustomTitle)
 	}
 	g.MatchHow, g.Confidence, g.NeedsReview = storeMatchHow, storeMatchConfidence, false
+}
+
+// wikiMatchHow says a game was identified by its PCGamingWiki page (the
+// title, or one of the wiki's redirects to it, is the folder's name).
+const wikiMatchHow = "Matched on PCGamingWiki"
+
+// adoptWikiMatch takes the wiki page's title (and Steam app, for the
+// metadata) as it does a store hit's.
+func adoptWikiMatch(g *library.Game, p *meta.PCGW) {
+	if p.SteamAppID > 0 {
+		g.MetaAppID = p.SteamAppID
+	}
+	if g.Confirmed || g.Confidence >= storeMatchConfidence {
+		return
+	}
+	if name := strings.Join(strings.Fields(storeMarks.Replace(p.Title)), " "); name != "" {
+		g.Title, g.SortTitle = name, scan.SortTitle(name)
+	}
+	if g.CustomTitle != "" {
+		g.SortTitle = scan.SortTitle(g.CustomTitle)
+	}
+	g.MatchHow, g.Confidence, g.NeedsReview = wikiMatchHow, storeMatchConfidence, false
 }
 
 // gameChanged tells the interface about new metadata, a few games at a

@@ -34,6 +34,9 @@ var allowedHosts = []string{
 	"catalog-public-service-prod06.ol.epicgames.com",
 	"cdn1.epicgames.com",
 	"cdn2.unrealengine.com",
+	"store-content-ipv4.ak.epicgames.com",
+	"www.pcgamingwiki.com",
+	"images.pcgamingwiki.com",
 	"www.steamgriddb.com",
 	"cdn2.steamgriddb.com",
 	".steamgriddb.com",
@@ -64,6 +67,8 @@ type Client struct {
 
 	mu        sync.Mutex
 	lastSteam time.Time
+	lastPCGW  time.Time
+	maxTries  int    // backdrop candidates to load (0: maxBackdropTries); tests look at all
 	epicTok   string // Epic catalog token, until epicExp
 	epicExp   time.Time
 }
