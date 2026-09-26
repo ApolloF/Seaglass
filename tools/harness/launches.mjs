@@ -66,10 +66,13 @@ async function launch(f) {
   };
   // Pick the game with the controller and press ✕.
   if (from === "bigpicture") {
+    // The interface comes back where the player was: start from Home.
+    for (let k = 0; k < 3; k++) await app.pad.press("lb", 250);
     await app.pad.press("rb", 700); // Library, A–Z
     for (let k = 0; k < 80; k++) {
       const focused = await app.page.evaluate(() => document.querySelector(".tile.on, button.on[aria-label]")?.getAttribute("aria-label") ?? "");
       if (focused === f.title) break;
+      if (k === 79) throw new Error(`${f.title} not found in Library`);
       await app.pad.press(k < 40 ? "right" : "down", 120);
     }
   } else {
@@ -77,6 +80,7 @@ async function launch(f) {
     await sleep(400);
   }
   note(`picked ${f.title}`);
+  await shot("before-play");
   if (from === "bigpicture") await app.pad.press("south", 100);
   else await app.page.getByRole("button", { name: "Play", exact: true }).first().click();
   note("pressed Play");
