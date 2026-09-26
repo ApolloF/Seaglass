@@ -177,7 +177,7 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 	// Unknown to the game database: the Steam store usually still knows the
 	// game by name, for art and details. A clear hit also settles which game
 	// it is (unless the user already said), so it doesn't wait for a check.
-	if g.SteamAppID == 0 && g.GogID == "" && (appID == 0 || !g.Confirmed && g.Confidence < storeMatchConfidence) {
+	if g.SteamAppID == 0 && g.GogID == "" && (appID == 0 || !g.Confirmed && g.Confidence < storeMatchConfidence) && looksLikeGameName(g.DisplayTitle()) {
 		h, ok, err := w.searchStore(ctx, g.DisplayTitle())
 		if errors.Is(err, meta.ErrRateLimited) {
 			return err
@@ -193,7 +193,7 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 	// including those only Epic sells, and often its Steam app.
 	var wiki *meta.PCGW
 	gogID := g.GogID
-	if appID == 0 && gogID == "" {
+	if appID == 0 && gogID == "" && looksLikeGameName(g.DisplayTitle()) {
 		p, err := w.client.PCGamingWiki(ctx, g.DisplayTitle())
 		if errors.Is(err, meta.ErrRateLimited) {
 			return err
@@ -226,7 +226,7 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 // abbreviation written out ("GTA V").
 func (w *metaWorker) searchStore(ctx context.Context, title string) (meta.StoreHit, bool, error) {
 	tried := map[string]bool{}
-	for _, t := range []string{title, scan.StripEdition(title), scan.ExpandAbbrev(title)} {
+	for _, t := range append([]string{title, scan.StripEdition(title), scan.ExpandAbbrev(title)}, scan.Aliases(title)...) {
 		if t == "" || tried[scan.Normalize(t)] {
 			continue
 		}
@@ -236,6 +236,9 @@ func (w *metaWorker) searchStore(ctx context.Context, title string) (meta.StoreH
 			return meta.StoreHit{}, false, err
 		}
 		if h, ok := pickStoreHit(t, hits); ok {
+			if base, ok := w.client.BaseGame(ctx, h.AppID); ok {
+				h = base
+			}
 			return h, true, nil
 		}
 	}
@@ -264,20 +267,25 @@ func pickStoreHit(title string, hits []meta.StoreHit) (meta.StoreHit, bool) {
 	if len(loose) < 4 {
 		return meta.StoreHit{}, false
 	}
-	var found *meta.StoreHit
-	for i := range hits {
-		if scan.LooseKey(hits[i].Name) != loose {
-			continue
+	// A similar name, then the store's name without its edition ("Tomb
+	// Raider Game of the Year" for "Tomb Raider"), each only when one
+	// game has it.
+	for _, key := range []func(string) string{scan.LooseKey, func(s string) string { return scan.LooseKey(scan.StripEdition(s)) }} {
+		var found *meta.StoreHit
+		for i := range hits {
+			if key(hits[i].Name) != loose {
+				continue
+			}
+			if found != nil && found.AppID != hits[i].AppID {
+				return meta.StoreHit{}, false // two games: don't guess
+			}
+			found = &hits[i]
 		}
-		if found != nil && found.AppID != hits[i].AppID {
-			return meta.StoreHit{}, false // two games: don't guess
+		if found != nil {
+			return *found, true
 		}
-		found = &hits[i]
 	}
-	if found == nil {
-		return meta.StoreHit{}, false
-	}
-	return *found, true
+	return meta.StoreHit{}, false
 }
 
 var storeMarks = strings.NewReplacer("™", "", "®", "", "©", "")
@@ -361,3 +369,8 @@ func (w *metaWorker) State() MetaState {
 	defer w.mu.Unlock()
 	return w.state
 }
+
+// looksLikeGameName reports whether a title is worth looking up at all
+// (a store search for "Tools" or "Discord" finds something, and it isn't
+// this).
+func looksLikeGameName(title string) bool { return !scan.NotAGame(title) }

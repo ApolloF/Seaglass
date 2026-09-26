@@ -3,6 +3,7 @@ package identify
 import (
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/ApolloF/WaterLauncher/internal/scan"
 )
@@ -14,15 +15,30 @@ type Index struct {
 	byName  map[string]*Entry   // normalized title or alias
 	byLoose map[string]*Entry   // scan.LooseKey of titles and aliases; nil when two games share one
 	byDir   map[string][]*Entry // normalized install folder name
+	// Looser still, for folder names only, nil when ambiguous: without
+	// "and", "the", "of" and "a" ("Indiana Jones Great Circle"), and by
+	// the subtitle alone ("Infinite Wealth" for "Like a Dragon: Infinite
+	// Wealth").
+	byLooser map[string]*Entry
+	bySub    map[string]*Entry
 }
 
 func build(es []Entry) *Index {
 	ix := &Index{
-		bySteam: make(map[int]*Entry, len(es)/2),
-		byGog:   make(map[string]*Entry, len(es)/8),
-		byName:  make(map[string]*Entry, len(es)),
-		byLoose: make(map[string]*Entry, len(es)),
-		byDir:   make(map[string][]*Entry, len(es)/2),
+		bySteam:  make(map[int]*Entry, len(es)/2),
+		byGog:    make(map[string]*Entry, len(es)/8),
+		byName:   make(map[string]*Entry, len(es)),
+		byLoose:  make(map[string]*Entry, len(es)),
+		byDir:    make(map[string][]*Entry, len(es)/2),
+		byLooser: make(map[string]*Entry, len(es)),
+		bySub:    make(map[string]*Entry, len(es)/4),
+	}
+	unique := func(m map[string]*Entry, k string, e *Entry) {
+		if prev, ok := m[k]; !ok {
+			m[k] = e
+		} else if prev != nil && prev != e && (prev.SteamID == 0 || prev.SteamID != e.SteamID) {
+			m[k] = nil
+		}
 	}
 	for i := range es {
 		e := &es[i]
@@ -41,11 +57,13 @@ func build(es []Entry) *Index {
 				}
 			}
 			if k := scan.LooseKey(n); len(k) >= 4 {
-				if prev, ok := ix.byLoose[k]; !ok {
-					ix.byLoose[k] = e
-				} else if prev != nil && prev != e && (prev.SteamID == 0 || prev.SteamID != e.SteamID) {
-					ix.byLoose[k] = nil // ambiguous: better no match than a wrong one
-				}
+				unique(ix.byLoose, k, e) // ambiguous: better no match than a wrong one
+			}
+			if k := looserKey(n); len(k) >= 6 {
+				unique(ix.byLooser, k, e)
+			}
+			if k := subtitleKey(n); k != "" {
+				unique(ix.bySub, k, e)
 			}
 		}
 		for _, d := range e.InstallDirs {
@@ -114,6 +132,10 @@ func (ix *Index) Identify(c scan.Candidate) Match {
 		return m
 	}
 
+	if !store && scan.NotAGame(c.Title) && (c.Dir == "" || scan.NotAGame(filepath.Base(c.Dir))) {
+		m.How, m.Confidence = "Not a game's name", 0
+		return m
+	}
 	if store {
 		// The store's title is authoritative; the manifest only adds a Steam id for art.
 		m.Confidence, m.How = 100, c.How
@@ -146,15 +168,36 @@ func (ix *Index) Identify(c scan.Candidate) Match {
 		}
 	}
 	// Spelled a little differently, as folder names often are ("Assassin
-	// Creed" for "Assassin's Creed").
-	names := []string{c.Title, scan.StripEdition(c.Title), scan.ExpandAbbrev(c.Title)}
+	// Creed" for "Assassin's Creed"), shortened ("AC Valhalla", "SkyrimSE",
+	// "Mafia 2 DE"), without "Edition" ("Mass Effect Legendary"), or run
+	// together with their edition ("Fallout3GameoftheYearEdition").
+	names := titleForms(c.Title)
 	if c.Dir != "" {
-		folder := scan.CleanTitle(filepath.Base(c.Dir))
-		names = append(names, folder, scan.StripEdition(folder), scan.ExpandAbbrev(folder))
+		names = append(names, titleForms(scan.CleanTitle(filepath.Base(c.Dir)))...)
 	}
 	for _, t := range names {
 		if e := ix.byLooseTitle(t); e != nil {
 			return Match{Title: e.Name, SteamAppID: e.SteamID, GogID: e.GogID, Confidence: 72, How: "Matched by a similar title"}
+		}
+	}
+	if ix != nil {
+		for _, t := range names {
+			if e := ix.byName[compactWithoutEdition(t)]; e != nil {
+				return Match{Title: e.Name, SteamAppID: e.SteamID, GogID: e.GogID, Confidence: 72, How: "Matched by a similar title"}
+			}
+		}
+		// Looser matches are less sure: they wait for a check.
+		for _, t := range names {
+			if k := looserKey(t); len(k) >= 6 && ix.byLooser[k] != nil {
+				e := ix.byLooser[k]
+				return Match{Title: e.Name, SteamAppID: e.SteamID, GogID: e.GogID, Confidence: 66, How: "Matched by a similar title"}
+			}
+		}
+		for _, t := range names {
+			if k := scan.LooseKey(t); len(k) >= 8 && ix.bySub[k] != nil {
+				e := ix.bySub[k]
+				return Match{Title: e.Name, SteamAppID: e.SteamID, GogID: e.GogID, Confidence: 62, How: "Matched by the title's subtitle"}
+			}
 		}
 	}
 	// Unknown to the manifest: keep the name, trusting installer records more than folder names.
@@ -190,4 +233,64 @@ func (ix *Index) byLooseTitle(title string) *Entry {
 		return nil
 	}
 	return ix.byLoose[k]
+}
+
+// titleForms are the ways to read a title when looking for a similar
+// one: as it is, without its edition, written out, and with "Edition".
+func titleForms(t string) []string {
+	out := []string{t, scan.StripEdition(t), scan.ExpandAbbrev(t), t + " Edition"}
+	return append(out, scan.Aliases(t)...)
+}
+
+// Editions as they appear in names run together ("Fallout3GameoftheYearEdition").
+var compactEditions = func() []string {
+	var out []string
+	for _, e := range []string{"game of the year edition", "goty edition", "goty", "definitive edition", "complete edition",
+		"enhanced edition", "deluxe edition", "ultimate edition", "gold edition", "remastered", "windows edition", "anniversary edition"} {
+		out = append(out, scan.Normalize(e))
+	}
+	return out
+}()
+
+// compactWithoutEdition is a name's Normalize key without an edition at
+// its end, for names written without spaces; "" when there's none.
+func compactWithoutEdition(t string) string {
+	if strings.ContainsAny(t, " ") {
+		return "" // with spaces, StripEdition has had its turn
+	}
+	k := scan.Normalize(t)
+	for _, e := range compactEditions {
+		if rest, ok := strings.CutSuffix(k, e); ok && len(rest) >= 4 {
+			return rest
+		}
+	}
+	return ""
+}
+
+var stopWords = map[string]bool{"and": true, "the": true, "of": true, "a": true, "an": true}
+
+// looserKey is a LooseKey without little words ("Indiana Jones Great
+// Circle" and "Indiana Jones and the Great Circle" share one).
+func looserKey(t string) string {
+	var kept []string
+	for _, w := range strings.FieldsFunc(strings.ToLower(t), func(r rune) bool { return r == ' ' || r == ':' || r == '-' || r == '–' || r == '_' || r == '.' }) {
+		if !stopWords[w] {
+			kept = append(kept, w)
+		}
+	}
+	return scan.LooseKey(strings.Join(kept, " "))
+}
+
+// subtitleKey is the LooseKey of what follows a title's colon, when that
+// is a name of its own (two words or more, not an edition): "Infinite
+// Wealth" for "Like a Dragon: Infinite Wealth". "" otherwise.
+func subtitleKey(t string) string {
+	_, sub, ok := strings.Cut(t, ": ")
+	if !ok || len(strings.Fields(sub)) < 2 || scan.StripEdition(sub) != sub {
+		return ""
+	}
+	if k := scan.LooseKey(sub); len(k) >= 8 {
+		return k
+	}
+	return ""
 }

@@ -2,6 +2,7 @@ package identify
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -176,5 +177,71 @@ func TestIndexLetGoWhenUnused(t *testing.T) {
 	}
 	if ix := m.Index(); ix == nil || ix.Len() != 1 {
 		t.Errorf("index not read again: %v", ix)
+	}
+}
+
+// Folder names people and repackers give games: shortened, run together,
+// without "Edition", without little words, by subtitle; and folders that
+// aren't games.
+func TestIdentifyFolderNames(t *testing.T) {
+	es, err := Parse(strings.NewReader(`---
+"The Elder Scrolls V: Skyrim Special Edition":
+  steam:
+    id: 489830
+Fallout 3:
+  steam:
+    id: 22300
+"Like a Dragon: Infinite Wealth":
+  steam:
+    id: 2072450
+Indiana Jones and the Great Circle:
+  steam:
+    id: 2677660
+Mass Effect Legendary Edition:
+  steam:
+    id: 1328670
+Mass Effect:
+  steam:
+    id: 17460
+Command & Conquer:
+  steam:
+    id: 1
+Assassin's Creed Valhalla:
+  steam:
+    id: 2208920
+Vortex:
+  steam:
+    id: 2
+"Batman: Arkham City":
+  steam:
+    id: 200260
+"LEGO Batman: Arkham City":
+  steam:
+    id: 3
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := build(es)
+	for _, tc := range []struct {
+		dir   string
+		steam int
+	}{
+		{`D:\Games\SkyrimSE`, 489830},
+		{`D:\Games\Fallout3GameoftheYearEdition`, 22300},
+		{`D:\Games\Infinite Wealth`, 2072450},
+		{`D:\Games\Indiana Jones Great Circle`, 2677660},
+		{`D:\Games\Mass Effect Legendary`, 1328670},
+		{`D:\Games\AC Valhalla`, 2208920},
+		{`D:\Games\ACValhalla`, 2208920},
+		{`D:\Games\C&C Remastered`, 0}, // not Command & Conquer (1995)
+		{`D:\Games\Arkham City`, 0},    // two games have that subtitle
+		{`D:\Games\Vortex`, 0},         // the mod manager, not the game
+		{`D:\Games\Steam`, 0},
+	} {
+		m := ix.Identify(scan.Candidate{Title: scan.CleanTitle(filepath.Base(tc.dir)), Dir: tc.dir, Source: scan.Folder})
+		if m.SteamAppID != tc.steam {
+			t.Errorf("%s: got %q (%d, %s), want %d", tc.dir, m.Title, m.SteamAppID, m.How, tc.steam)
+		}
 	}
 }

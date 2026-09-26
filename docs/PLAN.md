@@ -384,7 +384,7 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 | 1 | Dev harness: `--remote-debugging`, `--virtual-pad`, `--dev-data`, the dev pipe, `tools/fakegame`, `tools/harness` (Playwright over CDP) | done |
 | 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | done |
 | 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | done |
-| 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | |
+| 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | done |
 | 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | |
 
 **Maintainer's additions (2026-09-26):** hide the mouse pointer in big picture while the controller is used (done in phase 2); Orbit flickers and stutters while swiping (phase 3); backdrops picked better and sharper (done, PR #14); Alan Wake II (a DODI repack of a game only Epic sells) had no art and "no controller support known" (done, PR #14: PCGamingWiki and the Epic store's page content).
@@ -423,6 +423,24 @@ The DOM stays the same size with 500 or 2,000 games (virtualised grids and rows)
 - **Every layout**: the accent colour is a custom property on the root, and changing one restyles every element on screen; it now follows the selection once it rests (160 ms). Deck's blurred glow behind the rows does the same.
 
 Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame counts include the emulation; the before and after runs used the same setup.
+
+**Phase 4.** `TestMatchAudit` now reads 958 cases from `internal/app/testdata/match_audit.tsv` (made by `gen_match_audit.py`): 333 real games as their store names them, as scene releases, repacks, installer entries, underscored, run-together or lower-case folders, 200 hand-written real-world folder and installer names (dropped subtitles, abbreviations, store install folders), and 50 folders that aren't games. Each case says which game it is, so a wrong match is caught, not just a miss. It runs what WaterLauncher does (game database, Steam store search, PCGamingWiki) and keeps the sources' answers in a cache, so a rerun takes seconds.
+
+| | Found right | Wrong game | Missed | Non-games matched |
+|---|---|---|---|---|
+| Before | 846 of 910 (93.0 %) | 22 | 42 | 5 of 50 |
+| After | 900 of 908 (99.1 %) | 0 | 8 | 0 of 50 |
+
+(Two games that aren't on PC were dropped from the list, and games that were renamed, like Hitman 3 → HITMAN World of Assassination, accept either name.) Fixed:
+
+- "DiRT Rally 2.0" lost its "2.0" as if it were a version; two plain numbers now stay (versions have three, or a "v").
+- Scene groups DOGE, P2P, TiNYiSO, DARKSiDERS, CHRONOS and others are recognised.
+- Editions: "The Final Cut", "Windows Edition", "Reloaded", "20 Year Celebration", "40th Anniversary Edition"; "Anniversary" alone no longer counts (it made "Tomb Raider: Anniversary" look like "Tomb Raider").
+- Folders named after an expansion ("Cyberpunk 2077 Phantom Liberty", "Monster Hunter Rise Sunbreak") matched the DLC; a store hit that is a DLC now becomes its game.
+- The store search accepts the store's name without its edition when only one game fits ("Tomb Raider Game of the Year"), which also stopped the wiki's 1996 Tomb Raider being chosen.
+- Common short names and first words are written out (`scan.Aliases`: SkyrimSE, L4D2, KOTOR, HoMM3, AC Valhalla, ACOdyssey, RE Village, MHWilds, MK1, Civ 6, "Mafia 2 DE", …).
+- The game database is also searched without little words ("Indiana Jones Great Circle"), by subtitle ("Infinite Wealth", "Bannerlord"), with "Edition" added ("Mass Effect Legendary"), and for names run together with their edition ("Fallout3GameoftheYearEdition"); the looser ones wait for a check, and each gives up when two games fit.
+- Folders that aren't games (`scan.NotAGame`: Tools, Redist, Mods, Steam, Vortex, Discord, emulators, …) are never matched or looked up; "Vortex" and "Steam" had matched games.
 
 ## To-do (maintainer)
 

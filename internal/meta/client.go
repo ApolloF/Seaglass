@@ -64,6 +64,7 @@ type Client struct {
 	artDir   string
 	sgdbKey  func() string
 	steamGap time.Duration
+	pcgwGap  time.Duration
 
 	mu        sync.Mutex
 	lastSteam time.Time
@@ -75,7 +76,7 @@ type Client struct {
 
 // NewClient stores art in artDir; sgdbKey returns the SteamGridDB key ("" = none).
 func NewClient(artDir string, sgdbKey func() string) *Client {
-	c := &Client{artDir: artDir, sgdbKey: sgdbKey, steamGap: 1500 * time.Millisecond}
+	c := &Client{artDir: artDir, sgdbKey: sgdbKey, steamGap: 1500 * time.Millisecond, pcgwGap: time.Second}
 	c.http = &http.Client{
 		Timeout: 45 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -89,6 +90,14 @@ func NewClient(artDir string, sgdbKey func() string) *Client {
 		},
 	}
 	return c
+}
+
+// UseTransport sends requests through rt and drops the waits between
+// them: for tests that record and replay the sources' answers (rt then
+// spaces out the requests that really go out).
+func (c *Client) UseTransport(rt http.RoundTripper) {
+	c.http.Transport = rt
+	c.steamGap, c.pcgwGap = 0, 0
 }
 
 // waitSteam spaces out Steam store requests: the store API allows about
