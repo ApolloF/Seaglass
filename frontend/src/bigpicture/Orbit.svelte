@@ -1,7 +1,6 @@
 <script lang="ts">
   // Orbit layout: games as bubbles in a honeycomb that glides and magnifies
   // around the selected one. Only bubbles near the focus are rendered.
-  import { fade } from "svelte/transition";
   import GameArt from "../components/GameArt.svelte";
   import GameTile from "../components/GameTile.svelte";
   import Icon from "../components/Icon.svelte";
@@ -50,9 +49,14 @@
   const CX = $derived(p.width / 2);
   const CY = $derived(H / 2 - 40);
   const B = 176; // a bubble at zoom 1
-  // The element is as big as a bubble ever gets (opened) and only ever
-  // scaled down, so it's drawn sharp at every size and resolution.
-  const D = 560;
+  // The element is as big as the selected bubble gets in the honeycomb,
+  // and only scaled down there, so it's drawn sharp at every resolution
+  // without every bubble being a large layer (at 4K, a hundred 560-pixel
+  // bubbles were more than the GPU kept, and frames showed holes while
+  // gliding). Opened, it's scaled up to OPEN and drawn again sharp once
+  // it gets there.
+  const D = 240;
+  const OPEN = 560;
   // The honeycomb keeps clear of the top bar and the name capsule below.
   const lens = $derived({ ax: Math.min(880, p.width / 2 - 80), ay: H / 2 - 150, flat: 0.5 });
 
@@ -75,10 +79,10 @@
       let sc = (at.scale * size) / D;
       if (open) {
         // The chosen game opens up on the left; the rest fly out of view.
-        if (f) ((X = -430), (Y = -20), (sc = 1));
+        if (f) ((X = -430), (Y = -20), (sc = OPEN / D));
         else ((X *= 1.9), (Y *= 1.9), (sc *= 1.3), (op = 0));
       }
-      out.push({ g: games[k], k, f, tf: `translate(-50%,-50%) translate(${X.toFixed(1)}px,${Y.toFixed(1)}px) scale(${sc.toFixed(3)})`, op, z: f ? 200 : Math.round(sc * 100), sc });
+      out.push({ g: games[k], k, f, tf: `translate(${X.toFixed(1)}px,${Y.toFixed(1)}px) scale(${sc.toFixed(3)})`, op, z: f ? 200 : Math.round(sc * 100), sc });
     }
     return out;
   });
@@ -185,11 +189,11 @@
 <div class="orbit" class:fast class:opened={open}>
   <div class="backdrops">
     {#each backs as b (b.id)}
-      <div class="backdrop" class:show={b.id === g?.id}><GameArt game={b} kind="backdrop" /></div>
+      <div class="backdrop" class:show={b.id === backs[backs.length - 1]?.id}><GameArt game={b} kind="backdrop" /></div>
     {/each}
   </div>
   <div class="veil"></div>
-  <div class="glow" style:left="{open ? CX - 430 : CX}px" style:top="{open ? CY - 20 : CY}px"></div>
+  <div class="glow" style:transform="translate({open ? CX - 430 : CX}px, {open ? CY - 20 : CY}px)"></div>
 
   <div class="top-left"><Logo size={30} /><Sections current="home" onpick={p.onsection} /></div>
   <div class="top-right">
@@ -201,20 +205,17 @@
     <button
       type="button"
       class="bubble"
-      style:left="{CX}px"
-      style:top="{CY}px"
+      style:left="{CX - D / 2}px"
+      style:top="{CY - D / 2}px"
       style:width="{D}px"
       style:height="{D}px"
       style:transform={b.tf}
       style:opacity={b.op}
       style:z-index={b.z}
-      style:box-shadow={b.f
-        ? `0 0 0 ${(open ? 0 : 4 / b.sc).toFixed(2)}px #fff, 0 0 ${(70 / b.sc).toFixed(1)}px color-mix(in oklab, var(--accent-game) 55%, transparent)`
-        : `0 ${(8 / b.sc).toFixed(1)}px ${(24 / b.sc).toFixed(1)}px rgba(0, 0, 0, 0.45)`}
+      class:f={b.f}
       onclick={() => (b.f ? (open ? p.onplay(b.g) : (open = true)) : (select(b.k), (open = false)))}
       aria-label={title(b.g)}
       tabindex="-1"
-      in:fade={{ duration: 260 }}
     >
       <GameTile game={b.g} big={b.f && open} />
     </button>
@@ -325,20 +326,20 @@
       linear-gradient(90deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.35) 40%, rgba(0, 0, 0, 0.88) 62%, rgba(0, 0, 0, 0.92) 100%),
       linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 25%, rgba(0, 0, 0, 0) 75%, rgba(0, 0, 0, 0.7) 100%);
   }
+  /* A soft light behind the selected game: a gradient, moved with a
+     transform (a 220-pixel blur moved with left and top was repainted
+     at full size every frame). */
   .glow {
     position: absolute;
-    width: 1200px;
-    height: 900px;
-    margin-left: -600px;
-    margin-top: -450px;
-    border-radius: 50%;
-    background-color: var(--accent-game);
-    filter: blur(220px);
-    opacity: 0.2;
-    transition:
-      left 0.7s cubic-bezier(0.2, 0.8, 0.2, 1),
-      top 0.7s cubic-bezier(0.2, 0.8, 0.2, 1),
-      background-color 0.9s;
+    left: 0;
+    top: 0;
+    width: 1800px;
+    height: 1400px;
+    margin-left: -900px;
+    margin-top: -700px;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--accent-game) 32%, transparent), transparent);
+    opacity: 0.7;
+    transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .top-left {
     position: absolute;
@@ -375,8 +376,9 @@
   .clock {
     font-size: 42px;
     font-weight: 800;
+    /* No colour transition: it can't run on the compositor, and a
+       main-thread animation made every gliding bubble restyle each frame. */
     color: var(--accent-game);
-    transition: color 0.9s;
   }
   .bubble {
     position: absolute;
@@ -386,13 +388,33 @@
     overflow: hidden;
     background: transparent;
     transform-origin: 50% 50%;
+    /* In the bubble's own pixels: it scales with it. */
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
     transition:
       transform 0.46s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      box-shadow 0.35s ease;
+      opacity 0.4s ease;
+  }
+  /* Bubbles coming into view fade in with a CSS animation: Svelte's
+     transitions tick from JavaScript every frame, and each such frame
+     restyled every gliding bubble. */
+  .bubble {
+    animation: bubble-in 0.26s ease;
+  }
+  @keyframes bubble-in {
+    from {
+      opacity: 0;
+    }
+  }
+  .bubble.f {
+    box-shadow:
+      0 0 0 4px #fff,
+      0 0 30px color-mix(in oklab, var(--accent-game) 55%, transparent);
+  }
+  .opened .bubble.f {
+    box-shadow: 0 0 14px color-mix(in oklab, var(--accent-game) 55%, transparent);
   }
   .fast .bubble {
-    transition-duration: 0.2s, 0.2s, 0.2s;
+    transition-duration: 0.2s, 0.2s;
     transition-timing-function: ease-out;
   }
   .capsule {
@@ -405,8 +427,9 @@
     gap: 26px;
     padding: 14px 16px 14px 32px;
     border-radius: 999px;
-    background: rgba(30, 30, 34, 0.78);
-    backdrop-filter: blur(30px);
+    /* Solid rather than a backdrop blur, which is redone every frame while
+       the bubbles glide underneath. */
+    background: rgba(24, 24, 28, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 280;
     white-space: nowrap;

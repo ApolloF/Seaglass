@@ -42,7 +42,17 @@
   });
   // New on this PC: found in the last week, or matched by folder name only.
   const found = $derived(newFinds(lib.base, 500));
-  const accent = $derived(accentOf(focused) ?? "oklch(0.8 0.12 205)");
+  // The accent colour follows the selected game once the selection rests:
+  // it's a custom property on the root, and changing one restyles every
+  // element on screen, which with a direction held (a new game every
+  // tenth of a second) cost more than a frame each time.
+  const wanted = $derived(accentOf(focused) ?? "oklch(0.8 0.12 205)");
+  let accent = $state("oklch(0.8 0.12 205)");
+  $effect(() => {
+    const next = wanted;
+    const t = setTimeout(() => (accent = next), 160);
+    return () => clearTimeout(t);
+  });
   const lightHex = $derived(toHex(accent));
 
   $effect(() => setLight(accent));

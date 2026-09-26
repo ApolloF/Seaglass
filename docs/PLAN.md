@@ -383,7 +383,7 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 |---|---|---|
 | 1 | Dev harness: `--remote-debugging`, `--virtual-pad`, `--dev-data`, the dev pipe, `tools/fakegame`, `tools/harness` (Playwright over CDP) | done |
 | 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | done |
-| 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | |
+| 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | done |
 | 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | |
 | 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | |
 
@@ -402,6 +402,27 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 - Harness: the fake game hung when Go moved its message loop to another thread (now locked), and WebView2's browser process ends when every window closes for a game, so the harness reconnects.
 
 Checked and fine: every screen reachable with the controller and the keyboard; big picture looks the same at every size (CSS zoom), 16:10 and 21:9 get extra room instead of bars; all four launch routes from both modes: the interface stays until the game's window is in front, closes, the controller goes passive, the launcher handover is followed, the interface is back within about a second of the game closing, and playtime counts (9–15 s).
+
+**Phase 3.** `tools/harness/perf.mjs` holds a controller direction for 5 s in six scenarios (desktop grid, Deck row, Deck library, Search, Console row, Orbit) with 500 and 2,000 made-up games on a 4K screen at 150 %, and reads a Chrome trace: frames presented or dropped, frames drawn with holes (tiles not painted yet), main-thread time, long tasks, JavaScript heap, DOM size, WebView2's and the core's private memory. (A `requestAnimationFrame` counter was tried first; it made the page restyle every animated element each frame, so it measured itself.) `tracesum.py` sums a trace by thread and event.
+
+Before and after, 2,000 games (500 in brackets):
+
+| Scenario | Frames presented | Dropped | Main thread (5 s) | WebView2 |
+|---|---|---|---|---|
+| Orbit, before | 62 (91) | 459 (582) | 1.9 s | 1,275 MB (1,289) |
+| Orbit, after | 754 (911) | 151 (55) | 2.8 s | 647 MB (814) |
+| Console row, before | 882 (834) | 211 (231) | 3.0 s (2.7) | 987 MB (746) |
+| Console row, after | 809 (650) | 117 (252) | 0.73 s (0.75) | 388 MB (375) |
+| Deck row, before | 785 (825) | 79 (67) | 1.5 s | 442 MB |
+| Deck row, after | 1,048 (1,068) | 21 (19) | 1.3 s | 452 MB |
+
+The DOM stays the same size with 500 or 2,000 games (virtualised grids and rows), the Go core stays at 64–80 MB, and the desktop grid and Search were fine as they were. Fixed:
+
+- **Orbit flickered and stuttered while gliding** (the maintainer's report): every bubble was a 560-pixel element scaled down, so at 4K about a hundred ~1,100-pixel layers, each with a drop shadow whose blur changed with every move (a full repaint of every layer). The GPU couldn't keep them, and frames came out with bubbles and the backdrop missing. Bubbles are now 240 pixels (the selected one is scaled up and drawn again sharp when a game opens), shadows are fixed CSS, the glow is a gradient moved by a transform instead of a 220-pixel blur moved by left/top, the name capsule has no backdrop blur, and bubbles fade in with CSS instead of Svelte transitions (which tick from JavaScript every frame). The clock's colour transition, which can't run on the compositor, is gone too.
+- **Console**: the tiles animated their width and height (layout and repaint every frame); with a direction held they now change size at once, and the full-screen backdrop is only decoded where the selection stops.
+- **Every layout**: the accent colour is a custom property on the root, and changing one restyles every element on screen; it now follows the selection once it rests (160 ms). Deck's blurred glow behind the rows does the same.
+
+Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame counts include the emulation; the before and after runs used the same setup.
 
 ## To-do (maintainer)
 

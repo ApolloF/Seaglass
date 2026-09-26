@@ -140,6 +140,20 @@
     }),
   );
 
+  // The blurred glow behind the rows follows the selection once it rests:
+  // a new blur over half the screen for every game flown past (a held
+  // direction) costs more than it shows.
+  let ambient = $state<Game | null>(null);
+  $effect(() => {
+    const cur = focusGame;
+    if (!ambient) {
+      ambient = cur;
+      return;
+    }
+    const t = setTimeout(() => (ambient = cur), 180);
+    return () => clearTimeout(t);
+  });
+
   const railOpen = $derived(zone === "rail");
   const slide = $derived(typeof zone === "number" ? Math.max(0, zone - 1) * -340 : 0);
   const clock = $state({ v: "" });
@@ -163,8 +177,8 @@
 
 <div class="deck">
   <div class="ambient">
-    {#key focusGame?.id}
-      {#if focusGame}<div class="amb"><GameArt game={focusGame} kind="hero" /></div>{/if}
+    {#key ambient?.id}
+      {#if ambient}<div class="amb"><GameArt game={ambient} kind="hero" /></div>{/if}
     {/key}
   </div>
   <div class="ambient-shade"></div>

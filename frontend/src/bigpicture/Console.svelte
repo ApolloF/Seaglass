@@ -42,10 +42,19 @@
     if (i >= n) i = Math.max(0, n - 1);
   });
 
-  // Keep the last two heroes mounted so they can crossfade.
+  // Keep the last two heroes mounted so they can crossfade. Not while
+  // flying past games with the stick held: each one is a full-screen
+  // picture to decode, so only where it stops (as in Orbit).
   let heroes = $state<Game[]>([]);
+  let heroTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
-    if (g && heroes[heroes.length - 1]?.id !== g.id) heroes = [...heroes.filter((h) => h.id !== g.id).slice(-1), g];
+    const cur = g;
+    clearTimeout(heroTimer);
+    if (!cur || heroes[heroes.length - 1]?.id === cur.id) return;
+    const show = () => (heroes = [...heroes.filter((h) => h.id !== cur.id).slice(-1), cur]);
+    if (heroes.length === 0) show();
+    else heroTimer = setTimeout(show, fast ? 320 : 90);
+    return () => clearTimeout(heroTimer);
   });
 
   // Details: the stick moves between the buttons and the cards, a card
@@ -148,15 +157,29 @@
     return false;
   }
 
+  // A held direction: tiles change size at once rather than animating
+  // their width and height, which lays out and repaints the row every
+  // frame (the glide of the row itself stays).
+  let fast = $state(false);
+  let fastTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(fastTimer));
+  function held(repeat: boolean) {
+    fast = repeat;
+    clearTimeout(fastTimer);
+    if (repeat) fastTimer = setTimeout(() => (fast = false), 260);
+  }
+
   $effect(() =>
-    useInput((intent) => {
+    useInput((intent, repeat) => {
       if (details) return detailsInput(intent);
       switch (intent) {
         case "left":
+          held(repeat);
           if (i > 0) ((i -= 1), feedback.move());
           else feedback.edge();
           return;
         case "right":
+          held(repeat);
           if (i < n - 1) ((i += 1), feedback.move());
           else feedback.edge();
           return;
@@ -212,10 +235,10 @@
   });
 </script>
 
-<div class="console">
+<div class="console" class:fast>
   <div class="heroes">
     {#each heroes as h (h.id)}
-      <div class="hero" class:show={h.id === g?.id}><GameArt game={h} kind="backdrop" /></div>
+      <div class="hero" class:show={h.id === heroes[heroes.length - 1]?.id}><GameArt game={h} kind="backdrop" /></div>
     {/each}
   </div>
   <div class="scrim-l"></div>
@@ -484,6 +507,9 @@
       width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
       height 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
       box-shadow 0.3s;
+  }
+  .fast .tile {
+    transition: none;
   }
   .tile.on {
     box-shadow:
