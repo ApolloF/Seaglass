@@ -26,6 +26,10 @@ export interface Api {
   artChoices(id: number, kind: ArtKind): Promise<ArtChoice[]>;
   /** Makes a picture from artChoices the game's art, kept through refreshes. */
   setArt(id: number, kind: ArtKind, art: string): Promise<Game>;
+  /** Puts the game in these collections (and out of the rest). */
+  setCollections(id: number, names: string[]): Promise<Game>;
+  /** Renames a collection in every game; "" deletes it (the games stay). */
+  renameCollection(old: string, name: string): Promise<void>;
 
   settings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<Settings>;

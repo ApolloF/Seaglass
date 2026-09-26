@@ -41,6 +41,18 @@
   });
 
   const padMode = $derived(game.padMode || "auto");
+
+  // Collections: chips to take the game out, a field (with the others as
+  // suggestions) to put it in one, new or not.
+  let collDraft = $state("");
+  const setColl = (names: string[]) => lib.run(() => api.setCollections(game.id, names));
+  function addColl() {
+    const name = collDraft.trim();
+    collDraft = "";
+    if (!name) return;
+    const known = lib.collections.find((c) => c.name.toLowerCase() === name.toLowerCase())?.name ?? name;
+    setColl([...(game.collections ?? []), known]);
+  }
   const padNote = $derived(padExplain(game, pad).long);
 
   // Saves, from Syncer: fetched when the game is shown and after it was played.
@@ -226,6 +238,25 @@
         </div>
       </div>
     {/if}
+
+    <div class="card">
+      <div class="card-head">
+        <Icon name="layers" size={22} stroke={1.8} />
+        <span class="grow">Collections</span>
+      </div>
+      <div class="chips">
+        {#each game.collections ?? [] as c (c)}
+          <span class="chip">
+            <button type="button" class="chip-name" onclick={() => (lib.filter = { kind: "collection", name: c })} title="Show this collection">{c}</button>
+            <button type="button" class="chip-x" aria-label="Take it out of {c}" onclick={() => setColl((game.collections ?? []).filter((x) => x !== c))}><Icon name="close" size={12} stroke={2.4} /></button>
+          </span>
+        {/each}
+        <input class="chip-add" list="wl-collections" placeholder={game.collections?.length ? "Add to another…" : "Add to a collection…"} bind:value={collDraft} onkeydown={(e) => e.key === "Enter" && addColl()} onchange={addColl} maxlength="40" />
+        <datalist id="wl-collections">
+          {#each lib.collections.filter((c) => !game.collections?.some((x) => x.toLowerCase() === c.name.toLowerCase())) as c (c.name)}<option value={c.name}></option>{/each}
+        </datalist>
+      </div>
+    </div>
 
     {#if game.installed}
       <div class="card">
@@ -528,6 +559,48 @@
     padding: 12px 14px;
     border-radius: var(--radius);
     background: var(--surface-2);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .chip-name,
+  .chip-x {
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    padding: 4px 4px 4px 10px;
+  }
+  .chip-x {
+    display: inline-flex;
+    padding: 4px 8px 4px 2px;
+    opacity: 0.7;
+  }
+  .chip-x:hover {
+    opacity: 1;
+  }
+  .chip-add {
+    flex: 1;
+    min-width: 140px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px dashed var(--line-strong);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
   }
   .card p {
     margin: 0;

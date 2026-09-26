@@ -292,6 +292,14 @@ export const mockApi: Api = {
     return out;
   },
   setArt: (id, kind, art) => update(id, (g) => (g.meta = { ...g.meta, [kind]: art, artOverrides: [...(g.meta?.artOverrides ?? []), kind] })),
+  setCollections: (id, names) => update(id, (g) => (g.collections = [...new Set(names.map((n) => n.trim()).filter(Boolean))])),
+  async renameCollection(old, name) {
+    for (const g of games)
+      if (g.collections?.some((c) => c.toLowerCase() === old.toLowerCase())) {
+        g.collections = g.collections.map((c) => (c.toLowerCase() === old.toLowerCase() ? name : c)).filter(Boolean);
+      }
+    libListeners.forEach((cb) => cb());
+  },
   setMatch: (id, appId, name) => update(id, (g) => ((g.steamAppId = appId), (g.title = name), (g.confirmed = true), (g.needsReview = false), (g.matchHow = "Chosen by you"), (g.confidence = 100))),
 
   async settings() {

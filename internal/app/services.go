@@ -232,6 +232,28 @@ func (s *LibraryService) SetArt(id int64, kind, art string) (library.Game, error
 	return g, err
 }
 
+// SetCollections puts a game in these collections (and out of others).
+func (s *LibraryService) SetCollections(id int64, names []string) (library.Game, error) {
+	return s.update(id, func(g *library.Game) { g.Collections = library.CleanCollections(names) })
+}
+
+// RenameCollection renames a collection in every game; an empty name
+// deletes it (the games stay).
+func (s *LibraryService) RenameCollection(old, name string) error {
+	clean := library.CleanCollections([]string{name})
+	if strings.TrimSpace(name) != "" && len(clean) == 0 {
+		return errors.New("that name can't be used")
+	}
+	next := ""
+	if len(clean) > 0 {
+		next = clean[0]
+	}
+	if ids := s.c.Lib.RenameCollection(old, next); len(ids) > 0 {
+		s.c.gamesChanged(ids...)
+	}
+	return nil
+}
+
 // OpenFolder shows the game's folder in Explorer.
 func (s *LibraryService) OpenFolder(id int64) error {
 	g, ok := s.c.Lib.Get(id)

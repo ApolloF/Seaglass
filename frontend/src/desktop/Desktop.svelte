@@ -24,8 +24,33 @@
     hidden: "Hidden",
   };
   const heading = $derived(
-    lib.filter.kind === "source" ? (lib.sources.find((s) => "source" in lib.filter && s.id === lib.filter.source)?.label ?? "Games") : titles[lib.filter.kind],
+    lib.filter.kind === "source"
+      ? (lib.sources.find((s) => "source" in lib.filter && s.id === lib.filter.source)?.label ?? "Games")
+      : lib.filter.kind === "collection"
+        ? lib.filter.name
+        : titles[lib.filter.kind],
   );
+
+  // A collection's heading can rename or delete it.
+  let renaming = $state(false);
+  let newName = $state("");
+  async function renameCollection() {
+    const f = lib.filter;
+    if (f.kind !== "collection") return;
+    const name = newName.trim();
+    renaming = false;
+    if (!name || name === f.name) return;
+    const ok = await lib.run(() => api.renameCollection(f.name, name).then(() => true));
+    if (ok) lib.filter = { kind: "collection", name };
+  }
+  async function deleteCollection() {
+    const f = lib.filter;
+    if (f.kind !== "collection") return;
+    if (await lib.run(() => api.renameCollection(f.name, "").then(() => true))) {
+      lib.toast(`Collection "${f.name}" deleted. Its games are still in your library.`);
+      lib.filter = { kind: "all" };
+    }
+  }
 
   const sorts: { id: Sort; label: string }[] = [
     { id: "title", label: "Title" },
@@ -79,8 +104,17 @@
       </div>
 
       <div class="heading">
-        <h1>{heading}</h1>
+        {#if renaming}
+          <!-- svelte-ignore a11y_autofocus -->
+          <input class="rename" bind:value={newName} autofocus onkeydown={(e) => (e.key === "Enter" ? renameCollection() : e.key === "Escape" && (renaming = false))} onblur={renameCollection} maxlength="40" aria-label="Collection name" />
+        {:else}
+          <h1>{heading}</h1>
+        {/if}
         <span>{lib.visible.length} {lib.visible.length === 1 ? "game" : "games"}</span>
+        {#if lib.filter.kind === "collection" && !renaming}
+          <button type="button" class="coll-act" onclick={() => ((newName = heading), (renaming = true))}><Icon name="pencil" size={16} />Rename</button>
+          <button type="button" class="coll-act" onclick={deleteCollection}><Icon name="trash" size={16} />Delete</button>
+        {/if}
       </div>
 
       {#if !lib.loaded || (lib.scan.running && lib.games.length === 0)}
@@ -219,6 +253,32 @@
     font-family: var(--font-display);
     font-size: 30px;
     font-weight: 700;
+  }
+  .rename {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .coll-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    align-self: center;
+  }
+  .coll-act:hover {
+    color: var(--text);
   }
   .heading span {
     color: var(--muted);

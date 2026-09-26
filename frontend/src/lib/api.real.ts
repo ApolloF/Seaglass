@@ -24,6 +24,8 @@ export const realApi: Api = {
   setMatch: (id, appId, name) => g(LibraryService.SetMatch(id, appId, name)),
   artChoices: (id, kind) => LibraryService.ArtChoices(id, kind).then((c) => (c ?? []) as unknown as ArtChoice[]),
   setArt: (id, kind, art) => g(LibraryService.SetArt(id, kind, art)),
+  setCollections: (id, names) => g(LibraryService.SetCollections(id, names)),
+  renameCollection: (old, name) => LibraryService.RenameCollection(old, name),
 
   settings: () => SettingsService.Get() as Promise<unknown> as Promise<Settings>,
   saveSettings: (s) => SettingsService.Save(s as never) as Promise<unknown> as Promise<Settings>,

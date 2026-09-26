@@ -164,6 +164,7 @@ func (s *Store) mergeOwnedLocked() {
 		}
 		g.Owned, g.InstallURI = true, o.InstallURI
 		g.Favorite = g.Favorite || o.Favorite
+		g.Collections = CleanCollections(append(g.Collections, o.Collections...))
 		g.Hidden = g.Hidden && o.Hidden
 		if g.CustomTitle == "" {
 			g.CustomTitle = o.CustomTitle

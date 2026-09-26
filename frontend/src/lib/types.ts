@@ -63,6 +63,8 @@ export interface Game {
   storePlaytime?: number;
   storeLastPlayed?: number;
   favorite?: boolean;
+  /** The user's own groups the game is in ("Co-op", "Finished"). */
+  collections?: string[];
   hidden?: boolean;
   padMode?: string; // "" | "native" | "steam"
   meta?: Meta;
