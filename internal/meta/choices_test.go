@@ -18,7 +18,7 @@ func TestSetArt(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := &library.Meta{Hero: "/art/old.jpg", Tile: "/art/tile.jpg"}
-	for _, bad := range []string{"/art/../secret.jpg", "/art/ffffffffffffffffffffffffffffffffffffffff.jpg", "C:\x.jpg", "https://evil.example/a.jpg"} {
+	for _, bad := range []string{"/art/../secret.jpg", "/art/ffffffffffffffffffffffffffffffffffffffff.jpg", `C:\x.jpg`, "https://evil.example/a.jpg"} {
 		if SetArt(m, Backdrop, bad, dir) {
 			t.Errorf("accepted %q", bad)
 		}
