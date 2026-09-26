@@ -29,6 +29,7 @@ declare module "@wailsio/runtime" {
             "meta:state": app$0.MetaState;
             "overlay:action": app$0.PadAction;
             "pad:action": app$0.PadAction;
+            "pad:raw": pad$0.Raw;
             "pad:state": pad$0.State;
             "scan:state": app$0.ScanState;
             "ui:mode": string;

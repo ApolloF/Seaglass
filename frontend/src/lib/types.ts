@@ -176,6 +176,12 @@ export interface StoreHit {
   image: string;
 }
 
+/** Every button (bit n = SDL gamepad button n) and axis of the controller in use. */
+export interface PadRaw {
+  buttons: number;
+  axes: number[]; // left x, y, right x, y, left trigger, right trigger
+}
+
 export type PadKind = "playstation" | "xbox" | "nintendo" | "other";
 
 export interface PadState {

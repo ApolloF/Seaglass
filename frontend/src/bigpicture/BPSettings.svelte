@@ -8,12 +8,13 @@
   import type { Settings, SyncerStatus } from "../lib/types";
   import Hints from "./Hints.svelte";
 
-  let { onback }: { onback: () => void } = $props();
+  let { onback, onpadtest }: { onback: () => void; onpadtest: () => void } = $props();
 
   type Row =
     | { key: keyof Settings; title: string; detail: string; kind: "toggle"; group?: string }
     | { key: keyof Settings; title: string; detail: string; kind: "choice"; options: [string | number, string][]; group?: string }
-    | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string };
+    | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string }
+    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string };
 
   const rows: Row[] = [
     {
@@ -42,6 +43,7 @@
         ["xbox", "Xbox"],
       ],
     },
+    { key: "padtest", title: "Test controller", detail: "Every button, stick and trigger as the controller reports it, and each rumble.", kind: "action" },
     { key: "haptics", title: "Haptics", detail: "A tick as you move, a bump at the end of a row, a firmer pulse when you choose.", kind: "toggle" },
     { key: "lightbar", title: "Lightbar follows the game", detail: "Tints the DualSense to the selected game.", kind: "toggle" },
     { key: "openBigPictureOnController", title: "Open big picture when a controller connects", detail: "Switches over as soon as you pick one up.", kind: "toggle" },
@@ -101,6 +103,11 @@
   function change(dir: 1 | -1) {
     if (!s) return;
     const row = rows[i];
+    if (row.kind === "action") {
+      feedback.confirm();
+      onpadtest();
+      return;
+    }
     if (row.kind === "status") {
       // ✕ on Syncer: start it (or look again), or open it to sort things out.
       if (syncerSum?.action === "open") lib.run(() => api.saves.openSyncer());
@@ -128,7 +135,7 @@
         const j = i + (intent === "up" ? -1 : 1);
         if (j >= 0 && j < rows.length) ((i = j), feedback.move());
         else feedback.edge();
-      } else if (intent === "confirm" || intent === "right") change(1);
+      } else if (intent === "confirm" || (intent === "right" && rows[i].kind !== "action")) change(1);
       else if (intent === "left") change(-1);
       else if (intent === "back") onback();
       else return false;
@@ -136,7 +143,7 @@
   );
 
   function valueLabel(row: Row): string {
-    if (!s || row.kind === "status") return "";
+    if (!s || row.kind === "status" || row.kind === "action") return "";
     if (row.kind === "toggle") return s[row.key] ? "On" : "Off";
     return row.options.find((o) => String(o[0]) === String(s[row.key]))?.[1] ?? "";
   }
@@ -160,7 +167,9 @@
           {/if}
         {:else}
           <span class="text"><span class="t">{row.title}</span><span class="d">{row.detail}</span></span>
-          {#if row.kind === "toggle"}
+          {#if row.kind === "action"}
+            <span class="act">Open</span>
+          {:else if row.kind === "toggle"}
             <span class="track" class:yes={!!s?.[row.key]}><span class="knob"></span></span>
           {:else}
             <span class="choice"><span class="arrow">‹</span>{valueLabel(row)}<span class="arrow">›</span></span>

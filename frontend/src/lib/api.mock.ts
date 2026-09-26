@@ -509,6 +509,12 @@ export const mockApi: Api = {
     },
     rumble() {},
     setLight() {},
+    testInput() {},
+    onRaw(cb) {
+      // window.mockRaw(buttons, axes) shows a controller state on the test screen.
+      (window as unknown as { mockRaw: (b: number, a?: number[]) => void }).mockRaw = (b, a = [0, 0, 0, 0, 0, 0]) => cb({ buttons: b, axes: a });
+      return () => {};
+    },
     onAction(cb) {
       // window.mockPad("down") presses a controller button, for trying things out.
       padListeners.add(cb);

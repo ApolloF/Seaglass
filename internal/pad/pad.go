@@ -148,6 +148,9 @@ type Manager struct {
 	// The virtual controller (dev flag --virtual-pad), made again whenever
 	// SDL starts over.
 	virtual *virtualPad
+	// raw gets every button and axis of the controller in use, for the
+	// controller test screen; nil otherwise.
+	raw func(Raw)
 
 	// The rumble effect playing, only touched on the SDL thread.
 	pulses  []pulse
@@ -180,6 +183,33 @@ func (m *Manager) Stop() {
 		close(m.quit)
 	}
 	<-m.done
+}
+
+// Raw is the whole state of the controller in use: which SDL gamepad
+// buttons are down (bit n is button n) and its axes (left stick x, y,
+// right stick x, y, left and right trigger; -32768 to 32767, triggers
+// from 0).
+type Raw struct {
+	Buttons uint32   `json:"buttons"`
+	Axes    [6]int16 `json:"axes"`
+}
+
+// SetRawListener sends every change of the controller's buttons and axes
+// to fn (nil stops it), for testing a controller.
+func (m *Manager) SetRawListener(fn func(Raw)) {
+	m.mu.Lock()
+	m.raw = fn
+	m.mu.Unlock()
+	select {
+	case m.cmds <- func(*sdl) {}: // poll at the active rate from now on
+	default:
+	}
+}
+
+func (m *Manager) rawListener() func(Raw) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.raw
 }
 
 // Mode is how much of the controller WaterLauncher uses.
@@ -359,6 +389,7 @@ func (m *Manager) loop() {
 	}
 	held := map[string]*hold{}
 	axes := map[uint8]int16{}
+	var rawButtons uint32 // for the raw listener
 	// A controller whose mapping has no D-pad buttons still reports its
 	// D-pad as a hat; that's used instead, for controllers that never send
 	// D-pad buttons (the others send both).
@@ -382,7 +413,7 @@ func (m *Manager) loop() {
 			return pollNoPad
 		case passive:
 			return pollPassive
-		case time.Since(lastInput) < 5*time.Second || len(held) > 0 || len(m.pulses) > 0:
+		case time.Since(lastInput) < 5*time.Second || len(held) > 0 || len(m.pulses) > 0 || m.rawListener() != nil:
 			return pollActive
 		}
 		return pollIdle
@@ -470,6 +501,7 @@ func (m *Manager) loop() {
 			}
 			clear(held)
 			clear(axes)
+			rawButtons = 0
 			clear(dpadButtons)
 			clear(hats)
 			m.pulses = nil
@@ -494,6 +526,7 @@ func (m *Manager) loop() {
 		}
 		stickMoved := false
 		var hatNow map[uint32]uint8 // hat positions reported in this batch
+		rawBefore := Raw{Buttons: rawButtons, Axes: [6]int16{axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]}}
 		for {
 			r, _, _ := s.pollEvent.Call(uintptr(unsafe.Pointer(&ev[0])))
 			if !ok(r) {
@@ -509,6 +542,7 @@ func (m *Manager) loop() {
 				m.open(s, which)
 			case evGamepadRemoved:
 				m.close(s, which)
+				rawButtons = 0
 				delete(dpadButtons, which)
 				delete(hats, which)
 			case evGamepadDown:
@@ -517,8 +551,14 @@ func (m *Manager) loop() {
 					dpadButtons[which] = true
 				}
 				press("button"+strconv.Itoa(int(ev[20])), buttons[ev[20]])
+				if ev[20] < 32 {
+					rawButtons |= 1 << ev[20]
+				}
 			case evGamepadUp:
 				release("button" + strconv.Itoa(int(ev[20])))
+				if ev[20] < 32 {
+					rawButtons &^= 1 << ev[20]
+				}
 			case evJoystickHat:
 				if ev[20] == 0 {
 					if hatNow == nil {
@@ -549,6 +589,11 @@ func (m *Manager) loop() {
 		}
 		if stickMoved {
 			stick()
+		}
+		if fn := m.rawListener(); fn != nil {
+			if now := (Raw{Buttons: rawButtons, Axes: [6]int16{axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]}}); now != rawBefore {
+				fn(now)
+			}
 		}
 		for which, v := range hatNow {
 			if dpadButtons[which] {

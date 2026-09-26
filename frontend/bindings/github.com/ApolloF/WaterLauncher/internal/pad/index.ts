@@ -6,5 +6,6 @@ export {
 } from "./models.js";
 
 export type {
+    Raw,
     State
 } from "./models.js";

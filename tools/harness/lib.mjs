@@ -25,6 +25,8 @@ fs.mkdirSync(OUT, { recursive: true });
 /** Copies %APPDATA%\WaterLauncher aside. A backup left by a run that
  * didn't finish is restored first, never overwritten. */
 export function backupAppData() {
+  // Another run (or WaterLauncher itself) is going: its data isn't ours to touch.
+  if (isRunning()) throw new Error("WaterLauncher is already running: close it (or the other harness run) first");
   if (fs.existsSync(MARK)) {
     console.log("an earlier run left a backup: restoring it first");
     restoreAppData();
@@ -325,9 +327,10 @@ export class PadClient {
   async press(button, wait = 180) {
     if (button === "lt" || button === "rt") {
       // Triggers are axes.
+      // A virtual trigger rests at -32768 (the gamepad reads 0 there).
       await this.send(`axis ${button} 32767`);
       await sleep(80);
-      await this.send(`axis ${button} 0`);
+      await this.send(`axis ${button} -32768`);
     } else await this.send(`press ${button}`);
     await sleep(wait);
   }

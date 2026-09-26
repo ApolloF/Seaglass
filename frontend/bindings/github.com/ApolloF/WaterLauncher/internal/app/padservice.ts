@@ -35,3 +35,11 @@ export function SetLight(hex: string): $CancellablePromise<void> {
 export function State(): $CancellablePromise<pad$0.State> {
     return $Call.ByID(3372721012);
 }
+
+/**
+ * TestInput turns the stream of raw buttons and axes ("pad:raw") on or
+ * off, for the controller test screen.
+ */
+export function TestInput(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(53051509, on);
+}

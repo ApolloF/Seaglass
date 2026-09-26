@@ -17,6 +17,17 @@ export enum Kind {
 };
 
 /**
+ * Raw is the whole state of the controller in use: which SDL gamepad
+ * buttons are down (bit n is button n) and its axes (left stick x, y,
+ * right stick x, y, left and right trigger; -32768 to 32767, triggers
+ * from 0).
+ */
+export interface Raw {
+    "buttons": number;
+    "axes": number[];
+}
+
+/**
  * State describes the controller in use.
  */
 export interface State {

@@ -10,6 +10,7 @@
   import Launching from "./Launching.svelte";
   import LibraryScreen from "./LibraryScreen.svelte";
   import Orbit from "./Orbit.svelte";
+  import PadTest from "./PadTest.svelte";
   import QuickAccess from "./QuickAccess.svelte";
   import SearchScreen from "./SearchScreen.svelte";
   import { SECTIONS, type Section } from "./Sections.svelte";
@@ -17,7 +18,7 @@
 
   let { onexit }: { onexit: () => void } = $props();
 
-  type Screen = Section | "settings" | "found";
+  type Screen = Section | "settings" | "found" | "padtest";
   let screen = $state<Screen>("home");
   let qa = $state(false);
   let sheetId = $state<number | null>(null);
@@ -169,10 +170,12 @@
         <LibraryScreen {width} {height} onplay={play} oninfo={info} {onfocus} onback={() => go("home")} onsection={(s) => go(s)} />
       {:else if screen === "found"}
         <LibraryScreen {width} {height} games={found} review onplay={play} oninfo={info} {onfocus} onback={() => go("home")} onsection={(s) => go(s)} />
+      {:else if screen === "padtest"}
+        <PadTest onback={() => go("settings")} />
       {:else if screen === "search"}
         <SearchScreen {width} onplay={play} oninfo={info} {onfocus} onback={() => go("home")} onsection={(s) => go(s)} />
       {:else}
-        <BPSettings onback={() => go("home")} />
+        <BPSettings onback={() => go("home")} onpadtest={() => go("padtest")} />
       {/if}
 
       {#if sheet}

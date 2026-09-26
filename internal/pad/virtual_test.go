@@ -354,6 +354,39 @@ func TestPlugVirtual(t *testing.T) {
 	}
 	press(VirtualButtons["south"])
 	expect(Confirm)
+
+	// The test screen's stream: buttons as bits, axes as the gamepad
+	// reports them (a virtual joystick's trigger axis runs from -32768, at
+	// rest, to 32767; the gamepad's from 0).
+	_ = m.VirtualAxis(VirtualAxes["rt"], -32768)
+	raws := make(chan Raw, 64)
+	m.SetRawListener(func(r Raw) { raws <- r })
+	_ = m.VirtualButton(VirtualButtons["north"], true)
+	_ = m.VirtualAxis(VirtualAxes["rt"], 20000)
+	var got Raw
+	for deadline := time.After(2 * time.Second); got.Buttons&(1<<3) == 0 || got.Axes[5] != 26383; {
+		select {
+		case got = <-raws:
+		case <-deadline:
+			t.Fatalf("raw state never showed north and the trigger: %+v", got)
+		}
+	}
+	_ = m.VirtualButton(VirtualButtons["north"], false)
+	_ = m.VirtualAxis(VirtualAxes["rt"], -32768)
+	m.SetRawListener(nil)
+	// Both also came as actions (in either order: one poll saw both).
+	both := map[string]bool{}
+	for k := 0; k < 2; k++ {
+		select {
+		case a := <-actions:
+			both[a] = true
+		case <-time.After(2 * time.Second):
+		}
+	}
+	if !both[Info] || !both[RT] {
+		t.Errorf("actions %v, want info and rt", both)
+	}
+
 	m.SetMode(Passive)
 	time.Sleep(400 * time.Millisecond)
 	waitFor("still plugged in after the mode change", func(s State) bool { return s.Connected })
