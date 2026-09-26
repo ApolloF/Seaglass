@@ -19,6 +19,8 @@ export interface Meta {
   accent?: string;
   fetchedAt?: number;
   source?: string;
+  /** Art the user chose (cover, hero, backdrop, logo): kept through refreshes. */
+  artOverrides?: string[];
 }
 
 export interface Game {
@@ -158,6 +160,15 @@ export interface MetaState {
   done: number;
   total: number;
 }
+
+/** A picture a game's art can be changed to (already stored). */
+export interface ArtChoice {
+  art: string;
+  source: string;
+  width: number;
+  height: number;
+}
+export type ArtKind = "cover" | "backdrop" | "hero" | "logo";
 
 export interface StoreHit {
   appId: number;

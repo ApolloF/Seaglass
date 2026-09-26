@@ -1,7 +1,7 @@
 // The frontend's one door to the Go side. In mock mode (`npm run dev:mock`)
 // the same interface is served by made-up data, so the interface can be
 // built and checked in a normal browser. Vite drops the unused one.
-import type { Accounts, AddonGame, AddonView, AppInfo, Game, MetaState, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, AddonGame, AddonView, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 import { realApi } from "./api.real";
 import { mockApi } from "./api.mock";
 
@@ -22,6 +22,10 @@ export interface Api {
   refreshMetadata(id: number): Promise<void>;
   searchSteam(query: string): Promise<StoreHit[]>;
   setMatch(id: number, appId: number, name: string): Promise<Game>;
+  /** Pictures the game's art of a kind could be, current first (asks the stores: seconds). */
+  artChoices(id: number, kind: ArtKind): Promise<ArtChoice[]>;
+  /** Makes a picture from artChoices the game's art, kept through refreshes. */
+  setArt(id: number, kind: ArtKind, art: string): Promise<Game>;
 
   settings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<Settings>;

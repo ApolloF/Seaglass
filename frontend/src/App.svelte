@@ -54,6 +54,11 @@
     }),
   );
 
+  // Styles outside a mode (toasts) know which one shows.
+  $effect(() => {
+    document.documentElement.dataset.mode = mode;
+  });
+
   // Desktop mode follows the Windows theme unless the user picked one.
   let systemDark = $state(window.matchMedia("(prefers-color-scheme: dark)").matches);
   $effect(() => {

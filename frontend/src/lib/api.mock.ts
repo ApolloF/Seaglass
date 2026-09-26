@@ -276,6 +276,20 @@ export const mockApi: Api = {
       { appId: 941900, name: `${q} Soundtrack`, image: "" },
     ];
   },
+  async artChoices(id, kind) {
+    await wait(700);
+    const key = { cover: "cover", backdrop: "backdrop", hero: "hero", logo: "logo" } as const;
+    const seen = new Set<string>();
+    const out = [];
+    const cur = games.find((x) => x.id === id)?.meta?.[key[kind]];
+    if (cur) (seen.add(cur), out.push({ art: cur, source: "Current", width: 0, height: 0 }));
+    for (const x of games) {
+      const a = x.meta?.[key[kind]];
+      if (a && !seen.has(a) && out.length < 9) (seen.add(a), out.push({ art: a, source: x.title, width: 0, height: 0 }));
+    }
+    return out;
+  },
+  setArt: (id, kind, art) => update(id, (g) => (g.meta = { ...g.meta, [kind]: art, artOverrides: [...(g.meta?.artOverrides ?? []), kind] })),
   setMatch: (id, appId, name) => update(id, (g) => ((g.steamAppId = appId), (g.title = name), (g.confirmed = true), (g.needsReview = false), (g.matchHow = "Chosen by you"), (g.confidence = 100))),
 
   async settings() {

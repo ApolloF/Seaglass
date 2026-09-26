@@ -397,3 +397,12 @@ func PruneArt(artDir string, keep map[string]bool, grace time.Duration) (removed
 	}
 	return removed, freed
 }
+
+// IsStoredArt reports whether url names an image stored in artDir.
+func IsStoredArt(artDir, url string) bool {
+	name, ok := strings.CutPrefix(url, artPrefix)
+	return ok && reArtName.MatchString(name) && func() bool {
+		fi, err := os.Stat(filepath.Join(artDir, name))
+		return err == nil && fi.Mode().IsRegular()
+	}()
+}

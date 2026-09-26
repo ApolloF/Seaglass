@@ -11,6 +11,7 @@
   import { lib } from "../lib/store.svelte";
   import { savesSummary } from "../lib/saves";
   import { storeName, title, type AddonBadge, type Game, type Saves, type StoreHit } from "../lib/types";
+  import ArtPicker from "./ArtPicker.svelte";
   import Hints from "./Hints.svelte";
 
   let { game, onplay, onclose }: { game: Game; onplay: () => void; onclose: () => void } = $props();
@@ -56,6 +57,7 @@
           { id: "play", label: game.installed ? "Play" : game.installUri ? "Install with " + storeName(game) : "Not installed", icon: "play" },
           { id: "fav", label: game.favorite ? "Favorite" : "Add to favorites", icon: "star" },
           { id: "pad", label: `Controller: ${modeLabel[game.padMode ?? ""]}`, icon: "pad" },
+          { id: "art", label: "Art", icon: "image" },
         ],
   );
   $effect(() => {
@@ -90,8 +92,14 @@
     lib.run(() => api.setMatch(game.id, x.appId, x.name).then(() => lib.toast(`${x.name}: fetching its details and art`)));
   }
 
+  let choosingArt = $state(false);
+
   function press(id: string) {
     feedback.confirm();
+    if (id === "art") {
+      choosingArt = true;
+      return;
+    }
     if (id === "play" && game.installed) onplay();
     else if (id === "play" && game.installUri) lib.run(() => api.install(game.id).then(() => lib.toast(storeName(game) + " will install " + title(game))));
     else if (id === "fav") lib.run(() => api.setFavorite(game.id, !game.favorite));
@@ -193,6 +201,10 @@
         </ul>
       {/if}
     </div>
+  {/if}
+
+  {#if choosingArt}
+    <ArtPicker {game} onclose={() => ((choosingArt = false), feedback.move())} />
   {/if}
 
   <div class="hints">
