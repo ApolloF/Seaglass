@@ -373,6 +373,20 @@ On `fix/controller-and-polish`, from the maintainer's own list after section 20.
 
 The mock also takes `?art=steam` (real art from Steam's CDN, from the browser) and `?syncer=missing|old|off`, and `window.mockPad("down")` presses a controller button.
 
+## 22. Proving it in the real app (started 2026-09-26)
+
+Everything checked so far ran in the browser mock. This round drives the real `WaterLauncher.exe`, then builds on it. One branch and pull request per phase.
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | Dev harness: `--remote-debugging`, `--virtual-pad`, `--dev-data`, the dev pipe, `tools/fakegame`, `tools/harness` (Playwright over CDP) | done |
+| 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | |
+| 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | |
+| 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | |
+| 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | |
+
+**Phase 1.** The harness is in [tools/harness](../tools/harness/README.md). Dev flags work only in dev builds. With `--dev-data` the library is frozen and the real games in it start the fake game (store links cleared, controller mode *Native*), so a test never starts a real game or touches Steam's shortcuts. `%APPDATA%\WaterLauncher` is backed up before each run and restored after. First run: the app started and was reachable over CDP in 2.2 s; the virtual DualSense showed up as `DualSense Wireless Controller (virtual)` and moved the cover grid's selection.
+
 ## To-do (maintainer)
 
 - [ ] **Back up the release key** before the next release: `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
