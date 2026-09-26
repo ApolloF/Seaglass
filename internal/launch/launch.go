@@ -12,6 +12,7 @@ package launch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,6 +82,11 @@ type Session struct {
 	Seconds   int64       `json:"seconds"`             // played this session
 	Error     string      `json:"error,omitempty"`
 	Note      string      `json:"note,omitempty"`
+	// Shown: the game's own window has come to the front (until then it's
+	// still loading, as far as anyone can see).
+	Shown bool `json:"shown,omitempty"`
+	// Crash is the exit code, as 0xC0000005, when the game crashed.
+	Crash string `json:"crash,omitempty"`
 }
 
 // Step is one hook.
@@ -150,9 +156,12 @@ type Manager struct {
 	procs    func() ([]platform.Proc, error)
 	image    func(uint32) (string, uint64, error)
 	end      func(pid uint32, started uint64) error
-	now      func() time.Time
-	poll     time.Duration
-	quiet    int // polls without a game process before it counts as closed
+	// watch opens a process to read its exit code after it ends.
+	watch func(pid uint32, started uint64) (code func() (uint32, bool), done func())
+	front func() uint32 // the process whose window is in front
+	now   func() time.Time
+	poll  time.Duration
+	quiet int // polls without a game process before it counts as closed
 
 	mu      sync.Mutex
 	cur     Session
@@ -170,7 +179,7 @@ type Manager struct {
 func NewManager(onChange func(Session)) *Manager {
 	return &Manager{
 		onChange: onChange, procs: platform.Processes, image: platform.ProcessImage, end: platform.EndProcess,
-		now: time.Now, stop: make(chan struct{}), poll: 2 * time.Second, quiet: 3,
+		watch: watchExit, front: platform.ForegroundPID, now: time.Now, stop: make(chan struct{}), poll: 2 * time.Second, quiet: 3,
 	}
 }
 
@@ -336,6 +345,39 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 	var seenAt, last time.Time
 	var total, unsaved, gap float64
 	quiet := 0
+	// Each game process is held open, so how it ended can be read: the
+	// last one to go decides whether the game crashed.
+	type watched struct {
+		code func() (uint32, bool)
+		done func()
+	}
+	watches := map[uint32]watched{}
+	var lastExit uint32
+	defer func() {
+		for _, w := range watches {
+			w.done()
+		}
+	}()
+	reap := func(game map[uint32]uint64) {
+		for pid, w := range watches {
+			if _, alive := game[pid]; alive {
+				continue
+			}
+			if c, ok := w.code(); ok {
+				lastExit = c
+			}
+			w.done()
+			delete(watches, pid)
+		}
+		for pid, started := range game {
+			if _, ok := watches[pid]; !ok && m.watch != nil {
+				if c, done := m.watch(pid, started); c != nil {
+					watches[pid] = watched{c, done}
+				}
+			}
+		}
+	}
+	shown := false
 	flush := func() {
 		if s := int64(unsaved); s > 0 && p.Played != nil {
 			p.Played(s)
@@ -354,6 +396,15 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 		m.mu.Lock()
 		m.tracked = game
 		m.mu.Unlock()
+		if err == nil {
+			reap(game)
+		}
+		if !shown && len(game) > 0 && m.front != nil {
+			if _, ok := game[m.front()]; ok {
+				shown = true
+				m.update(func(s *Session) { s.Shown = true })
+			}
+		}
 		switch {
 		case len(game) > 0 && seenAt.IsZero():
 			seenAt, last = now, now
@@ -377,7 +428,11 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 				if quiet >= m.quiet {
 					flush()
 					secs := int64(total)
-					m.update(func(s *Session) { s.Seconds = secs })
+					crash := ""
+					if platform.Crashed(lastExit) {
+						crash = fmt.Sprintf("0x%08X", lastExit)
+					}
+					m.update(func(s *Session) { s.Seconds, s.Crash = secs, crash })
 					return secs
 				}
 				break
@@ -543,4 +598,12 @@ func UsableDirs(dirs []string) []string {
 		out = append(out, c)
 	}
 	return out
+}
+
+func watchExit(pid uint32, started uint64) (func() (uint32, bool), func()) {
+	w, err := platform.WatchExit(pid, started)
+	if err != nil {
+		return nil, nil
+	}
+	return w.Code, w.Close
 }

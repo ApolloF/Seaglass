@@ -108,6 +108,17 @@
     };
   });
 
+  // The pointer hides while the controller or keyboard is in use, and after
+  // a few seconds without the mouse moving.
+  let pointerTimer: ReturnType<typeof setTimeout> | undefined;
+  function onpointermove(e: PointerEvent) {
+    if (e.pointerType !== "mouse" || (e.movementX === 0 && e.movementY === 0)) return;
+    input.pointer = true;
+    clearTimeout(pointerTimer);
+    pointerTimer = setTimeout(() => (input.pointer = false), 3000);
+  }
+  $effect(() => () => clearTimeout(pointerTimer));
+
   function onkeydown(e: KeyboardEvent) {
     const i = keyIntent(e);
     if (!i) return;
@@ -131,11 +142,11 @@
   });
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onpointermove} />
 
 <Stage>
   {#snippet children({ width, height })}
-    <div class="bp" style:--accent-game={accent}>
+    <div class="bp" class:nopointer={!input.pointer} style:--accent-game={accent}>
       {#if screen === "home"}
         {#if layout === "console"}
           <Console {width} {height} {...layoutProps} />
@@ -180,6 +191,10 @@
   .bp :global(button) {
     font-family: inherit;
     cursor: pointer;
+  }
+  .bp.nopointer,
+  .bp.nopointer :global(*) {
+    cursor: none !important;
   }
   .bp :global(button:focus-visible) {
     outline: none;

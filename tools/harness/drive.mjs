@@ -14,16 +14,8 @@ import path from "node:path";
 import { auditPage } from "./audit.mjs";
 import { OUT, backupAppData, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
 
-// Screens with the display scale Windows picks for them by default on a
-// typical monitor (a 27" 1440p at 125 %, a 4K at 150 %).
-export const SIZES = [
-  [1280, 720, 1],
-  [1920, 1080, 1],
-  [2560, 1440, 1.25],
-  [3840, 2160, 1.5],
-  [1920, 1200, 1],
-  [3440, 1440, 1],
-];
+export { SIZES } from "./sizes.mjs";
+import { SIZES } from "./sizes.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;

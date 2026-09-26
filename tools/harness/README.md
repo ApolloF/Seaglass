@@ -14,6 +14,16 @@ npm install
 node smoke.mjs
 ```
 
+| Script | |
+|---|---|
+| `smoke.mjs` | starts the app, presses two buttons, prints state and memory |
+| `tour.mjs [--input=pad\|keys\|both] [--layouts=deck,console,orbit] [--sizes=1920x1080,…]` | every screen of desktop mode and big picture, driven by the controller or the keyboard, screenshotted at six sizes (`sizes.mjs`) with a layout check (`audit.mjs`); a contact sheet per screen and `report.json` |
+| `launches.mjs [--from=bigpicture\|desktop] [--only=Direct,Crash]` | plays each fake game (direct, launcher handover, slow start, crash) and records the session, the windows and the controller mode over time |
+| `drive.mjs [name] [--bp] [--extra=N] [--layout=orbit]` | keeps the app running behind `127.0.0.1:9444` for exploring by hand: `/pad?b=down`, `/key?k=ArrowDown`, `/snap?name=x`, `/eval` (POST), `/state`, `/mem`, `/quit` |
+| `refresh.mjs` | runs the app once on the real library so its metadata is current, and keeps a copy for the test data |
+
+Contact sheets need Python with Pillow (`sheet.py`).
+
 Output goes to `%TEMP%\wl-harness` (or `WL_OUT`).
 
 ## Dev pipe

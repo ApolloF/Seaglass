@@ -4,6 +4,7 @@
   import Icon from "../components/Icon.svelte";
   import { api } from "../lib/api";
   import { lib } from "../lib/store.svelte";
+  import { crashText } from "../lib/types";
 
   const s = $derived(lib.session);
   let dismissed = $state(0);
@@ -12,7 +13,7 @@
     !!s &&
       s.id !== dismissed &&
       s.route !== "external" && // noticed, not started here: nothing to show until it's played
-      (s.phase === "preparing" || s.phase === "starting" || s.phase === "finishing" || s.phase === "failed" || (s.phase === "ended" && !!s.note)),
+      (s.phase === "preparing" || s.phase === "starting" || s.phase === "finishing" || s.phase === "failed" || (s.phase === "ended" && (!!s.note || !!s.crash))),
   );
   const heading = $derived.by(() => {
     if (!s) return "";
@@ -74,7 +75,7 @@
     {:else if s.phase === "failed"}
       <p class="err">{s.error}</p>
     {:else if s.phase === "ended"}
-      <p>{s.note}</p>
+      <p class:err={!!s.crash}>{s.note || crashText(s)}</p>
     {:else if waiting}
       <p>{waiting}</p>
     {/if}

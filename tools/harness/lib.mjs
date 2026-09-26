@@ -195,10 +195,21 @@ export class App {
     throw new Error("page not found");
   }
 
-  /** The main window's page, after it was closed and opened again. */
+  /** The main window's page, after it was closed and opened again. When
+   * every window closes (while a game runs), WebView2's browser process
+   * ends with it, and a new one serves the window that opens next. */
   async mainPage(timeout = 30000) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
+      if (!this.browser.isConnected()) {
+        try {
+          this.browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`, { timeout: 2000 });
+          this.sessions = new Map();
+        } catch {
+          await sleep(300);
+          continue;
+        }
+      }
       const p = this.pages().find((p) => !p.url().includes("view=overlay") && !p.isClosed());
       if (p) {
         this.page = p;
@@ -312,7 +323,12 @@ export class PadClient {
 
   /** Presses a button (south, east, up, …) and waits a moment for the interface. */
   async press(button, wait = 180) {
-    await this.send(`press ${button}`);
+    if (button === "lt" || button === "rt") {
+      // Triggers are axes.
+      await this.send(`axis ${button} 32767`);
+      await sleep(80);
+      await this.send(`axis ${button} 0`);
+    } else await this.send(`press ${button}`);
     await sleep(wait);
   }
 

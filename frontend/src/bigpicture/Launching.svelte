@@ -4,9 +4,9 @@
   // runs (when the interface stays open) and a summary when it ends.
   import GameArt from "../components/GameArt.svelte";
   import { api } from "../lib/api";
-  import { clock, playtime } from "../lib/format";
+  import { clock, totalLine } from "../lib/format";
   import { feedback, useInput } from "../lib/input.svelte";
-  import { title, type Game, type Session } from "../lib/types";
+  import { crashText, sessionLoading, title, type Game, type Session } from "../lib/types";
   import Hints from "./Hints.svelte";
 
   let { session, game, onclose }: { session: Session; game: Game | null; onclose: () => void } = $props();
@@ -16,6 +16,7 @@
   let quitArmed = $state(false);
 
   const phase = $derived(session.phase);
+  const loading = $derived(sessionLoading(session));
   const q = $derived(session.question);
   const steps = $derived(phase === "finishing" || phase === "ended" ? session.after : session.before);
   const running = $derived(steps.find((s) => s.status === "running"));
@@ -47,13 +48,13 @@
       case "starting":
         return "Starting";
       case "running":
-        return "Playing";
+        return loading ? "Loading" : "Playing";
       case "finishing":
         return "Finishing";
       case "failed":
         return "Couldn't start";
       default:
-        return "Played";
+        return session.crash ? "Closed unexpectedly" : "Played";
     }
   });
 
@@ -159,6 +160,9 @@
       {:else if phase === "starting" && session.route === "store"}
         <p>Handed to its store. The game can take a moment to appear.</p>
       {/if}
+    {:else if loading}
+      <div class="bar"><span></span></div>
+      <p>The game is loading. It comes to the front when it's ready.</p>
     {:else if phase === "running"}
       <p class="time">{clock(session.seconds)}</p>
       <p>{session.route === "external" ? "Started outside WaterLauncher; its playtime counts here too." : "The game is running."} Press the PS button in the game to open the overlay.</p>
@@ -168,7 +172,8 @@
       <p>{session.note}</p>
     {:else}
       <p class="time">{clock(session.seconds)}</p>
-      <p>{game ? `${playtime(Math.max(game.playtime ?? 0, game.storePlaytime ?? 0))} in total.` : ""} Welcome back.</p>
+      {#if session.crash}<p class="err">{crashText(session)}</p>{/if}
+      <p>{game ? totalLine(Math.max(game.playtime ?? 0, game.storePlaytime ?? 0)) : ""} {session.crash ? "" : "Welcome back."}</p>
     {/if}
   </div>
   <div class="hints"><Hints {hints} /></div>

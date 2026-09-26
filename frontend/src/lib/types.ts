@@ -207,7 +207,20 @@ export interface Session {
   seconds: number;
   error?: string;
   note?: string;
+  /** The game's own window has come to the front (before that it's loading). */
+  shown?: boolean;
+  /** The exit code (0xC0000005) when the game crashed. */
+  crash?: string;
 }
+
+/** Still loading: running, but its window hasn't come to the front yet
+ * (some games never bring one forward themselves: after a minute it's
+ * taken as running). */
+export const sessionLoading = (s: Session) => s.phase === "running" && !s.shown && s.route !== "external" && s.seconds < 60;
+
+/** What a crash says, or "" when the game quit normally. */
+export const crashText = (s: Session) =>
+  s.crash ? `${s.title || "The game"} closed unexpectedly (error ${s.crash}). Its playtime up to then is counted.` : "";
 
 export const sessionActive = (s: Session | null | undefined) =>
   !!s && s.phase !== "" && s.phase !== "ended" && s.phase !== "failed" && s.phase !== "cancelled";

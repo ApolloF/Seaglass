@@ -68,6 +68,7 @@ func newTest(f *fakePC) (*Manager, *recorder) {
 	r := &recorder{done: make(chan Session, 1)}
 	m := NewManager(r.on)
 	m.procs, m.image, m.now, m.poll = f.procs, f.image, f.now, time.Millisecond
+	m.watch, m.front = nil, nil
 	m.end = func(pid uint32, _ uint64) error {
 		f.mu.Lock()
 		f.ended = append(f.ended, pid)
@@ -309,5 +310,40 @@ func TestCloseSavesPlaytime(t *testing.T) {
 	defer mu.Unlock()
 	if played == 0 {
 		t.Error("Close returned before the playtime was handed over")
+	}
+}
+
+// A game whose last process ends with a crash code is reported as
+// crashed; its window coming to the front marks it shown.
+func TestCrashAndShown(t *testing.T) {
+	sys := platform.Proc{PID: 10, PPID: 1, Name: "explorer.exe"}
+	launcher := platform.Proc{PID: 100, PPID: 10, Name: "launcher.exe"}
+	game := platform.Proc{PID: 200, PPID: 100, Name: "game.exe"}
+	for _, tc := range []struct {
+		code uint32
+		want string
+	}{{0xC0000005, "0xC0000005"}, {0, ""}, {1, ""}} {
+		f := &fakePC{
+			paths: map[uint32]string{10: `C:\Windows\explorer.exe`, 100: gameDir + `\launcher.exe`, 200: gameDir + `\game.exe`},
+			frames: [][]platform.Proc{
+				{sys, launcher}, {sys, launcher, game}, {sys, game}, {sys, game}, {sys},
+			},
+		}
+		m, r := newTest(f)
+		m.front = func() uint32 { return 200 }
+		m.watch = func(pid uint32, _ uint64) (func() (uint32, bool), func()) {
+			code := uint32(0) // the launcher hands over cleanly
+			if pid == 200 {
+				code = tc.code
+			}
+			return func() (uint32, bool) { return code, true }, func() {}
+		}
+		if err := m.Launch(context.Background(), Plan{Title: "Some Game", Dirs: []string{gameDir}, Start: func() (uint32, string, error) { return 100, "direct", nil }}); err != nil {
+			t.Fatal(err)
+		}
+		s := wait(t, r)
+		if s.Crash != tc.want || !s.Shown {
+			t.Errorf("exit %#x: crash %q shown %v, want %q and shown", tc.code, s.Crash, s.Shown, tc.want)
+		}
 	}
 }

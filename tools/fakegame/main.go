@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -134,6 +135,10 @@ var (
 	started time.Time
 	font    uintptr
 )
+
+// A window's messages go to the thread that made it: the message loop must
+// stay on the main thread.
+func init() { runtime.LockOSThread() }
 
 func main() {
 	args := os.Args[1:]
