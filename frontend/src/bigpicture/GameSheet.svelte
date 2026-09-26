@@ -223,7 +223,7 @@
     position: absolute;
     inset: 0;
     background:
-      linear-gradient(90deg, rgba(6, 8, 11, 0.95) 0%, rgba(6, 8, 11, 0.7) 40%, rgba(6, 8, 11, 0.1) 75%),
+      linear-gradient(90deg, rgba(6, 8, 11, 0.95) 0%, rgba(6, 8, 11, 0.85) 30%, rgba(6, 8, 11, 0.62) 52%, rgba(6, 8, 11, 0.1) 80%),
       linear-gradient(0deg, rgba(6, 8, 11, 0.9) 0%, rgba(6, 8, 11, 0) 50%);
   }
   .content {

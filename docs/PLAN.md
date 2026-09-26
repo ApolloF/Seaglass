@@ -382,12 +382,26 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 | # | Phase | Status |
 |---|---|---|
 | 1 | Dev harness: `--remote-debugging`, `--virtual-pad`, `--dev-data`, the dev pipe, `tools/fakegame`, `tools/harness` (Playwright over CDP) | done |
-| 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | |
+| 2 | Every big picture screen and layout plus desktop mode, controller only, then keyboard only, at 1280×720, 1920×1080, 2560×1440, 3840×2160, 1920×1200 and 3440×1440; start and close the fake game on every route (direct, launcher handover, slow start, crash) | done |
 | 3 | Frame times and memory with 500 and 2,000 games at 4K; fix the worst spots | |
 | 4 | `TestMatchAudit` grown to ~700 real titles and folder names; matching ≥ 97 % without false matches | |
 | 5 | Art picking in big picture, a controller button test screen, a first-start welcome flow, collections | |
 
+**Maintainer's additions (2026-09-26):** hide the mouse pointer in big picture while the controller is used (done in phase 2); Orbit flickers and stutters while swiping (phase 3); backdrops picked better and sharper (done, PR #14); Alan Wake II (a DODI repack of a game only Epic sells) had no art and "no controller support known" (done, PR #14: PCGamingWiki and the Epic store's page content).
+
 **Phase 1.** The harness is in [tools/harness](../tools/harness/README.md). Dev flags work only in dev builds. With `--dev-data` the library is frozen and the real games in it start the fake game (store links cleared, controller mode *Native*), so a test never starts a real game or touches Steam's shortcuts. `%APPDATA%\WaterLauncher` is backed up before each run and restored after. First run: the app started and was reachable over CDP in 2.2 s; the virtual DualSense showed up as `DualSense Wireless Controller (virtual)` and moved the cover grid's selection.
+
+**Phase 2.** `tools/harness/tour.mjs` drives desktop mode and 10 big picture screens in each of the three layouts (31 screens), with the virtual controller and then with the keyboard, at six screen sizes with the display scale Windows picks for each (1440p at 125 %, 4K at 150 %), and checks every screenshot for text that overlaps text, is cut off, or overflows its box. `launches.mjs` plays the four fake games from big picture with the controller and from desktop mode. Found and fixed:
+
+- Keyboard: in Search, PageUp / PageDown / Tab were typed into the field, so the keyboard couldn't leave Search except with Esc. They now switch sections and open Quick access from there too.
+- The mouse pointer showed over big picture while using the controller or keyboard; it now hides then, and after 3 s without the mouse moving.
+- A game that crashed (exit code 0xC0000005) ended with "Welcome back". Game processes are now held open for their exit code, and a crash says "closed unexpectedly (error 0xC0000005)" in big picture and desktop mode.
+- A slow-starting game showed "Playing 0:00 · The game is running" for as long as it loaded without a window. Sessions now know when the game's window came to the front, and show "Loading" until then (up to a minute).
+- "1 min in total" after 3 s: now "Less than a minute in total".
+- The game page's text was hard to read over bright backdrops (a stronger shade behind it), and the last Settings row sat under the list's bottom fade (scroll padding).
+- Harness: the fake game hung when Go moved its message loop to another thread (now locked), and WebView2's browser process ends when every window closes for a game, so the harness reconnects.
+
+Checked and fine: every screen reachable with the controller and the keyboard; big picture looks the same at every size (CSS zoom), 16:10 and 21:9 get extra room instead of bars; all four launch routes from both modes: the interface stays until the game's window is in front, closes, the controller goes passive, the launcher handover is followed, the interface is back within about a second of the game closing, and playtime counts (9–15 s).
 
 ## To-do (maintainer)
 

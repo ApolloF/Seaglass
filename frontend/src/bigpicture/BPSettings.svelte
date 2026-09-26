@@ -201,6 +201,8 @@
     gap: 10px;
     padding: 6px;
     mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 40px), transparent 100%);
+    /* The selected row scrolls fully clear of the faded edges. */
+    scroll-padding-block: 18px 48px;
   }
   .group {
     margin: 18px 0 4px 6px;

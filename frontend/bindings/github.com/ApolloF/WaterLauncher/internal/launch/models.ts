@@ -75,6 +75,17 @@ export interface Session {
     "seconds": number;
     "error"?: string;
     "note"?: string;
+
+    /**
+     * Shown: the game's own window has come to the front (until then it's
+     * still loading, as far as anyone can see).
+     */
+    "shown"?: boolean;
+
+    /**
+     * Crash is the exit code, as 0xC0000005, when the game crashed.
+     */
+    "crash"?: string;
 }
 
 /**

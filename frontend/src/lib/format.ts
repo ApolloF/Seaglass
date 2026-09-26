@@ -5,6 +5,11 @@ export function playtime(sec?: number): string {
   return h < 10 ? `${h.toFixed(1).replace(/\.0$/, "")} h` : `${Math.round(h)} h`;
 }
 
+/** "12 h in total." ("Less than a minute in total." under a minute). */
+export function totalLine(sec: number): string {
+  return sec < 60 ? "Less than a minute in total." : `${playtime(sec)} in total.`;
+}
+
 export function ago(unix?: number, now = Date.now() / 1000): string {
   if (!unix) return "Never";
   const days = Math.floor((startOfDay(now) - startOfDay(unix)) / 86400);

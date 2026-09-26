@@ -50,8 +50,9 @@ export function dispatch(intent: Intent, repeat = false) {
   base?.(intent, repeat);
 }
 
-/** Where input last came from: it picks the button prompts. */
-export const input = $state<{ source: "pad" | "keyboard" }>({ source: "pad" });
+/** Where input last came from: it picks the button prompts. The mouse
+ * pointer shows only while the mouse is being used. */
+export const input = $state<{ source: "pad" | "keyboard"; pointer: boolean }>({ source: "pad", pointer: false });
 
 // Steam's desktop configuration turns a controller into a keyboard while
 // WaterLauncher reads the same controller, so one press can arrive twice:
@@ -70,6 +71,7 @@ export function dispatchFrom(from: "pad" | "keyboard", intent: Intent, repeat = 
   lastSeen.set(intent, { from, at: now });
   if (from === "pad") lastPad = now;
   if (input.source !== from) input.source = from;
+  if (input.pointer) input.pointer = false;
   dispatch(intent, repeat);
   return true;
 }
@@ -128,10 +130,14 @@ export const KEY_LABELS: Record<Intent, string> = {
   rt: "]",
 };
 
+// Keys that still work while typing in a field: they don't edit text, so
+// the sections (PageUp / PageDown) and Quick access (Tab) stay in reach.
+const FIELD_KEYS = new Set(["Escape", "ArrowDown", "ArrowUp", "PageUp", "PageDown", "Tab"]);
+
 /** Maps a key to an intent, unless the user is typing in a field. */
 export function keyIntent(e: KeyboardEvent): Intent | null {
   const t = e.target as HTMLElement | null;
-  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA") && e.key !== "Escape" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return null;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA") && !FIELD_KEYS.has(e.key)) return null;
   if (e.ctrlKey || e.altKey || e.metaKey) return null;
   return KEYS[e.key] ?? null;
 }
