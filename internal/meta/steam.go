@@ -40,6 +40,11 @@ type steamDetails struct {
 	Screenshots []struct {
 		Full string `json:"path_full"`
 	} `json:"screenshots"`
+	// For a DLC: the game it belongs to.
+	Fullgame struct {
+		AppID string `json:"appid"`
+		Name  string `json:"name"`
+	} `json:"fullgame"`
 }
 
 // steamAppDetails reads the store page data. The response is keyed by
@@ -128,6 +133,21 @@ type StoreHit struct {
 	AppID int    `json:"appId"`
 	Name  string `json:"name"`
 	Image string `json:"image"` // small capsule on Steam's CDN (not fetched by WaterLauncher)
+}
+
+// BaseGame is the game a DLC belongs to; false when appID is a game
+// itself (or the store doesn't say). A folder named after a game's
+// expansion ("Cyberpunk 2077 Phantom Liberty") holds the game.
+func (c *Client) BaseGame(ctx context.Context, appID int) (StoreHit, bool) {
+	d, err := c.steamAppDetails(ctx, appID)
+	if err != nil || d.Type != "dlc" {
+		return StoreHit{}, false
+	}
+	id, err := strconv.Atoi(d.Fullgame.AppID)
+	if err != nil || id <= 0 || d.Fullgame.Name == "" {
+		return StoreHit{}, false
+	}
+	return StoreHit{AppID: id, Name: d.Fullgame.Name}, true
 }
 
 // SearchSteam looks a title up on the Steam store.

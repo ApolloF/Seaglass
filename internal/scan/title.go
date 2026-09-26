@@ -92,10 +92,11 @@ var (
 	// Bracketed release tags: "[FitGirl Repack]", "(v1.2.3)", "{GOG}".
 	reBrackets = regexp.MustCompile(`\s*[\[\(\{][^\]\)\}]*[\]\)\}]`)
 	// Trailing scene group or repacker tags: "-RUNE", "_CODEX", " - FitGirl Repack".
-	reGroup = regexp.MustCompile(`(?i)[\s._-]+(rune|codex|empress|tenoke|plaza|skidrow|reloaded|cpy|flt|hoodlum|razor1911|dodi|fitgirl|elamigos|kaos|xatab|gog|repack|multi\d*|goldberg|onlinefix|online-fix)(\s*repacks?)?$`)
+	reGroup = regexp.MustCompile(`(?i)[\s._-]+(rune|codex|empress|tenoke|plaza|skidrow|reloaded|cpy|flt|hoodlum|razor1911|dodi|fitgirl|elamigos|kaos|xatab|gog|repack|multi\d*|goldberg|onlinefix|online-fix|doge|p2p|tinyiso|darksiders|chronos|ali213|3dm|prophet|fckdrm|voksi|simplex|delusional|anomaly|rld)(\s*repacks?)?$`)
 	// Version and build suffixes: "v1.0.3", "Build 12345", "Update 5",
-	// "version 1.0.3179".
-	reVersion = regexp.MustCompile(`(?i)[\s._-]+(v\s?\d[\w.]*|version[\s._-]?\d[\w.]*|build[\s._-]?\d+|update[\s._-]?\d+|\d+\.\d+(\.\d+)*)$`)
+	// "version 1.0.3179", "1.0.3179". Two plain numbers ("2.0") stay: they
+	// are part of titles ("DiRT Rally 2.0") more often than versions.
+	reVersion = regexp.MustCompile(`(?i)[\s._-]+(v\s?\d[\w.]*|version[\s._-]?\d[\w.]*|build[\s._-]?\d+|update[\s._-]?\d+|\d+\.\d+\.\d+(\.\d+)*)$`)
 	reSpaces  = regexp.MustCompile(`\s+`)
 )
 
@@ -129,7 +130,7 @@ func CleanTitle(s string) string {
 }
 
 // Edition and cut suffixes: "Deluxe Edition", "GOTY", "- Complete Edition".
-var reEdition = regexp.MustCompile(`(?i)\s*[-:–]?\s*(digital\s+)?(deluxe|ultimate|complete|definitive|goty|game of the year|gold|premium|special|collector'?s|standard|enhanced|anniversary|remastered|director'?s cut)(\s+(edition|version|cut))?\s*$`)
+var reEdition = regexp.MustCompile(`(?i)\s*[-:–]?\s*(digital\s+)?(deluxe|ultimate|complete|definitive|goty|game of the year|gold|premium|special|collector'?s|standard|enhanced|(\d+(st|nd|rd|th)\s+)?anniversary\s+edition|remastered|director'?s cut|(the\s+)?final cut|windows\s+edition|reloaded|\d+\s+year celebration)(\s+(edition|version|cut))?\s*$`)
 
 // StripEdition drops an edition from a title: "The Witcher 3: Wild Hunt -
 // Complete Edition" → "The Witcher 3: Wild Hunt".

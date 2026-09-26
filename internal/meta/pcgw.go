@@ -45,7 +45,7 @@ var (
 // waitPCGW spaces out wiki requests: it's run by volunteers.
 func (c *Client) waitPCGW(ctx context.Context) error {
 	c.mu.Lock()
-	wait := time.Until(c.lastPCGW.Add(time.Second))
+	wait := time.Until(c.lastPCGW.Add(c.pcgwGap))
 	if wait < 0 {
 		wait = 0
 	}

@@ -1,9 +1,18 @@
 package app
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,126 +22,195 @@ import (
 	"github.com/ApolloF/WaterLauncher/internal/scan"
 )
 
-// TestMatchAudit runs well-known games, named the way stores, installers
-// and folders name them, through identification and the Steam store
-// search, with the real game database, and lists what finds no Steam app
-// (no metadata or art without a SteamGridDB key):
+// TestMatchAudit runs real games, named the ways stores, installers,
+// repacks and folders name them (testdata/match_audit.tsv, made by
+// gen_match_audit.py), through what WaterLauncher does to find out which
+// game a folder is: the game database, the Steam store search, then
+// PCGamingWiki. Each case says which game it is (or that it isn't one),
+// so a wrong match counts as much as a miss:
 //
-//	WL_MATCH_AUDIT=1 go test -run MatchAudit -v ./internal/app
+//	WL_MATCH_AUDIT=1 go test -run MatchAudit -v -timeout 2h ./internal/app
+//
+// Answers are kept in WL_MATCH_CACHE (default: a folder in %TEMP%), so a
+// second run takes seconds; delete it to ask the sources again.
 func TestMatchAudit(t *testing.T) {
 	if os.Getenv("WL_MATCH_AUDIT") == "" {
-		t.Skip("set WL_MATCH_AUDIT=1 to query the Steam store")
+		t.Skip("set WL_MATCH_AUDIT=1 to query the Steam store and PCGamingWiki")
 	}
 	ix := identify.NewManager(platform.CacheDir("manifest")).Index()
 	if ix == nil {
 		t.Skip("no game database in the cache yet (run WaterLauncher once)")
 	}
-	w := &metaWorker{client: meta.NewClient(t.TempDir(), nil)}
-	store := func(title string, src scan.Source) scan.Candidate {
-		return scan.Candidate{Title: title, Source: src, How: "store"}
+	cache := os.Getenv("WL_MATCH_CACHE")
+	if cache == "" {
+		cache = filepath.Join(os.TempDir(), "wl-match-cache")
 	}
-	folder := func(dir string) scan.Candidate {
-		return scan.Candidate{Title: scan.CleanTitle(filepath.Base(dir)), Dir: dir, Source: scan.Folder}
+	client := meta.NewClient(t.TempDir(), nil)
+	client.UseTransport(&recorder{dir: cache, next: map[string]time.Time{}})
+	w := &metaWorker{client: client}
+
+	f, err := os.Open(filepath.Join("testdata", "match_audit.tsv"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	installer := func(name, dir string) scan.Candidate {
+	defer f.Close()
+	type result struct {
+		kind, input, want, got, how string
+		ok, wrong                   bool
+	}
+	var results []result
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	defer cancel()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		cols := strings.Split(line, "\t")
+		if len(cols) != 3 {
+			t.Fatalf("bad line %q", line)
+		}
+		kind, input, want := cols[0], cols[1], cols[2]
+		c := auditCandidate(kind, input)
+		got, how := auditIdentify(ctx, t, ix, w, c)
+		r := result{kind: kind, input: input, want: want, got: got, how: how}
+		switch {
+		case want == "-":
+			r.ok = got == ""
+			r.wrong = got != ""
+		case got == "":
+		default:
+			r.ok = sameGame(got, want)
+			r.wrong = !r.ok
+		}
+		results = append(results, r)
+	}
+	var games, right, wrong, missed, falsePos int
+	for _, r := range results {
+		if r.want != "-" {
+			games++
+			if r.ok {
+				right++
+			}
+		}
+		switch {
+		case r.wrong && r.want == "-":
+			falsePos++
+			t.Logf("NOT A GAME, matched  %-12s %-58q → %q (%s)", r.kind, r.input, r.got, r.how)
+		case r.wrong:
+			wrong++
+			t.Logf("WRONG                %-12s %-58q → %q, want %q (%s)", r.kind, r.input, r.got, r.want, r.how)
+		case !r.ok:
+			missed++
+			t.Logf("MISS                 %-12s %-58q want %q (%s)", r.kind, r.input, r.want, r.how)
+		}
+	}
+	pct := 100 * float64(right) / float64(max(1, games))
+	t.Logf("%d cases: %d games found right of %d (%.1f %%), %d wrong, %d missed; %d of %d non-games matched",
+		len(results), right, games, pct, wrong, missed, falsePos, len(results)-games)
+	if pct < 97 || wrong > 0 || falsePos > 0 {
+		t.Errorf("want at least 97 %% found right and no wrong matches")
+	}
+}
+
+// auditCandidate is what a scan would have found.
+func auditCandidate(kind, input string) scan.Candidate {
+	switch {
+	case strings.HasPrefix(kind, "store:"):
+		return scan.Candidate{Title: input, Source: scan.Source(strings.TrimPrefix(kind, "store:")), How: "store"}
+	case kind == "installer":
+		name, dir, _ := strings.Cut(input, "|")
 		return scan.Candidate{Title: scan.CleanTitle(name), Dir: dir, Source: scan.Installer, TitleTrusted: true}
 	}
-	cases := []scan.Candidate{
-		store("Grand Theft Auto V", scan.Epic),
-		store("Red Dead Redemption 2", scan.Epic),
-		store("Cyberpunk 2077", scan.GOG),
-		store("The Witcher 3: Wild Hunt - Complete Edition", scan.GOG),
-		store("Hogwarts Legacy", scan.Epic),
-		store("Alan Wake 2", scan.Epic),
-		store("Control Ultimate Edition", scan.Epic),
-		store("Death Stranding Director's Cut", scan.Epic),
-		store("Marvel's Spider-Man Remastered", scan.Epic),
-		store("Horizon Zero Dawn™ Complete Edition", scan.Epic),
-		store("Borderlands 3", scan.Epic),
-		store("Rocket League®", scan.Epic),
-		store("Fall Guys", scan.Epic),
-		store("Hades", scan.Epic),
-		store("Celeste", scan.Epic),
-		store("Assassin's Creed Valhalla", scan.Ubisoft),
-		store("Far Cry® 6", scan.Ubisoft),
-		store("Tom Clancy's Rainbow Six® Siege", scan.Ubisoft),
-		store("Forza Horizon 5", scan.Xbox),
-		store("Microsoft Flight Simulator", scan.Xbox),
-		store("Halo: The Master Chief Collection", scan.Xbox),
-		store("Starfield", scan.Xbox),
-		store("Sea of Thieves", scan.Xbox),
-		store("EA SPORTS FC™ 24", scan.EA),
-		store("Battlefield™ 2042", scan.EA),
-		store("The Sims™ 4", scan.EA),
-		store("Apex Legends™", scan.EA),
-		store("Mass Effect™ Legendary Edition", scan.EA),
-		store("Diablo IV", scan.BattleNet),
-		store("Overwatch 2", scan.BattleNet),
-		store("Call of Duty®", scan.BattleNet),
-		folder(`D:\Games\Elden.Ring.v1.10-FitGirl`),
-		folder(`D:\Games\Red Dead Redemption 2 [FitGirl Repack]`),
-		folder(`D:\Games\Cyberpunk.2077.Phantom.Liberty-RUNE`),
-		folder(`D:\Games\Hogwarts.Legacy.Deluxe.Edition-EMPRESS`),
-		folder(`D:\Games\The Witcher 3 Wild Hunt GOTY`),
-		folder(`D:\Games\GTA V`),
-		folder(`D:\Games\Sekiro Shadows Die Twice`),
-		folder(`D:\Games\DARK SOULS III`),
-		folder(`D:\Games\Spider-Man Miles Morales`),
-		folder(`D:\Games\God of War`),
-		folder(`D:\Games\Ghost of Tsushima DIRECTOR'S CUT`),
-		folder(`D:\Games\HITMAN 3`),
-		folder(`D:\Games\Resident Evil 4`),
-		folder(`D:\Games\Batman Arkham Knight`),
-		folder(`D:\Games\Star Wars Jedi Fallen Order`),
-		folder(`D:\Games\Mortal Kombat 11 Ultimate`),
-		folder(`D:\Games\TEKKEN 8`),
-		folder(`D:\Games\Street Fighter 6`),
-		folder(`D:\Games\Monster Hunter World`),
-		folder(`D:\Games\Palworld`),
-		folder(`D:\Games\Lethal Company`),
-		folder(`D:\Games\Black Myth Wukong`),
-		folder(`D:\Games\STALKER 2 Heart of Chornobyl`),
-		folder(`D:\Games\Kingdom Come Deliverance II`),
-		folder(`D:\Games\DOOM Eternal`),
-		folder(`D:\Games\Metro Exodus Enhanced Edition`),
-		folder(`D:\Games\Horizon Forbidden West Complete Edition`),
-		folder(`D:\Games\Final Fantasy VII Remake Intergrade`),
-		folder(`D:\Games\Persona 5 Royal`),
-		folder(`D:\Games\Yakuza Like a Dragon`),
-		folder(`D:\Games\Sonic Frontiers`),
-		folder(`D:\Games\Need for Speed Heat`),
-		folder(`D:\Games\Assassins Creed Mirage`),
-		folder(`D:\Games\FarCry5`),
-		folder(`D:\Games\Baldurs.Gate.3.v4.1.1-GOG`),
-		folder(`D:\Games\Stardew_Valley`),
-		folder(`D:\Games\HollowKnight`),
-		folder(`D:\Games\Hades II`),
-		folder(`D:\Games\Portal 2`),
-		installer("Elden Ring Shadow of the Erdtree Deluxe Edition", `C:\Games\ELDEN RING`),
-		installer("Grand Theft Auto V version 1.0.3179", `C:\Games\Grand Theft Auto V`),
-		installer("Cyberpunk 2077 - Ultimate Edition", `C:\Games\Cyberpunk 2077`),
-		installer("Resident Evil Village Gold Edition", `C:\Games\RE Village`),
-		installer("Dying Light 2 Stay Human", `C:\Games\Dying Light 2`),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	failed := 0
-	for _, c := range cases {
-		m := ix.Identify(c)
-		how, app, name := m.How, m.SteamAppID, m.Title
-		if app == 0 && m.GogID == "" {
-			h, ok, err := w.searchStore(ctx, m.Title)
-			if err != nil {
-				t.Logf("search %q: %v", m.Title, err)
-			}
-			if !ok {
-				t.Logf("MISS %-45q → %q (%s)", c.Title, m.Title, m.How)
-				failed++
-				continue
-			}
-			how, app, name = "store search", h.AppID, h.Name
+	return scan.Candidate{Title: scan.CleanTitle(filepath.Base(input)), Dir: input, Source: scan.Folder}
+}
+
+// auditIdentify does what a scan and the metadata worker do to name a
+// game, and returns the name it ends up with ("" when nothing knew it).
+func auditIdentify(ctx context.Context, t *testing.T, ix *identify.Index, w *metaWorker, c scan.Candidate) (string, string) {
+	m := ix.Identify(c)
+	if m.SteamAppID > 0 {
+		if n := ix.SteamName(m.SteamAppID); n != "" {
+			return n, m.How
 		}
-		t.Logf("ok   %-45q → %q app %d (%s)", c.Title, name, app, how)
+		return m.Title, m.How
 	}
-	t.Logf("%d of %d without a Steam app", failed, len(cases))
+	if m.GogID != "" {
+		return m.Title, m.How
+	}
+	if !looksLikeGameName(m.Title) {
+		return "", "not a game name"
+	}
+	h, ok, err := w.searchStore(ctx, m.Title)
+	if err != nil {
+		t.Logf("search %q: %v", m.Title, err)
+	}
+	if ok {
+		return h.Name, storeMatchHow
+	}
+	if p, err := w.client.PCGamingWiki(ctx, m.Title); err == nil {
+		return p.Title, wikiMatchHow
+	}
+	return "", m.How
+}
+
+// sameGame compares a found name with the accepted ones ("|" between
+// them), ignoring editions and how they're written.
+func sameGame(got, want string) bool {
+	// A year in brackets tells games of one name apart ("Tomb Raider
+	// (2013)", not "(1996)"), so it counts: the data lists it where
+	// needed.
+	key := func(s string) string { return scan.LooseKey(scan.StripEdition(s)) }
+	g := key(got)
+	for _, w := range strings.Split(want, "|") {
+		if key(w) == g {
+			return true
+		}
+	}
+	return false
+}
+
+// recorder answers GET requests from a folder of earlier answers, and
+// fetches (spaced out per host, as the real client does) what it hasn't
+// seen yet.
+type recorder struct {
+	dir  string
+	mu   sync.Mutex
+	next map[string]time.Time
+}
+
+func (r *recorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	sum := sha1.Sum([]byte(req.Method + " " + req.URL.String()))
+	p := filepath.Join(r.dir, hex.EncodeToString(sum[:]))
+	if b, err := os.ReadFile(p); err == nil {
+		status, body, _ := bytes.Cut(b, []byte("\n"))
+		code := 0
+		fmt.Sscan(string(status), &code)
+		return &http.Response{StatusCode: code, Status: http.StatusText(code), Body: io.NopCloser(bytes.NewReader(body)), Header: http.Header{}, Request: req, ContentLength: int64(len(body))}, nil
+	}
+	gap := map[string]time.Duration{"store.steampowered.com": 1500 * time.Millisecond, "www.pcgamingwiki.com": time.Second}[req.URL.Hostname()]
+	r.mu.Lock()
+	at := r.next[req.URL.Hostname()]
+	if now := time.Now(); at.Before(now) {
+		at = now
+	}
+	r.next[req.URL.Hostname()] = at.Add(gap)
+	r.mu.Unlock()
+	time.Sleep(time.Until(at))
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
+		_ = os.MkdirAll(r.dir, 0o755)
+		_ = os.WriteFile(p, append([]byte(fmt.Sprintf("%d\n", resp.StatusCode)), body...), 0o644)
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
 }

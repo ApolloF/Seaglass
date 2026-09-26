@@ -289,3 +289,45 @@ func TestRealScan(t *testing.T) {
 		t.Logf("%-28s %-9s app=%-8d emu=%-14s repack=%-6s exe=%s uri=%s\n    how=%s dir=%s", g.Title, g.Source, g.SteamAppID, g.Emulator, g.Repacker, g.Exe, g.LaunchURI, g.How, g.Dir)
 	}
 }
+
+func TestCleanTitleKeepsShortNumbers(t *testing.T) {
+	for in, want := range map[string]string{
+		"DiRT Rally 2.0":                     "DiRT Rally 2.0",
+		"Octopath.Traveler.II.v1.9.7-DOGE":   "Octopath Traveler II",
+		"Dying.Light.2.Stay.Human.v1.17-P2P": "Dying Light 2 Stay Human",
+		"Some Game 1.0.3":                    "Some Game",
+	} {
+		if got := CleanTitle(in); got != want {
+			t.Errorf("CleanTitle(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestAliasesAndNotAGame(t *testing.T) {
+	for in, want := range map[string]string{
+		"SkyrimSE":       "The Elder Scrolls V: Skyrim Special Edition",
+		"AC Valhalla":    "Assassin's Creed Valhalla",
+		"ACOdyssey":      "Assassin's Creed Odyssey",
+		"MHWilds":        "Monster Hunter Wilds",
+		"MK1":            "Mortal Kombat 1",
+		"Mafia 2 DE":     "Mafia 2 Definitive Edition",
+		"C&C Remastered": "Command & Conquer Remastered",
+	} {
+		if got := Aliases(in); len(got) == 0 || got[0] != want {
+			t.Errorf("Aliases(%q) = %q, want %q first", in, got, want)
+		}
+	}
+	if got := Aliases("Hades"); len(got) != 0 {
+		t.Errorf("Aliases(Hades) = %q", got)
+	}
+	for _, n := range []string{"Tools", "_CommonRedist", "Mod Organizer 2", "Steam", "My Games"} {
+		if !NotAGame(n) {
+			t.Errorf("%q should not be a game", n)
+		}
+	}
+	for _, n := range []string{"Hades", "Portal 2", "Steamworld Dig"} {
+		if NotAGame(n) {
+			t.Errorf("%q is a game", n)
+		}
+	}
+}

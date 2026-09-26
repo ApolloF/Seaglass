@@ -25,6 +25,8 @@ func TestPickStoreHit(t *testing.T) {
 		{"Portal", []meta.StoreHit{{AppID: 620, Name: "Portal 2"}}, 0},
 		{"Hades", []meta.StoreHit{{AppID: 1, Name: "Hades II"}, {AppID: 2, Name: "HADES"}}, 2},
 		{"Worm", []meta.StoreHit{{AppID: 1, Name: "Worms"}, {AppID: 2, Name: "The Worms"}}, 0}, // two games: no guess
+		// The store's name with its edition, when only one game has it.
+		{"Tomb Raider", []meta.StoreHit{{AppID: 203160, Name: "Tomb Raider Game of the Year"}, {AppID: 8000, Name: "Tomb Raider: Anniversary"}, {AppID: 224960, Name: "Tomb Raider I (1996)"}}, 203160},
 	} {
 		h, ok := pickStoreHit(tc.title, tc.hits)
 		if got := map[bool]int{true: h.AppID}[ok]; got != tc.want {
