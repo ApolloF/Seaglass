@@ -157,7 +157,7 @@ function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: 
     if (icons) (a.icon = badge(i + 1)), (a.iconGray = i % 3 ? badge(i + 1, true) : "");
     if (rarity) a.percent = Math.max(0.4, 92 / (i + 1));
     if (on) a.unlockedAt = now - (unlocked - i) * 3 * day;
-    if (i === 8) a.hidden = true;
+    if (i === n - 2) a.hidden = true;
     if (!on && i === n - 1) (a.progress = 7), (a.max = 20);
     return a;
   });

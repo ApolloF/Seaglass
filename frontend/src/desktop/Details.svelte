@@ -85,6 +85,7 @@
   // unchanged files is reused, so asking again is cheap.
   let ach = $state<Achievements | null>(null);
   let achOpen = $state(false);
+  let achFor = -1; // the game ach belongs to: a re-read of the same game keeps showing the old list
   const achOn = $derived(lib.settings?.achievements ?? true);
   const achInfo = $derived(achievementsSummary(ach));
   const achRecent = $derived(ach ? recentUnlocks(ach.items) : []);
@@ -93,7 +94,8 @@
     const show = achOn && (game.installed || !!game.owned);
     lib.session?.phase;
     lib.achSession; // the backend read them again after a session
-    ach = null;
+    if (id !== achFor) ach = null;
+    achFor = id;
     if (!show) return;
     let live = true;
     const t = setTimeout(() => {
@@ -335,7 +337,7 @@
       </div>
     {/if}
 
-    {#if achOn && (game.installed || game.owned)}
+    {#if achOn && (game.installed || game.owned) && !(ach && ach.total === 0 && !ach.source)}
       <div class="card ach" class:warn={achInfo?.tone === "warn"}>
         <div class="card-head">
           <Icon name="trophy" size={22} stroke={1.8} />

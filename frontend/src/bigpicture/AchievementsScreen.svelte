@@ -84,7 +84,7 @@
     position: absolute;
     inset: 0;
     z-index: 30;
-    background: rgba(6, 8, 11, 0.96);
+    background: #06080b;
     padding: 70px 110px 140px;
     display: flex;
     flex-direction: column;
@@ -127,10 +127,12 @@
   ul {
     list-style: none;
     margin: 0;
-    padding: 6px;
+    padding: 20px 6px;
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    scroll-padding: 20px 0;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
     display: flex;
     flex-direction: column;
     gap: 10px;

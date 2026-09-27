@@ -34,12 +34,14 @@
   });
 
   let ach = $state<Achievements | null>(null);
+  let achFor = -1;
   $effect(() => {
     const id = game.id;
     const on = lib.settings?.achievements ?? true;
     lib.achSession;
     let live = true;
-    ach = null;
+    if (id !== achFor) ach = null;
+    achFor = id;
     if (on && (game.installed || game.owned)) api.achievements.get(id).then((a) => live && (ach = a)).catch(() => {});
     return () => (live = false);
   });
