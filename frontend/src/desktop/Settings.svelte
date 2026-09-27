@@ -139,6 +139,13 @@
               <Toggle checked={!l.hidden} title={`${l.label} games`} detail={`${l.count} ${l.count === 1 ? "game" : "games"}. Off: they aren't shown anywhere, but still count their playtime.`} onchange={() => lib.toggleLibrary(l.id)} />
             {/each}
           </div>
+          <div class="group">
+            <span class="glabel">Achievements</span>
+            <Toggle checked={s.achievements} title="Show achievements" detail="Read from Steam, Epic and GOG, and from the files Steam emulators keep for unofficial copies. After you play, Seaglass says what you unlocked." onchange={(v) => set({ achievements: v })} />
+            {#if s.achievements}
+              <Toggle checked={s.showHiddenAchievements} title="Show hidden achievements" detail="Names and descriptions of hidden achievements you haven't unlocked yet. They can give away the story." onchange={(v) => set({ showHiddenAchievements: v })} />
+            {/if}
+          </div>
           <AccountsSettings />
           <div class="group">
             <span class="glabel">Your game folders</span>

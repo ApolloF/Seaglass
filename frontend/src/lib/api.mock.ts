@@ -1,7 +1,7 @@
 // Made-up library for `npm run dev:mock`: the games from the design canvas,
 // covering every way a game can be found.
 import type { Api } from "./api";
-import type { Accounts, AppInfo, Game, MetaState, Saves, ScanState, Session, Settings, Startup, UpdateState } from "./types";
+import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
 import { sessionActive } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -93,6 +93,8 @@ let settings: Settings = {
   syncWait: 60,
   startSyncer: true,
   autoUpdate: true,
+  achievements: true,
+  showHiddenAchievements: false,
   // ?welcome=1 shows the first-start welcome.
   welcomed: mockParams.get("welcome") !== "1",
 };
@@ -133,6 +135,59 @@ function mockSaves(g: Game | undefined): Saves {
   return base;
 }
 
+// ---- pretend achievements: one game per state ----
+
+// A coloured badge per achievement (images from the app only, like the real /ach/ icons).
+const badge = (seed: number, gray = false) => {
+  const h = (seed * 47) % 360;
+  const c = gray ? "#5a5f66" : `hsl(${h} 70% 55%)`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="${gray ? "#2a2d31" : `hsl(${h} 45% 22%)`}"/><path d="M20 14h24v8a12 12 0 0 1-24 0z M28 38h8v6h6v6H22v-6h6z" fill="${c}"/></svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+};
+
+const achNames = ["First Steps", "Into the Fire", "Crownless", "Ashen Knight", "No Rest", "Cartographer", "Hoarder", "Untouchable", "Secret Ending", "Completionist", "Old Friend", "Night Owl"];
+
+function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: boolean; rarity?: boolean } = {}): Achievement[] {
+  const { names = true, icons = true, rarity = true } = opts;
+  return Array.from({ length: n }, (_, i) => {
+    const id = `ACH_${String(i + 1).padStart(2, "0")}`;
+    const on = i < unlocked;
+    const a: Achievement = { id, name: names ? achNames[i % achNames.length] + (i >= achNames.length ? ` ${Math.floor(i / achNames.length) + 1}` : "") : id, unlocked: on };
+    if (names) a.desc = on ? "Done and dusted." : "Something still to do.";
+    if (icons) (a.icon = badge(i + 1)), (a.iconGray = i % 3 ? badge(i + 1, true) : "");
+    if (rarity) a.percent = Math.max(0.4, 92 / (i + 1));
+    if (on) a.unlockedAt = now - (unlocked - i) * 3 * day;
+    if (i === 8) a.hidden = true;
+    if (!on && i === n - 1) (a.progress = 7), (a.max = 20);
+    return a;
+  });
+}
+
+const achList = (g: Game, source: string, items: Achievement[], hint = ""): Achievements => ({
+  gameId: g.id, source, total: items.length, unlocked: items.filter((a) => a.unlocked).length, items, updatedAt: now, ...(hint ? { hint } : {}),
+});
+
+const sessionAchListeners = new Set<(s: SessionAchievements) => void>();
+const extraUnlocks = new Map<number, number>(); // game id → unlocked in pretend sessions
+
+function mockAchievements(g: Game | undefined): Achievements {
+  if (!g) return { gameId: 0, source: "", total: 0, unlocked: 0, items: [], updatedAt: now };
+  const more = extraUnlocks.get(g.id) ?? 0;
+  switch (g.title) {
+    case "Ember Crown": // full schema, rarity, a hidden one, progress
+      return achList(g, "Goldberg", achItems(40, 12 + more));
+    case "Iron Veil": // unlock ids only: no schema, no key
+      return achList(g, "RUNE", achItems(6, 4 + more, { names: false, icons: false, rarity: false }), "Add a Steam Web API key in Settings → Accounts to see names and icons.");
+    case "Starfall Protocol": // Epic, not signed in
+      return achList(g, "epic", achItems(24, 0, { rarity: true }), "Sign in to Epic in Settings → Accounts to see your progress.");
+    case "Hollow Tide": // everything unlocked
+      return achList(g, "steam", achItems(18, 18));
+    case "Frostline":
+      return achList(g, "", [], "Seaglass can't read achievements from the Xbox app yet.");
+  }
+  return achList(g, g.source === "steam" ? "steam" : "", achItems(10, 3 + more));
+}
+
 let sgdb = false;
 let state: ScanState = { running: false, lastScan: now - 120, tookMs: 940, games: games.length, added: 0, known: 52107 };
 const libListeners = new Set<() => void>();
@@ -155,6 +210,7 @@ let accounts: Accounts = {
   steam: { connected: false, available: true, games: 0, syncing: false },
   gog: { connected: false, available: true, games: 0, syncing: false },
   epic: { connected: false, available: true, games: 0, syncing: false },
+  gogSignIn: { connected: false, available: true, games: 0, syncing: false },
 };
 
 function addOwned() {
@@ -383,6 +439,16 @@ export const mockApi: Api = {
       return { installed: true, version: "0.12.0", outdated: false, connected: true, running: true, syncing: true, paused: false, backingUp: false, lastBackup: at - 2 * hour, games: 42, conflicts: 1, checkedAt: at };
     },
   },
+  achievements: {
+    async get(id) {
+      await wait(200);
+      return clone(mockAchievements(games.find((g) => g.id === id)));
+    },
+    onSession(cb) {
+      sessionAchListeners.add(cb);
+      return () => sessionAchListeners.delete(cb);
+    },
+  },
   accounts: {
     async get() {
       return clone(accounts);
@@ -409,6 +475,17 @@ export const mockApi: Api = {
     },
     async epicSignOut() {
       accounts = { ...accounts, epic: { connected: false, available: true, games: 0, syncing: false } };
+      return clone(accounts);
+    },
+    async openGOGSignIn() {},
+    async gogSignIn(p) {
+      await wait(600);
+      if (!/code=|^[A-Za-z0-9_-]{20,}$/.test(p.trim())) throw new Error("paste the address the GOG page ended on after signing in (it has code= in it)");
+      accounts = { ...accounts, gogSignIn: { ...accounts.gogSignIn, connected: true } };
+      return clone(accounts);
+    },
+    async gogSignOut() {
+      accounts = { ...accounts, gogSignIn: { connected: false, available: true, games: 0, syncing: false } };
       return clone(accounts);
     },
     onChange() {
@@ -439,6 +516,15 @@ export const mockApi: Api = {
       setSession({ phase: "finishing", after: [{ id: "savesAfter", label: "Back up saves", status: "running", detail: "Backing up…" }] });
       await wait(1500);
       setSession({ phase: "ended", after: [{ id: "savesAfter", label: "Back up saves", status: "done", detail: "Backed up" }] });
+      // A pretend session unlocks two achievements, told a moment after the game exits.
+      const g = games.find((x) => x.id === session.gameId);
+      if (g) {
+        const before = mockAchievements(g);
+        extraUnlocks.set(g.id, (extraUnlocks.get(g.id) ?? 0) + 2);
+        const was = new Set(before.items.filter((a) => a.unlocked).map((a) => a.id));
+        const fresh = mockAchievements(g).items.filter((a) => a.unlocked && !was.has(a.id)).map((a) => ({ ...a, unlockedAt: Math.floor(Date.now() / 1000) }));
+        if (fresh.length) setTimeout(() => sessionAchListeners.forEach((cb) => cb(clone({ gameId: g.id, title: session.title, unlocked: fresh }))), 1200);
+      }
     },
     setUIMode() {},
     closeOverlay() {},

@@ -1,7 +1,7 @@
 // The frontend's one door to the Go side. In mock mode (`npm run dev:mock`)
 // the same interface is served by made-up data, so the interface can be
 // built and checked in a normal browser. Vite drops the unused one.
-import type { Accounts, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 import { realApi } from "./api.real";
 import { mockApi } from "./api.mock";
 
@@ -77,6 +77,13 @@ export interface Api {
     syncer(start: boolean): Promise<SyncerStatus>;
   };
 
+  achievements: {
+    /** A game's achievements; fresh reads them again (else a result from unchanged files is reused). */
+    get(id: number, fresh?: boolean): Promise<Achievements>;
+    /** A play session unlocked achievements (after the game exited). */
+    onSession(cb: (s: SessionAchievements) => void): () => void;
+  };
+
   accounts: {
     get(): Promise<Accounts>;
     sync(): void;
@@ -86,6 +93,10 @@ export interface Api {
     openEpicSignIn(): Promise<void>;
     epicSignIn(pasted: string): Promise<Accounts>;
     epicSignOut(): Promise<Accounts>;
+    /** GOG sign-in, for achievements. */
+    openGOGSignIn(): Promise<void>;
+    gogSignIn(pasted: string): Promise<Accounts>;
+    gogSignOut(): Promise<Accounts>;
     onChange(cb: (a: Accounts) => void): () => void;
   };
 

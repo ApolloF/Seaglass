@@ -1,13 +1,21 @@
 <script lang="ts">
   import { lib } from "../lib/store.svelte";
+  import AchievementIcon from "./AchievementIcon.svelte";
   import Icon from "./Icon.svelte";
 </script>
 
 <div class="toasts" aria-live="polite">
   {#each lib.toasts as t (t.id)}
     <div class="toast" class:error={t.tone === "error"} role={t.tone === "error" ? "alert" : "status"}>
-      <Icon name={t.tone === "error" ? "warn" : "info"} size={18} />
-      <span>{t.text}</span>
+      <Icon name={t.tone === "error" ? "warn" : t.icons?.length ? "trophy" : "info"} size={18} />
+      <span class="body">
+        <span>{t.text}</span>
+        {#if t.icons?.length}
+          <span class="icons">
+            {#each t.icons as a (a.id)}<span title={a.name}><AchievementIcon {a} size={36} /></span>{/each}
+          </span>
+        {/if}
+      </span>
     </div>
   {/each}
 </div>
@@ -44,6 +52,15 @@
     font-size: 14.5px;
     font-weight: 600;
     animation: in 0.25s var(--ease) both;
+  }
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .icons {
+    display: flex;
+    gap: 6px;
   }
   .toast.error {
     border-color: color-mix(in oklab, var(--danger) 55%, transparent);

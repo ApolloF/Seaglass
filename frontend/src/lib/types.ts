@@ -102,8 +102,50 @@ export interface Settings {
   /** Start Syncer (without its window) when it isn't running. */
   startSyncer: boolean;
   autoUpdate: boolean;
+  /** Read and show achievements. */
+  achievements: boolean;
+  /** Show hidden achievements before they're unlocked (spoilers). */
+  showHiddenAchievements: boolean;
   /** The first-start welcome was seen (or skipped). */
   welcomed: boolean;
+}
+
+/** One achievement. Mirrors internal/achievements.Achievement. */
+export interface Achievement {
+  id: string;
+  name: string;
+  desc?: string;
+  /** /ach/… URL; "" when there's none (a generic icon is drawn). */
+  icon?: string;
+  iconGray?: string;
+  hidden?: boolean;
+  unlocked: boolean;
+  /** Unix seconds; 0 or missing when unlocked at an unknown time. */
+  unlockedAt?: number;
+  progress?: number;
+  max?: number;
+  /** Share of all players who have it, 0–100. */
+  percent?: number;
+}
+
+/** A game's achievements. Mirrors internal/achievements.List. */
+export interface Achievements {
+  gameId: number;
+  /** "steam", "epic", "gog", "Goldberg", "CODEX", …; "" when none was found. */
+  source: string;
+  total: number;
+  unlocked: number;
+  items: Achievement[];
+  updatedAt: number;
+  /** What's missing, and how to get it. */
+  hint?: string;
+}
+
+/** What a play session unlocked (achievements:session). */
+export interface SessionAchievements {
+  gameId: number;
+  title: string;
+  unlocked: Achievement[];
 }
 
 /** One save folder Syncer looks after. */
@@ -263,6 +305,8 @@ export interface Accounts {
   steam: StoreAccount;
   gog: StoreAccount;
   epic: StoreAccount;
+  /** The GOG account signed in for achievements (Galaxy's library needs none). */
+  gogSignIn: StoreAccount;
 }
 
 /** Only known from a store account: never found on this PC. */

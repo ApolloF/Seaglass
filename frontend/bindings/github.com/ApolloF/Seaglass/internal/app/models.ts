@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as achievements$0 from "../achievements/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as syncer$0 from "../syncer/models.js";
 
 /**
@@ -12,6 +15,12 @@ export interface Accounts {
     "steam": StoreAccount;
     "gog": StoreAccount;
     "epic": StoreAccount;
+
+    /**
+     * GOGSignIn is the GOG account signed in for achievements (GOG
+     * Galaxy's library, above, needs no sign-in).
+     */
+    "gogSignIn": StoreAccount;
 }
 
 /**
@@ -91,6 +100,15 @@ export interface ScanState {
      */
     "known": number;
     "error"?: string;
+}
+
+/**
+ * SessionAchievements are the achievements one session unlocked.
+ */
+export interface SessionAchievements {
+    "gameId": number;
+    "title": string;
+    "unlocked": achievements$0.Achievement[] | null;
 }
 
 /**

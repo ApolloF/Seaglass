@@ -11,7 +11,9 @@
   let steamKey = $state("");
   let epicCode = $state("");
   let epicStarted = $state(false);
-  let busy = $state<"" | "steam" | "epic" | "gog">("");
+  let gogCode = $state("");
+  let gogStarted = $state(false);
+  let busy = $state<"" | "steam" | "epic" | "gog" | "gogSignIn">("");
 
   $effect(() => {
     api.accounts.get().then((a) => (acc = a));
@@ -39,6 +41,14 @@
       epicCode = "";
       epicStarted = false;
       lib.toast(`Epic connected: ${acc?.epic.games ?? 0} games`);
+    }
+  }
+
+  async function signInGOG() {
+    if (await withBusy("gogSignIn", () => api.accounts.gogSignIn(gogCode))) {
+      gogCode = "";
+      gogStarted = false;
+      lib.toast("Signed in to GOG: achievements show names, icons and progress");
     }
   }
 
@@ -78,6 +88,7 @@
           <button type="button" class="btn primary" disabled={!steamKey.trim() || busy === "steam"} onclick={connectSteam}>{busy === "steam" ? "Checking…" : "Connect"}</button>
         </div>
       {/if}
+      <p class="note">The key also gives achievement names and icons to unofficial copies of Steam games that don't bring their own.</p>
     </div>
 
     <div class="acct">
@@ -92,6 +103,26 @@
         detail="Lists your GOG games from GOG Galaxy's own database on this PC. Nothing is sent anywhere."
         onchange={(v) => withBusy("gog", () => api.accounts.setGOG(v))}
       />
+      <div class="head sub">
+        <strong>Achievements</strong>
+        <span class="st">{acc.gogSignIn?.connected ? "Signed in" : "Not signed in"}</span>
+        {#if acc.gogSignIn?.connected}<button type="button" class="link" onclick={() => withBusy("gogSignIn", () => api.accounts.gogSignOut())}>Sign out</button>{/if}
+      </div>
+      {#if !acc.gogSignIn?.connected}
+        {#if !gogStarted}
+          <p>GOG Galaxy's database has your progress but not the achievements' names or icons. Sign in on gog.com in your browser to get those; Seaglass keeps only GOG's sign-in token, encrypted for your Windows account. GOG Galaxy stays signed in as it is.</p>
+          <div class="row">
+            <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openGOGSignIn()).then(() => (gogStarted = true))}>Sign in with GOG…</button>
+          </div>
+        {:else}
+          <p>After signing in, the browser ends on a page whose address contains <code>code=</code>. Copy that whole address and paste it here.</p>
+          <div class="row">
+            <input type="password" bind:value={gogCode} placeholder="Address with code=…" aria-label="GOG sign-in address" autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn primary" disabled={!gogCode.trim() || busy === "gogSignIn"} onclick={signInGOG}>{busy === "gogSignIn" ? "Signing in…" : "Sign in"}</button>
+            <button type="button" class="btn" onclick={() => (gogStarted = false)}>Cancel</button>
+          </div>
+        {/if}
+      {/if}
     </div>
 
     <div class="acct">
@@ -150,6 +181,13 @@
   .st {
     flex: 1;
     font-size: 13px;
+    color: var(--muted);
+  }
+  .head.sub {
+    margin-top: 4px;
+  }
+  .note {
+    font-size: 12.5px;
     color: var(--muted);
   }
   .st.err {
