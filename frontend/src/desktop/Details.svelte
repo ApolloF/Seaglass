@@ -9,7 +9,6 @@
   import { padExplain } from "../lib/route";
   import { savesSummary } from "../lib/saves";
   import { sessionActive, storeName, type Saves } from "../lib/types";
-  import AddonCards from "./AddonCards.svelte";
   import MatchDialog from "./MatchDialog.svelte";
 
   let { game }: { game: Game } = $props();
@@ -298,7 +297,6 @@
           <p>Asking Syncer…</p>
         {/if}
       </div>
-      <AddonCards {game} />
     {/if}
 
     <dl class="about">

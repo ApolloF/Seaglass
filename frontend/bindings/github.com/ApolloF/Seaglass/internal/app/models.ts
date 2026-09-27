@@ -15,62 +15,6 @@ export interface Accounts {
 }
 
 /**
- * AddonAction is something an add-on can do for a game.
- */
-export interface AddonAction {
-    "id": string;
-    "label": string;
-    "description"?: string;
-    "confirm"?: string;
-}
-
-/**
- * AddonGame is what one add-on says about a game.
- */
-export interface AddonGame {
-    "addon": string;
-    "name": string;
-    "badges": Badge[] | null;
-    "lines": Line[] | null;
-    "actions": AddonAction[] | null;
-    "error"?: string;
-}
-
-/**
- * AddonProgress is one progress line of an add-on action.
- */
-export interface AddonProgress {
-    "addon": string;
-    "text": string;
-}
-
-/**
- * AddonView is an add-on as Settings shows it.
- */
-export interface AddonView {
-    "id": string;
-    "name": string;
-    "version": string;
-    "publisher": string;
-    "description": string;
-    "homepage": string;
-    "exe": string;
-    "hooks": string[] | null;
-    "permissions": Permission[] | null;
-    "signed": boolean;
-    "sha256": string;
-    "enabled": boolean;
-    "running": boolean;
-
-    /**
-     * State: "off", "on", "changed" (the program changed since approval),
-     * "missing" (the program is gone) or "broken" (the manifest is wrong).
-     */
-    "state": string;
-    "error"?: string;
-}
-
-/**
  * AppInfo describes this build.
  */
 export interface AppInfo {
@@ -82,23 +26,6 @@ export interface AppInfo {
      * The previous run crashed (its output is in crash-previous.log).
      */
     "crashedLastTime": boolean;
-}
-
-/**
- * Badge is a short fact an add-on shows on a game.
- */
-export interface Badge {
-    "text": string;
-    "tone"?: string;
-    "tooltip"?: string;
-}
-
-/**
- * Line is a labelled value an add-on shows on a game.
- */
-export interface Line {
-    "label": string;
-    "value": string;
 }
 
 /**
@@ -116,14 +43,6 @@ export interface MetaState {
 export interface PadAction {
     "action": string;
     "repeat": boolean;
-}
-
-/**
- * Permission is one declared permission, explained.
- */
-export interface Permission {
-    "id": string;
-    "label": string;
 }
 
 /**

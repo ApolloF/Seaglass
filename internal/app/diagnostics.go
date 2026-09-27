@@ -82,7 +82,7 @@ func (s *SettingsService) ReportUIError(message string) {
 }
 
 // CopyDiagnostics puts a report for a bug report on the clipboard: versions,
-// settings, what the library holds, controller, Syncer, add-ons, updates,
+// settings, what the library holds, controller, Syncer, updates,
 // the last crash and the end of the log. It holds no keys or tokens, and
 // the user folder is shortened to %USERPROFILE%.
 func (s *SettingsService) CopyDiagnostics() error {
@@ -199,20 +199,6 @@ func (c *Core) diagnostics() string {
 	ses := c.Launch.Current()
 	if ses.ID > 0 {
 		line("Last session: %q, %s via %s, %d s played %s %s", ses.Title, ses.Phase, orUnknown(ses.Route), ses.Seconds, ses.Error, ses.Note)
-	}
-
-	line("")
-	line("## Add-ons")
-	found, broken := c.addons.discover()
-	for _, m := range found {
-		a := c.addons.trust.Get(m.ID)
-		line("%s %s by %s: on %v, running %v", m.ID, m.Version, m.Publisher, a.Enabled, c.addons.host.Running(m.ID))
-	}
-	for dir, err := range broken {
-		line("%s: broken (%v)", dir, err)
-	}
-	if len(found)+len(broken) == 0 {
-		line("none")
 	}
 
 	line("")

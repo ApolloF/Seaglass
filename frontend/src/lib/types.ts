@@ -248,47 +248,6 @@ export const crashText = (s: Session) =>
 export const sessionActive = (s: Session | null | undefined) =>
   !!s && s.phase !== "" && s.phase !== "ended" && s.phase !== "failed" && s.phase !== "cancelled";
 
-export interface AddonView {
-  id: string;
-  name: string;
-  version: string;
-  publisher: string;
-  description: string;
-  homepage: string;
-  exe: string;
-  hooks: string[];
-  permissions: { id: string; label: string }[];
-  signed: boolean;
-  sha256: string;
-  enabled: boolean;
-  running: boolean;
-  state: "off" | "on" | "changed" | "missing" | "broken";
-  error?: string;
-}
-
-export interface AddonBadge {
-  text: string;
-  tone?: "info" | "ok" | "warn";
-  tooltip?: string;
-}
-
-export interface AddonAction {
-  id: string;
-  label: string;
-  description?: string;
-  confirm?: string;
-}
-
-/** What one add-on says about a game. */
-export interface AddonGame {
-  addon: string;
-  name: string;
-  badges: AddonBadge[];
-  lines: { label: string; value: string }[];
-  actions: AddonAction[];
-  error?: string;
-}
-
 export interface StoreAccount {
   connected: boolean;
   available: boolean;

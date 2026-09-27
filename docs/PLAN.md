@@ -450,6 +450,23 @@ Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame co
 - **Collections**: games can be in collections of your own (`Game.collections`, kept through scans and merged with owned-game records). Desktop mode lists them in the sidebar, and a collection's heading renames or deletes it; the game's details add and remove them (with suggestions). Big picture shows them as Library tabs (L2 / R2, the tabs around the current one when there are many) and has a *Collections* picker on the game page with a few common ones to start with. New names are typed in desktop mode.
 - Also: toasts sit above big picture's prompts, and the game page's five buttons fit on one line.
 
+## 23. v1.5: Seaglass (2026-09-27)
+
+WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the license AGPL-3.0 (1.4 and earlier stay MIT). Maintainer's list:
+
+- The PS button in big picture took the window out of full screen (`Shell.OpenMain` called Wails' `Restore`, which also leaves full screen). It now only un-minimises, and big picture goes back to full screen if it left it.
+- Orbit puts the ten games played in the last 60 days in the middle, then favorites, then the rest (`orbitOrder`).
+- Libraries can be hidden (`settings.hiddenSources`: steam, epic, gog, ea, ubisoft, battlenet, xbox, unofficial, standalone, folder) in desktop Settings → Library and big picture Settings.
+- *Install Syncer* / *Update Syncer* downloads Syncer's latest `Syncer-amd64-installer.exe` from its releases, checks it against the SHA-256 GitHub computed on upload (`digest`), and runs it silently (per user). *About Syncer* links to the project.
+- The add-on host and DLSS Updater's add-on moved to the `feature/dlss-addon` branch, with [ideas](https://github.com/ApolloF/Seaglass/blob/feature/dlss-addon/docs/dlss-addon.md) for integrating it better.
+
+**Carrying WaterLauncher over.** 1.4 only downloads from `github.com/ApolloF/WaterLauncher/releases/download/`, doesn't follow the API's redirect for a renamed repository (api.github.com isn't an allowed redirect host), downloads `WaterLauncher-setup.exe` / `WaterLauncher.exe`, and checks a signature over "WaterLauncher release <tag>". So:
+
+1. v1.5.0 is published while the repository is still called WaterLauncher, with the files also under their old names (CI copies them; the release tool signs all four). The signed text keeps the old name.
+2. The installer, started by 1.4's updater with `/D=…\Programs\WaterLauncher`, installs into `…\Programs\Seaglass` instead, removes the old program, shortcuts and uninstall entry, and keeps a desktop shortcut if there was one.
+3. Seaglass moves `%APPDATA%\WaterLauncher` and `%LOCALAPPDATA%\WaterLauncher` to Seaglass's folders on first start (or keeps using them if they can't be moved), and turns the old *start with Windows* entry into its own.
+4. The repository is renamed only after that. WaterLauncher installs that haven't updated by then have to install Seaglass by hand.
+
 ## To-do (maintainer)
 
 - [ ] **Back up the release key** before the next release: `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).

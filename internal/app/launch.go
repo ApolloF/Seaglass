@@ -158,8 +158,6 @@ func (c *Core) plan(g library.Game) launch.Plan {
 			after = append(after, c.savesAfterStep(g, &known, true))
 		}
 	}
-	ab, aa := c.addonSteps(g)
-	before, after = append(before, ab...), append(after, aa...)
 	if r == RouteSteamInput {
 		before = append(before, c.steamInputStep(g, &steamURI))
 	}

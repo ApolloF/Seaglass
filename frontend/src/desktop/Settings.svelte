@@ -2,7 +2,6 @@
   import Icon from "../components/Icon.svelte";
   import Toggle from "../components/Toggle.svelte";
   import AccountsSettings from "./AccountsSettings.svelte";
-  import AddonsSettings from "./AddonsSettings.svelte";
   import SyncerSettings from "./SyncerSettings.svelte";
   import UpdateStatus from "./UpdateStatus.svelte";
   import { api } from "../lib/api";
@@ -11,14 +10,13 @@
 
   let { onclose }: { onclose: () => void } = $props();
 
-  type Tab = "general" | "library" | "bigpicture" | "saves" | "addons" | "about";
+  type Tab = "general" | "library" | "bigpicture" | "saves" | "about";
   let tab = $state<Tab>("library");
   const tabs: { id: Tab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "library", label: "Library" },
     { id: "bigpicture", label: "Big picture" },
     { id: "saves", label: "Saves" },
-    { id: "addons", label: "Add-ons" },
     { id: "about", label: "About" },
   ];
   const layouts: { id: Settings["bigPictureLayout"]; label: string; note: string }[] = [
@@ -221,8 +219,6 @@
           </div>
         {:else if tab === "saves"}
           <SyncerSettings />
-        {:else if tab === "addons"}
-          <AddonsSettings />
         {:else}
           <dl class="kv">
             <dt>Version</dt>

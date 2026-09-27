@@ -1,7 +1,7 @@
 import { Events, Window } from "@wailsio/runtime";
-import { AccountsService, AddonsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
+import { AccountsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
 import type { Api } from "./api";
-import type { Accounts, AddonGame, AddonView, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 
 // The generated bindings return the Go structs; their JSON matches ./types.
 const g = (p: Promise<unknown>) => p as Promise<Game>;
@@ -73,22 +73,6 @@ export const realApi: Api = {
     epicSignIn: (p) => AccountsService.EpicSignIn(p) as Promise<unknown> as Promise<Accounts>,
     epicSignOut: () => AccountsService.EpicSignOut() as Promise<unknown> as Promise<Accounts>,
     onChange: (cb) => Events.On("accounts:changed", (e) => cb(e.data as unknown as Accounts)),
-  },
-
-  addons: {
-    list: () => AddonsService.List() as Promise<unknown> as Promise<AddonView[]>,
-    enable: (id, sha) => AddonsService.Enable(id, sha) as Promise<unknown> as Promise<AddonView>,
-    disable: (id) => AddonsService.Disable(id) as Promise<unknown> as Promise<AddonView>,
-    add: () => AddonsService.Add().then((v) => ((v as unknown as AddonView)?.id ? (v as unknown as AddonView) : null)),
-    remove: (id) => AddonsService.Remove(id),
-    openFolder: () => AddonsService.OpenFolder(),
-    forGame: (id) => AddonsService.ForGame(id).then((r) => (r ?? []) as unknown as AddonGame[]),
-    runAction: (id, addon, action) => AddonsService.RunAction(id, addon, action),
-    onProgress: (cb) =>
-      Events.On("addon:progress", (e) => {
-        const d = e.data as unknown as { addon: string; text: string };
-        cb(d.addon, d.text);
-      }),
   },
 
   launch: {

@@ -1,7 +1,7 @@
 // Made-up library for `npm run dev:mock`: the games from the design canvas,
 // covering every way a game can be found.
 import type { Api } from "./api";
-import type { Accounts, AddonGame, AddonView, AppInfo, Game, MetaState, Saves, ScanState, Session, Settings, Startup, UpdateState } from "./types";
+import type { Accounts, AppInfo, Game, MetaState, Saves, ScanState, Session, Settings, Startup, UpdateState } from "./types";
 import { sessionActive } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -166,34 +166,6 @@ function addOwned() {
   libListeners.forEach((cb) => cb());
 }
 
-// ---- a pretend add-on ----
-
-let addon: AddonView = {
-  id: "dlssupdater", name: "DLSS Updater", version: "1.4.0", publisher: "ApolloF",
-  description: "Keeps DLSS up to date and installs OptiScaler.", homepage: "https://github.com/ApolloF/dlssupdater",
-  exe: "C:\\Users\\you\\AppData\\Local\\Programs\\DLSS Updater\\DLSSUpdater.exe", hooks: ["game.status", "game.actions", "game.beforeLaunch"],
-  permissions: [{ id: "modifyGameFiles", label: "Changes files in game folders" }, { id: "network", label: "Downloads from the internet" }],
-  signed: false, sha256: "9f2c4e1ab07d5c3e88f1a6b2d4c90e7f13a5b8c2d6e0f4a7b9c1d3e5f7a9b2c4", enabled: false, running: false, state: "off",
-};
-
-function addonFor(g: Game | undefined): AddonGame[] {
-  if (!addon.enabled || !g) return [];
-  const hasDlss = ["Ember Crown", "Hollow Tide", "Starfall Protocol"].includes(g.title);
-  return [{
-    addon: addon.id, name: addon.name,
-    badges: hasDlss ? [{ text: "DLSS 310.2", tone: "ok" }, ...(g.title === "Hollow Tide" ? [{ text: "Reverted by a patch", tone: "warn" as const }] : [])] : [{ text: "No DLSS" }],
-    lines: hasDlss ? [{ label: "Super Resolution", value: "310.2.1" }, { label: "OptiScaler", value: "Not installed" }] : [],
-    actions: hasDlss
-      ? [
-          { id: "update", label: "Update DLSS", description: "Install the latest DLSS files" },
-          { id: "opti", label: "Install OptiScaler" },
-          { id: "restore", label: "Restore original DLSS", confirm: "Put back the DLSS files the game shipped with?" },
-          { id: "open", label: "Open in DLSS Updater" },
-        ]
-      : [{ id: "open", label: "Open in DLSS Updater" }],
-  }];
-}
-const progressListeners = new Set<(a: string, t: string) => void>();
 const padListeners = new Set<(a: string, repeat: boolean) => void>();
 
 // ---- a pretend game session ----
@@ -441,40 +413,6 @@ export const mockApi: Api = {
     },
     onChange() {
       return () => {};
-    },
-  },
-  addons: {
-    async list() {
-      return [clone(addon)];
-    },
-    async enable(_id, sha) {
-      if (sha !== addon.sha256) throw new Error("the add-on's program changed while you were looking; check it again");
-      addon = { ...addon, enabled: true, state: "on" };
-      return clone(addon);
-    },
-    async disable() {
-      addon = { ...addon, enabled: false, state: "off" };
-      return clone(addon);
-    },
-    async add() {
-      return null;
-    },
-    async remove() {},
-    async openFolder() {},
-    async forGame(id) {
-      await wait(300);
-      return addonFor(games.find((g) => g.id === id));
-    },
-    async runAction(_id, a, action) {
-      for (const t of ["Downloading DLSS 310.2…", "Replacing files…"]) {
-        progressListeners.forEach((cb) => cb(a, t));
-        await wait(700);
-      }
-      return action === "open" ? "" : "Done";
-    },
-    onProgress(cb) {
-      progressListeners.add(cb);
-      return () => progressListeners.delete(cb);
     },
   },
   launch: {

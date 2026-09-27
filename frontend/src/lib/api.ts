@@ -1,7 +1,7 @@
 // The frontend's one door to the Go side. In mock mode (`npm run dev:mock`)
 // the same interface is served by made-up data, so the interface can be
 // built and checked in a normal browser. Vite drops the unused one.
-import type { Accounts, AddonGame, AddonView, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 import { realApi } from "./api.real";
 import { mockApi } from "./api.mock";
 
@@ -87,19 +87,6 @@ export interface Api {
     epicSignIn(pasted: string): Promise<Accounts>;
     epicSignOut(): Promise<Accounts>;
     onChange(cb: (a: Accounts) => void): () => void;
-  };
-
-  addons: {
-    list(): Promise<AddonView[]>;
-    /** Turns an add-on on, approving the program with this SHA-256. */
-    enable(id: string, sha256: string): Promise<AddonView>;
-    disable(id: string): Promise<AddonView>;
-    add(): Promise<AddonView | null>;
-    remove(id: string): Promise<void>;
-    openFolder(): Promise<void>;
-    forGame(id: number): Promise<AddonGame[]>;
-    runAction(id: number, addon: string, action: string): Promise<string>;
-    onProgress(cb: (addon: string, text: string) => void): () => void;
   };
 
   launch: {
