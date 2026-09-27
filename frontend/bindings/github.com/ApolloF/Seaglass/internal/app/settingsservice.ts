@@ -37,7 +37,7 @@ export function AutoFolders(): $CancellablePromise<string[] | null> {
 
 /**
  * CopyDiagnostics puts a report for a bug report on the clipboard: versions,
- * settings, what the library holds, controller, Syncer, add-ons, updates,
+ * settings, what the library holds, controller, Syncer, updates,
  * the last crash and the end of the log. It holds no keys or tokens, and
  * the user folder is shortened to %USERPROFILE%.
  */

@@ -43,7 +43,8 @@ func main() {
 	}
 	var moved []string
 	if !(dev && args.Dev.DataDir != "") && !platform.InstanceRunning(uniqueID) {
-		moved = platform.MoveOldData() // WaterLauncher's library and settings
+		// WaterLauncher's library and settings.
+		moved = platform.MoveOldData(platform.InstanceRunning(oldUniqueID))
 	}
 	if args.Diagnostics {
 		// Works while Seaglass runs, or when its interface won't open.

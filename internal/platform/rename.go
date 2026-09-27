@@ -11,29 +11,49 @@ import (
 // OldName is what Seaglass was called before 1.5.
 const OldName = "WaterLauncher"
 
-// MoveOldData moves WaterLauncher's data folders (%APPDATA%\WaterLauncher
-// and %LOCALAPPDATA%\WaterLauncher) to Seaglass's, when Seaglass has none
-// yet. A folder that can't be moved is used where it is. Call it before
-// anything is opened; what it did is returned for the log.
-func MoveOldData() []string {
+// MoveOldData moves WaterLauncher's data (%APPDATA%\WaterLauncher and
+// %LOCALAPPDATA%\WaterLauncher) into Seaglass's folders: whatever Seaglass
+// doesn't have yet, so its own data wins, and nothing is deleted. While
+// WaterLauncher itself still runs (oldRunning), its folders are used where
+// they are and moved another time. Call it before anything is opened;
+// what it did is returned for the log.
+func MoveOldData(oldRunning bool) []string {
 	var notes []string
 	move := func(base string, override *string) {
 		if base == "" {
 			return
 		}
 		old, cur := filepath.Join(base, OldName), filepath.Join(base, "Seaglass")
-		if !IsDir(old) {
-			return
+		entries, err := os.ReadDir(old)
+		if err != nil {
+			return // nothing to move
 		}
-		if _, err := os.Stat(cur); !errors.Is(err, os.ErrNotExist) {
-			return // moved already, or Seaglass started fresh
-		}
-		if err := os.Rename(old, cur); err != nil {
+		if oldRunning {
 			*override = old
-			notes = append(notes, "couldn't move "+old+", using it where it is: "+err.Error())
+			notes = append(notes, "WaterLauncher is running: using "+old+" for now")
 			return
 		}
-		notes = append(notes, "moved "+old+" to "+cur)
+		if err := os.Rename(old, cur); err == nil {
+			notes = append(notes, "moved "+old+" to "+cur)
+			return
+		}
+		// Seaglass has a folder already: move in what it doesn't have.
+		if err := os.MkdirAll(cur, 0o755); err != nil {
+			return
+		}
+		for _, e := range entries {
+			from, to := filepath.Join(old, e.Name()), filepath.Join(cur, e.Name())
+			if _, err := os.Lstat(to); !errors.Is(err, os.ErrNotExist) {
+				notes = append(notes, "kept Seaglass's "+e.Name()+"; WaterLauncher's stays in "+old)
+				continue
+			}
+			if err := os.Rename(from, to); err != nil {
+				notes = append(notes, "couldn't move "+from+": "+err.Error())
+				continue
+			}
+			notes = append(notes, "moved "+from+" to "+to)
+		}
+		_ = os.Remove(old) // only when it's empty now
 	}
 	if appDirOverride == "" {
 		move(Roaming, &appDirOverride)
