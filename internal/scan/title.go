@@ -136,6 +136,20 @@ var reEdition = regexp.MustCompile(`(?i)\s*[-:–]?\s*(digital\s+)?(deluxe|ultim
 // Complete Edition" → "The Witcher 3: Wild Hunt".
 func StripEdition(s string) string { return strings.TrimSpace(reEdition.ReplaceAllString(s, "")) }
 
+var reRemake = regexp.MustCompile(`(?i)\s*[-:–(\[]?\s*remake[)\]]?\s*$`)
+
+// WithoutRemake drops "Remake" from the end of a title: stores sell most
+// remakes under the plain name ("Resident Evil 4 Remake" is "Resident Evil
+// 4" on Steam, the original "Resident Evil 4 (2005)"). "" when there's
+// none. It's a last try: some remakes do keep the word.
+func WithoutRemake(s string) string {
+	t := strings.TrimSpace(reRemake.ReplaceAllString(s, ""))
+	if t == strings.TrimSpace(s) || len(Normalize(t)) < 3 {
+		return ""
+	}
+	return t
+}
+
 // Abbreviations folders are often named by, followed by a space, a
 // number or nothing ("GTA V", "RDR2"; not "Codename"), or Roman numerals
 // straight after GTA ("GTAIV").

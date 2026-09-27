@@ -7,6 +7,7 @@
   import { desktopPad } from "./lib/desknav";
   import { dispatchFrom, pad, type Intent } from "./lib/input.svelte";
   import { errText, lib } from "./lib/store.svelte";
+  import { sessionActive } from "./lib/types";
 
   let failed = $state("");
   const welcome = $derived(!!lib.settings && !lib.settings.welcomed);
@@ -25,16 +26,29 @@
     api.launch.setUIMode(mode);
   }
 
-  // The window comes back in big picture after a game played from there.
-  const resumeBigPicture = new URLSearchParams(location.search).get("mode") === "bigpicture";
+  // The window comes back after a game in the mode the game was started
+  // from; only a first start follows the setting.
+  const resume = new URLSearchParams(location.search).get("mode");
 
   lib
     .init()
     .then(async () => {
       Object.assign(pad, await api.pad.state());
-      if (resumeBigPicture || lib.settings?.startInBigPicture) enterBigPicture();
+      if (resume === "bigpicture" || (!resume && lib.settings?.startInBigPicture)) enterBigPicture();
     })
     .catch((e) => (failed = errText(e)));
+
+  // Around a game the controller layer lets go of the controller and takes
+  // it back, which looks like a controller connecting: that mustn't switch
+  // to big picture. Neither while a game runs, nor just after it (or just
+  // after the window came back for it).
+  let padQuietUntil = resume ? performance.now() + 15000 : 0;
+  let lastPhase = "";
+  $effect(() => {
+    const phase = lib.session?.phase ?? "";
+    if (phase !== lastPhase && (phase === "ended" || phase === "failed")) padQuietUntil = performance.now() + 15000;
+    lastPhase = phase;
+  });
 
   $effect(() => api.launch.onUIMode((m) => (m === "bigpicture" ? enterBigPicture() : exitBigPicture())));
 
@@ -52,7 +66,7 @@
     api.pad.onState((s) => {
       const wasConnected = pad.connected;
       Object.assign(pad, s);
-      if (s.connected && !wasConnected && lib.settings?.openBigPictureOnController) enterBigPicture();
+      if (s.connected && !wasConnected && lib.settings?.openBigPictureOnController && !sessionActive(lib.session) && performance.now() > padQuietUntil) enterBigPicture();
     }),
   );
 

@@ -219,9 +219,8 @@ const (
 	// Active is the full layer: input, rumble, lightbar.
 	Active Mode = iota
 	// Passive only listens, for while a game runs. Controllers are read
-	// without SDL's HIDAPI drivers, so Seaglass never writes to one
-	// or switches a DualSense or DualShock 4 into its enhanced report
-	// mode; the game gets the controller exactly as it expects. Actions
+	// without SDL's HIDAPI drivers, so Seaglass never writes to one;
+	// the game gets the controller exactly as it expects. Actions
 	// keep coming (the PS button opens the overlay).
 	Passive
 	// Off releases controllers completely.
@@ -256,9 +255,9 @@ func (m *Manager) Mode() Mode {
 
 // start sets SDL's hints and initialises its gamepad layer.
 func (m *Manager) start(s *sdl, passive bool) error {
-	hidapi, reports := "1", "auto"
+	hidapi := "1"
 	if passive {
-		hidapi, reports = "0", "0"
+		hidapi = "0"
 	}
 	// Seaglass has no SDL window, so SDL must deliver input no matter
 	// which window has focus.
@@ -266,7 +265,12 @@ func (m *Manager) start(s *sdl, passive bool) error {
 		{"SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1"},
 		{"SDL_JOYSTICK_HIDAPI_PS5_PLAYER_LED", "0"},
 		{"SDL_JOYSTICK_HIDAPI", hidapi},
-		{"SDL_JOYSTICK_ENHANCED_REPORTS", reports},
+		// Never switch a PlayStation controller on Bluetooth into its
+		// enhanced report mode: it stays in it until it's turned off, and
+		// games that read it through DirectInput then get no input at all.
+		// Rumble and the lightbar need it on Bluetooth, so they only work
+		// on USB there; everything else works as before.
+		{"SDL_JOYSTICK_ENHANCED_REPORTS", "0"},
 	} {
 		s.setHint.Call(uintptr(unsafe.Pointer(cstr(h[0]))), uintptr(unsafe.Pointer(cstr(h[1]))))
 	}

@@ -91,6 +91,11 @@ func (a *achState) liveDeps() achievements.Deps {
 		Net: a.net, Cache: a.cache, Icons: a.icons,
 	}
 	d.SteamAccounts = scan.SteamAccounts(d.SteamRoot)
+	for _, g := range a.c.Lib.Games() {
+		if g.Installed && achievements.UplayEmulator(g.Emulator) {
+			d.UplayGames++
+		}
+	}
 	d.EpicLocale = owned.EpicLocale(d.Lang)
 	if db := owned.GalaxyDB(); db != "" {
 		d.GalaxyDB = db
@@ -114,7 +119,7 @@ func (a *achState) liveDeps() achievements.Deps {
 func achStamp(g library.Game, d achievements.Deps) string {
 	return achievements.Stamp(achievements.Files(g, d),
 		strconv.Itoa(achievements.Version), d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), strconv.FormatBool(d.GOG != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
-		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID)
+		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID, strconv.Itoa(d.UplayGames))
 }
 
 // last is the game's last result, from memory or disk.

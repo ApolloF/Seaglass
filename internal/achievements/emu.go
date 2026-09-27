@@ -101,7 +101,7 @@ var emuSources = []emuSource{
 // unknownEmus write unlock files no public source describes yet; samples
 // would let Seaglass read them. Hoodlum and DARKSiDERS use the CODEX-style
 // INI format, but where they keep it isn't known.
-var unknownEmus = map[string]bool{"VOICES38": true, "CPY": true, "PLAZA": true, "FLT": true, "Steamworks Fix": true, "HOODLUM": true, "DARKSiDERS": true}
+var unknownEmus = map[string]bool{"CPY": true, "PLAZA": true, "FLT": true, "Steamworks Fix": true, "HOODLUM": true, "DARKSiDERS": true}
 
 // EmuResult is the unlock file found for a game.
 type EmuResult struct {
@@ -115,17 +115,21 @@ type EmuResult struct {
 func Unknown(emulator string) bool { return unknownEmus[emulator] }
 
 // ReadEmu finds the game's unlock file and reads it. Every place is tried;
-// when several have one (an old crack's leftovers), the newest file wins.
-// Files lists every candidate path looked at, for cache keys.
+// when several have one (an earlier crack's, or the launcher's and the
+// game's), the newest file names the source and what any of them has
+// unlocked counts. Files lists every candidate path looked at, for cache keys.
 func ReadEmu(g EmuGame, env Env) (res EmuResult, files []string, ok bool) {
 	var best time.Time
+	var others []EmuResult
+	defer func() {
+		if ok {
+			res.Unlocks = mergeUnlocks(res, others)
+		}
+	}()
 	for _, c := range emuCandidates(g, env) {
 		files = append(files, c.path)
 		fi, err := os.Stat(c.path)
 		if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxFile {
-			continue
-		}
-		if ok && !fi.ModTime().After(best) {
 			continue
 		}
 		b, err := readSmall(c.path, maxFile)
@@ -136,9 +140,50 @@ func ReadEmu(g EmuGame, env Env) (res EmuResult, files []string, ok bool) {
 		if err != nil {
 			continue
 		}
-		res, best, ok = EmuResult{Source: c.src.name, File: c.path, Unlocks: u, Hashed: c.src.hashed}, fi.ModTime(), true
+		r := EmuResult{Source: c.src.name, File: c.path, Unlocks: u, Hashed: c.src.hashed}
+		if ok && !fi.ModTime().After(best) {
+			others = append(others, r)
+			continue
+		}
+		if ok {
+			others = append(others, res)
+		}
+		res, best, ok = r, fi.ModTime(), true
 	}
 	return res, files, ok
+}
+
+// mergeUnlocks adds to the newest file's unlocks what the others have
+// unlocked (keyed the same way: SmartSteamEmu's hashes stay apart).
+func mergeUnlocks(res EmuResult, others []EmuResult) map[string]Unlock {
+	if len(others) == 0 {
+		return res.Unlocks
+	}
+	out := make(map[string]Unlock, len(res.Unlocks))
+	lower := map[string]string{}
+	for k, u := range res.Unlocks {
+		out[k] = u
+		lower[strings.ToLower(k)] = k
+	}
+	for _, o := range others {
+		if o.Hashed != res.Hashed {
+			continue
+		}
+		for k, u := range o.Unlocks {
+			if !u.Achieved {
+				continue
+			}
+			if have, ok := lower[strings.ToLower(k)]; ok {
+				if !out[have].Achieved {
+					out[have] = u
+				}
+				continue
+			}
+			out[k] = u
+			lower[strings.ToLower(k)] = k
+		}
+	}
+	return out
 }
 
 type emuCandidate struct {

@@ -235,12 +235,85 @@ func TestMerge(t *testing.T) {
 }
 
 func TestUnknownEmus(t *testing.T) {
-	for _, e := range []string{"PLAZA", "CPY", "FLT", "VOICES38"} {
+	for _, e := range []string{"PLAZA", "CPY", "FLT"} {
 		if !Unknown(e) {
 			t.Errorf("%s should be unknown", e)
 		}
 	}
-	if Unknown("CODEX") {
-		t.Error("CODEX is known")
+	if Unknown("CODEX") || Unknown("VOICES38") {
+		t.Error("CODEX and VOICES38 are known")
+	}
+}
+
+// RUNE lists what's unlocked in [SteamAchievements]; an achievement at
+// full progress is unlocked; and a leftover file's unlocks still count.
+func TestRUNEIndexAndLeftovers(t *testing.T) {
+	root := t.TempDir()
+	mk(t, root, map[string]string{
+		"Public/Documents/Steam/RUNE/620/achievements.ini":      "[A]\r\nAchieved=1\r\nUnlockTime=1700000000\r\n[B]\r\nAchieved=0\r\nCurProgress=5\r\nMaxProgress=5\r\n[C]\r\nAchieved=0\r\n[SteamAchievements]\r\n00000=A\r\n00001=D\r\nCount=2\r\n",
+		"Roaming/Goldberg SteamEmu Saves/620/achievements.json": `{"E":{"earned":true,"earned_time":1600000000},"C":{"earned":true}}`,
+		"game/x.exe": "x",
+	})
+	old := time.Now().Add(-time.Hour)
+	_ = os.Chtimes(filepath.Join(root, "Roaming/Goldberg SteamEmu Saves/620/achievements.json"), old, old)
+	res, _, ok := ReadEmu(EmuGame{Dir: filepath.Join(root, "game"), AppID: 620}, testEnv(root))
+	if !ok || res.Source != "RUNE" {
+		t.Fatalf("source %q ok %v", res.Source, ok)
+	}
+	for _, id := range []string{"A", "B", "C", "D", "E"} {
+		if !res.Unlocks[id].Achieved {
+			t.Errorf("%s not unlocked: %+v", id, res.Unlocks)
+		}
+	}
+}
+
+func TestReadUplay(t *testing.T) {
+	root := t.TempDir()
+	env := testEnv(root)
+	saves := "Roaming/Goldberg UplayEmu Saves/"
+	mk(t, root, map[string]string{
+		"game/upc_r2.ini":                                            "[Settings]\nAchievements = 1\nAchKeyPrefix = AFOP_Ach_\n",
+		saves + "6100/achievements.json":                             `{"ACM_Ach_1":{"earned":1,"earned_time":1700000000}}`,
+		saves + "6200/achievements.json":                             `{"AFOP_Ach_1":{"earned":1,"earned_time":1700000000},"AFOP_Ach_7":{"earned":0}}`,
+		"other/uplay_r2.ini":                                         "[Settings]\nGameId=6100\n",
+		"lone/upc_r2.ini":                                            "[Settings]\n",
+		"lone/achievements_schema.json":                              `{"Ach_2":{"displayName":"Two"},"Ach_1":{"displayName":"One","description":"First"}}`,
+		"alone/Roaming/Goldberg UplayEmu Saves/77/achievements.json": `{"1":{"earned":1}}`,
+	})
+	// By the key prefix.
+	res, _, _, ok := ReadUplay(EmuGame{Dir: filepath.Join(root, "game")}, env, nil, false)
+	if !ok || !strings.Contains(res.File, "6200") || !res.Unlocks["AFOP_Ach_1"].Achieved {
+		t.Fatalf("prefix: %+v %v", res, ok)
+	}
+	// By the id in the ini.
+	res, _, _, ok = ReadUplay(EmuGame{Dir: filepath.Join(root, "other")}, env, nil, false)
+	if !ok || !strings.Contains(res.File, "6100") {
+		t.Fatalf("game id: %+v %v", res, ok)
+	}
+	// Nothing to tell two folders apart: no guess, even as the only Uplay game.
+	if _, _, seen, ok := ReadUplay(EmuGame{Dir: filepath.Join(root, "lone")}, env, nil, true); ok || seen != 2 {
+		t.Errorf("guessed between two folders (seen %d)", seen)
+	}
+	// One folder: it's the game's only when it's the only Uplay game.
+	alone := testEnv(filepath.Join(root, "alone"))
+	if _, _, _, ok := ReadUplay(EmuGame{Dir: filepath.Join(root, "lone")}, alone, nil, false); ok {
+		t.Error("took a lone folder with other Uplay games in the library")
+	}
+	res, _, _, ok = ReadUplay(EmuGame{Dir: filepath.Join(root, "lone")}, alone, nil, true)
+	if !ok {
+		t.Fatal("lone folder not read")
+	}
+	defs, _ := UplaySchema(EmuGame{Dir: filepath.Join(root, "lone")})
+	if len(defs) != 2 || defs[0].Name != "One" || defs[0].Desc != "First" {
+		t.Fatalf("schema: %+v", defs)
+	}
+	items := Merge(defs, matchByNumber(defs, res.Unlocks))
+	if len(items) != 2 || !items[0].Unlocked || items[1].Unlocked {
+		t.Errorf("merged: %+v", items)
+	}
+	// Steam-style names end in the same numbers.
+	u := matchByNumber([]Def{{ID: "ACH_7"}, {ID: "ACH_1"}}, map[string]Unlock{"AFOP_Ach_1": {Achieved: true}, "AFOP_Ach_7": {}})
+	if !u["ACH_1"].Achieved || len(u) != 2 {
+		t.Errorf("by number: %+v", u)
 	}
 }

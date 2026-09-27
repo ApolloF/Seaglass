@@ -46,7 +46,10 @@ func NewLaunchService(c *Core) *LaunchService { return &LaunchService{c} }
 
 // Play starts a game: hooks first, then the game, then it is followed
 // until it exits.
-func (s *LaunchService) Play(id int64) error {
+func (s *LaunchService) Play(id int64) error { return s.play(id, s.c.shell.startMode()) }
+
+// play starts a game from where: "bigpicture", "desktop" or "" (outside the interface).
+func (s *LaunchService) play(id int64, from string) error {
 	g, ok := s.c.Lib.Get(id)
 	if !ok {
 		return library.ErrNotFound
@@ -68,7 +71,9 @@ func (s *LaunchService) Play(id int64) error {
 		}
 		return errors.New(cur.Title + " is still running")
 	}
-	return s.c.Launch.Launch(s.c.ctx, s.c.plan(g))
+	p := s.c.plan(g)
+	p.From = from
+	return s.c.Launch.Launch(s.c.ctx, p)
 }
 
 // Session returns the current (or last) game session.
@@ -190,6 +195,9 @@ func (c *Core) plan(g library.Game) launch.Plan {
 				return 0, used, err
 			}
 			logx.Printf("play %q (%s)", title, used)
+			// The game looks for controllers as it starts, which can be
+			// long before it's seen running: hand it over now.
+			c.padForGame()
 			_, _ = c.Lib.Update(g.ID, func(x *library.Game) { x.LastPlayed = time.Now().Unix() })
 			c.gamesChanged(g.ID)
 			return uint32(pid), used, nil
@@ -201,15 +209,8 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		OnRun: func() {
 			heapDiag("playing")
 			c.shell.setTrayTooltip("Seaglass · playing " + title)
-			cfg := c.Settings.Get()
-			if m := c.padManager(); m != nil {
-				if cfg.PadWhilePlaying == "off" {
-					m.SetMode(pad.Off)
-				} else {
-					m.SetMode(pad.Passive)
-				}
-			}
-			if cfg.CloseWhilePlaying {
+			c.padForGame()
+			if c.Settings.Get().CloseWhilePlaying {
 				c.shell.closeMainWhenGameInFront(c.Launch.IsGame)
 			}
 		},
@@ -218,7 +219,7 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		// was a launcher handing over, it steps aside again for the game.
 		OnGone: func() {
 			if c.Settings.Get().CloseWhilePlaying {
-				c.shell.reopenForGame()
+				c.shell.reopenForGame(c.Launch.Current().From)
 			}
 		},
 		OnBack: func() {
@@ -226,6 +227,19 @@ func (c *Core) plan(g library.Game) launch.Plan {
 				c.shell.closeMainWhenGameInFront(c.Launch.IsGame)
 			}
 		},
+	}
+}
+
+// padForGame steps the controller layer back while a game runs.
+func (c *Core) padForGame() {
+	m := c.padManager()
+	if m == nil {
+		return
+	}
+	if c.Settings.Get().PadWhilePlaying == "off" {
+		m.SetMode(pad.Off)
+	} else {
+		m.SetMode(pad.Passive)
 	}
 }
 
@@ -265,7 +279,7 @@ func (c *Core) onSession(s launch.Session) {
 		if s.Route == RouteExternal {
 			c.shell.CloseOverlay() // the interface wasn't closed for it
 		} else {
-			c.shell.gameEnded()
+			c.shell.gameEnded(s.From)
 		}
 	}
 }
@@ -384,7 +398,7 @@ func (s *LaunchService) PlayFromArgs(args []string) bool {
 	if !ok {
 		return false
 	}
-	if err := s.Play(id); err != nil {
+	if err := s.play(id, ""); err != nil {
 		logx.Printf("--play %d: %v", id, err)
 		s.c.shell.OpenMain()
 	}

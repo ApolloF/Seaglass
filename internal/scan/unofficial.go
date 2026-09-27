@@ -36,7 +36,17 @@ var emuFiles = map[string]string{
 	"steam_api64.rne":         "RUNE",
 	"nemirtingasepicemu.json": "Epic emulator",
 	".1911":                   "Razor1911",
+	// Ubisoft: Goldberg's Uplay emulators read upc_r2.ini or uplay_r*.ini
+	// next to their loader DLL (the DLLs themselves ship with real copies
+	// too); VOICES38 adds its own DLL.
+	"upc_r2.ini":   UplayEmu,
+	"uplay_r2.ini": UplayEmu,
+	"uplay_r1.ini": UplayEmu,
+	"voices38.dll": "VOICES38",
 }
+
+// UplayEmu is the name shown for a Ubisoft game running on a Uplay emulator.
+const UplayEmu = "Uplay emulator"
 
 // unlockers wrap the real steam_api DLL (CreamAPI, SmokeAPI): the game
 // still runs through Steam, so they don't make a copy unofficial.
@@ -139,8 +149,9 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 			if name == "steam_emu.ini" {
 				group = emuGroup(p)
 			}
-			// A specific group beats the generic "Steam emulator".
-			if e.Emulator == "" || e.Emulator == "Steam emulator" {
+			// A specific group beats the generic "Steam emulator" (and
+			// VOICES38 the Uplay emulator it's built on).
+			if e.Emulator == "" || e.Emulator == "Steam emulator" || (e.Emulator == UplayEmu && group == "VOICES38") {
 				e.Emulator, e.Marker = group, d.Name()
 				markerDir = filepath.Dir(p)
 			}

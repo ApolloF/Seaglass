@@ -14,10 +14,12 @@
   let error = $state("");
   let input: HTMLInputElement | undefined = $state();
   let seq = 0;
+  let searched = "";
 
   async function search() {
     const q = query.trim();
     if (!q) return;
+    searched = q;
     const n = ++seq;
     busy = true;
     error = "";
@@ -39,10 +41,20 @@
     }
   }
 
+  // Once, when it opens: search() reads the query, which would make this
+  // run (and select the whole title) again on every key typed.
   $effect(() => {
-    input?.focus();
-    input?.select();
-    search();
+    if (!input) return;
+    input.focus();
+    input.select();
+    untrack(search);
+  });
+
+  // Results follow the title as it's typed.
+  $effect(() => {
+    const q = query;
+    const t = setTimeout(() => q.trim() && q.trim() !== searched && search(), 400);
+    return () => clearTimeout(t);
   });
 </script>
 

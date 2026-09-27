@@ -1,14 +1,35 @@
 package launch
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/ApolloF/Seaglass/internal/platform"
 )
+
+// helpers are crash handlers and reporters games ship in their folder.
+// They can outlive the game (most of all when it's ended from Task
+// Manager, or crashed), and must not keep its session going.
+var helpers = map[string]bool{
+	"unitycrashhandler64.exe": true,
+	"unitycrashhandler32.exe": true,
+	"crashreportclient.exe":   true, // Unreal
+	"crashpad_handler.exe":    true,
+	"crashreporter.exe":       true,
+	"crashsender1403.exe":     true, // CrashRpt
+	"bssndrpt.exe":            true, // BugSplat
+	"bssndrpt64.exe":          true,
+	"werfault.exe":            true,
+}
+
+func isHelper(path string) bool { return helpers[strings.ToLower(filepath.Base(path))] }
 
 // procInfo is what is known about one process id.
 type procInfo struct {
 	path    string
 	started uint64
 	game    bool
+	helper  bool // a crash handler: never counts as the game
 }
 
 // tracker finds the processes that belong to a running game: the process
@@ -48,6 +69,11 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 		info := &procInfo{}
 		if path, started, err := t.image(p.PID); err == nil {
 			info.path, info.started = path, started
+			if isHelper(path) {
+				info.helper = true
+				t.known[p.PID] = info
+				continue
+			}
 			for _, d := range t.dirs {
 				if platform.Within(d, path) {
 					info.game = true
@@ -62,7 +88,7 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 	out := map[uint32]uint64{}
 	for _, p := range ps {
 		info := t.known[p.PID]
-		if info == nil {
+		if info == nil || info.helper {
 			continue
 		}
 		if info.game {

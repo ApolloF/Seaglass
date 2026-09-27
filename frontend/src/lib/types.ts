@@ -277,6 +277,8 @@ export interface Session {
   shown?: boolean;
   /** The exit code (0xC0000005) when the game crashed. */
   crash?: string;
+  /** Where it was started: a mode of the interface, or outside it (a shortcut, a game noticed). */
+  from?: "bigpicture" | "desktop";
 }
 
 /** Still loading: running, but its window hasn't come to the front yet

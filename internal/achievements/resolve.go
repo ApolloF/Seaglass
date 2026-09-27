@@ -14,7 +14,7 @@ import (
 
 // Version is part of every cached result's key: raise it when what
 // Resolve makes of the same files changes, so results are read again.
-const Version = 2
+const Version = 3
 
 // ErrNone means a store says the game has no achievements.
 var ErrNone = errors.New("no achievements")
@@ -51,8 +51,11 @@ type Deps struct {
 	// when nobody is signed in.
 	GOG     func(ctx context.Context) (access, userID string, err error)
 	Offline bool // don't go online now (a game is running)
-	Cache   *Cache
-	Icons   *Icons
+	// UplayGames counts the library's games on a Uplay emulator: with only
+	// one, the lone achievements folder there must be its.
+	UplayGames int
+	Cache      *Cache
+	Icons      *Icons
 }
 
 func (d Deps) online() bool { return d.Net != nil && !d.Offline }
@@ -96,7 +99,9 @@ func emuGame(g library.Game) EmuGame {
 func Files(g library.Game, d Deps) []string {
 	app := steamApp(g)
 	var files []string
-	if emulated(g) && g.Dir != "" {
+	if emulated(g) && g.Dir != "" && UplayEmulator(g.Emulator) {
+		files = append(files, UplayFiles(emuGame(g), d.Env)...)
+	} else if emulated(g) && g.Dir != "" {
 		eg := emuGame(g)
 		files = append(files, EmuFiles(eg, d.Env)...)
 		files = append(files, filepath.Join(eg.emuPath(), "steam_settings", "achievements.json"))
@@ -173,6 +178,9 @@ func storeName(source string) string {
 const hintKey = "Add a Steam Web API key in Settings → Accounts to see names and icons."
 
 func resolveEmu(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
+	if UplayEmulator(g.Emulator) && g.Dir != "" {
+		return resolveUplay(ctx, g, d, l)
+	}
 	eg := emuGame(g)
 	res, _, found := ReadEmu(eg, d.Env)
 	if g.Emulator == "" && !found {
@@ -220,6 +228,44 @@ func resolveEmu(ctx context.Context, g library.Game, d Deps, l *List) (net bool)
 		l.Hint = hintKey
 	case len(defs) == 0 && !found:
 		l.Hint = "No achievements found for this copy."
+	}
+	return net
+}
+
+// resolveUplay reads a Ubisoft game on a Uplay emulator. Names come from
+// the emulator's own schema, else the Steam version's (Ubisoft's
+// achievement ids are the numbers Steam's API names end in).
+func resolveUplay(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
+	eg := emuGame(g)
+	l.Source = g.Emulator
+	defs, _ := UplaySchema(eg)
+	none := false
+	if len(defs) == 0 && eg.AppID > 0 {
+		defs, _ = SteamSchema(d.SteamRoot, eg.AppID, d.Lang)
+		if len(defs) == 0 {
+			defs, none, net = steamWebSchema(ctx, eg.AppID, d)
+		}
+	}
+	known := make([]string, 0, len(defs))
+	for _, def := range defs {
+		known = append(known, def.ID)
+	}
+	res, _, seen, found := ReadUplay(eg, d.Env, known, d.UplayGames == 1)
+	unlocks := res.Unlocks
+	if len(defs) > 0 {
+		unlocks = matchByNumber(defs, unlocks)
+	}
+	l.Items = Merge(defs, unlocks)
+	switch {
+	case !found && seen > 0:
+		l.Hint = "Seaglass found several Ubisoft games' achievements in Goldberg UplayEmu Saves and can't tell which are this game's."
+	case !found && g.Emulator == "VOICES38":
+		l.Hint = "No achievement file found. VOICES38's own loader doesn't seem to save achievements; Goldberg Uplay builds with Achievements = 1 in their ini do."
+	case !found:
+		l.Hint = "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1."
+	case len(defs) == 0 && none:
+	case len(defs) == 0 && eg.AppID > 0 && d.SteamKey == "":
+		l.Hint = hintKey
 	}
 	return net
 }

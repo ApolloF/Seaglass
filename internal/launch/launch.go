@@ -87,6 +87,9 @@ type Session struct {
 	Shown bool `json:"shown,omitempty"`
 	// Crash is the exit code, as 0xC0000005, when the game crashed.
 	Crash string `json:"crash,omitempty"`
+	// From is where it was started: "bigpicture" or "desktop" for the
+	// interface's modes, "" from outside it (a shortcut, a game noticed).
+	From string `json:"from,omitempty"`
 }
 
 // Step is one hook.
@@ -132,6 +135,7 @@ func (c *StepContext) Ask(ctx context.Context, text string, opts []Option) (stri
 type Plan struct {
 	GameID int64
 	Title  string
+	From   string   // where it was started (Session.From)
 	Dirs   []string // folders the game's processes run from
 	Before []Step
 	// Start starts the game. It runs after the Before steps, which may
@@ -218,7 +222,7 @@ func (m *Manager) Launch(ctx context.Context, p Plan) error {
 	m.seq++
 	ctx, cancel := context.WithCancel(ctx)
 	m.cancel, m.skip, m.tracked = cancel, map[string]context.CancelFunc{}, nil
-	m.cur = Session{ID: m.seq, GameID: p.GameID, Title: p.Title, Phase: Preparing,
+	m.cur = Session{ID: m.seq, GameID: p.GameID, Title: p.Title, From: p.From, Phase: Preparing,
 		Before: states(p.Before), After: states(p.After)}
 	m.mu.Unlock()
 	m.update(func(*Session) {})

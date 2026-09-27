@@ -47,14 +47,14 @@ These files use binary KeyValues types 0x00–0x08 only as far as is known (Stea
 
 ## Emulator unlock files
 
-`{roaming}` is `%APPDATA%`, `{local}` `%LOCALAPPDATA%`, `{public}` `%PUBLIC%`, `{programdata}` `%ProgramData%`, `{documents}` the user's Documents; `{emu}` is the folder the emulator sits in (`Game.EmuDir`, relative to the game folder), `{appid}` the Steam app. When several places have a file (an old crack's leftovers), the newest wins. Every file is capped at 4 MB and treated as untrusted; each format has a fuzz test.
+`{roaming}` is `%APPDATA%`, `{local}` `%LOCALAPPDATA%`, `{public}` `%PUBLIC%`, `{programdata}` `%ProgramData%`, `{documents}` the user's Documents; `{emu}` is the folder the emulator sits in (`Game.EmuDir`, relative to the game folder), `{appid}` the Steam app. When several places have a file (an old crack's leftovers), the newest names the source and anything unlocked in any of them counts. Every file is capped at 4 MB and treated as untrusted; each format has a fuzz test.
 
 | Group | Where | Format |
 |---|---|---|
 | Goldberg | `{roaming}\Goldberg SteamEmu Saves\{appid}\achievements.json`; `local_save.txt` next to the emulator names a folder beside it (`SAVE` when empty) | JSON `{"ID": {"earned", "earned_time", "progress", "max_progress"}}` |
 | gbe_fork | `{roaming}\GSE Saves\{appid}\achievements.json`; `[user::saves] local_save_path` in `steam_settings\configs.user.ini` | as Goldberg |
 | EMPRESS | `{roaming}\EMPRESS\remote\{appid}\achievements.json`, `{public}\Documents\EMPRESS\{appid}\remote\{appid}\achievements.json` | as Goldberg |
-| CODEX | `{public}\Documents\Steam\CODEX\{appid}\achievements.ini`, `{roaming}\Steam\CODEX\{appid}\achievements.ini` | INI `[ID]` `Achieved`, `UnlockTime`, `CurProgress`, `MaxProgress`; `[SteamAchievements]` is skipped |
+| CODEX | `{public}\Documents\Steam\CODEX\{appid}\achievements.ini`, `{roaming}\Steam\CODEX\{appid}\achievements.ini` | INI `[ID]` `Achieved`, `UnlockTime`, `CurProgress`, `MaxProgress` (progress at its maximum counts as unlocked); `[SteamAchievements]` lists the unlocked IDs in unlock order (`00000=ID`, …, `Count`), and a listed ID without a section counts as unlocked |
 | RUNE | `{public}\Documents\Steam\RUNE\{appid}\achievements.ini` | as CODEX |
 | OnlineFix | `{public}\Documents\OnlineFix\{appid}\Stats\Achievements.ini`, `…\{appid}\Achievements.ini` | INI `achieved=true`, `timestamp` |
 | CreamAPI | `{roaming}\CreamAPI\{appid}\stats\CreamAPI.Achievements.cfg` | INI `achieved`, `unlocktime` (seven digits: ×1000) |
@@ -65,11 +65,14 @@ These files use binary KeyValues types 0x00–0x08 only as far as is known (Stea
 | 3DM | `{emu}\3DMGAME\*\stats\achievements.ini` | as CODEX |
 | ALI213 | `{emu}\Profile\*\Stats\Achievements.Bin` | INI `HaveAchieved`, `HaveAchievedTime` |
 | Razor1911 | `{roaming}\.1911\{appid}\achievement` | lines `ID achieved time` |
+| Uplay emulator, VOICES38 (Ubisoft games) | `{roaming}\Goldberg UplayEmu Saves\<ubisoft id>\achievements.json` (or `R1 UplayEmu Saves`, `SaveType`/`SavePath`, `AchSaveType=1` + `AchSavePath` from `upc_r2.ini` / `uplay_r2.ini` / `uplay_r1.ini` next to the loader) | as Goldberg, keys `<AchKeyPrefix><number>`. The folder is the game's when the ini's `GameId` names it, its keys start with `AchKeyPrefix` or match the schema, or it's the only one there and only one game in the library runs on a Uplay emulator; otherwise nothing is guessed. Names from `achievements_schema.json` next to the loader (`{key: {displayName, description}}`), else the Steam version's schema, matched by the number the keys end in |
 | Nemirtinga's Epic emulator | `{roaming}\NemirtingasEpicEmu\*\<id>\achievements.json`; the id from `nemirtingasepicemu.json` (`AppId`, `ProductId`, `SandboxId` or `Namespace`) | a list of `{AchievementId, Progress / Unlocked}`. Its times aren't wall-clock times: shown as "unlocked, time unknown". Names come from Epic when the id is the game's sandbox |
 
 The schema next to Goldberg-style emulators is `steam_settings\achievements.json`: a list of `{name, displayName, description, hidden, icon, icon_gray | icongray}`; `displayName` and `description` are strings or objects by language. Icons are files relative to `steam_settings\` or `steam_settings\achievement_images\`, and only files inside the game folder are used.
 
-**Not read yet** (no public description of their files; samples welcome): VOICES38, CPY, PLAZA, FLT, Steamworks Fix. Hoodlum and DARKSiDERS use the CODEX INI format, but where they keep it isn't known. Their games say "Seaglass can't read X's achievement files yet". The TENOKE, SmartSteamEmu, ALI213, Razor1911 and Nemirtinga formats are written from descriptions and tested against built files only: real samples would confirm them.
+VOICES38's own loader seems to write no achievements at all (the open Goldberg R2 loader it's based on doesn't); only builds with `Achievements = 1` do. LumaPlay (registry, `HKCU\SOFTWARE\LumaPlay\<user>\<id>\Achievements`) isn't read yet.
+
+**Not read yet** (no public description of their files; samples welcome): CPY, PLAZA, FLT, Steamworks Fix. Hoodlum and DARKSiDERS use the CODEX INI format, but where they keep it isn't known. Their games say "Seaglass can't read X's achievement files yet". The TENOKE, SmartSteamEmu, ALI213, Razor1911 and Nemirtinga formats are written from descriptions and tested against built files only: real samples would confirm them.
 
 ## Store servers
 
