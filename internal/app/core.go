@@ -61,6 +61,7 @@ type Core struct {
 	owned    *ownedState
 	updates  *updater
 	external *externalWatch
+	ach      *achState
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
@@ -95,6 +96,7 @@ func NewCore(version string) (*Core, error) {
 	c.Launch = launch.NewManager(c.onSession)
 	c.owned = newOwnedState(c)
 	c.updates = newUpdater(c)
+	c.ach = newAchState(c, c.owned.client, c.meta.client)
 	return c, nil
 }
 

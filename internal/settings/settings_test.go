@@ -45,3 +45,14 @@ func TestHiddenSources(t *testing.T) {
 		t.Errorf("hidden sources = %v, want [epic unofficial]", got.HiddenSources)
 	}
 }
+
+// Achievements are on for everyone, updaters included; hidden ones stay hidden.
+func TestAchievementDefaults(t *testing.T) {
+	old := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(old, []byte(`{"theme":"dark"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if v := Open(old).Get(); !v.Achievements || v.ShowHiddenAchievements {
+		t.Errorf("achievements %v, hidden shown %v", v.Achievements, v.ShowHiddenAchievements)
+	}
+}

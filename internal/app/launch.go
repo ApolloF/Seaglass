@@ -243,6 +243,9 @@ func (c *Core) onSession(s launch.Session) {
 	if last == s.ID {
 		return
 	}
+	if s.GameID > 0 && s.StartedAt > 0 && c.ach != nil {
+		go c.ach.afterSession(s.GameID, s.Title, 3*time.Second)
+	}
 	if s.StartedAt > 0 {
 		logx.Printf("played %q for %s", s.Title, (time.Duration(s.Seconds) * time.Second).String())
 	}

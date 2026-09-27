@@ -102,6 +102,7 @@ func main() {
 			application.NewService(app.NewLibraryService(core)),
 			application.NewService(launcher),
 			application.NewService(app.NewSavesService(core)),
+			application.NewService(app.NewAchievementsService(core)),
 			application.NewService(app.NewAccountsService(core)),
 			application.NewService(app.NewSettingsService(core)),
 			application.NewService(app.NewPadService(core)),
