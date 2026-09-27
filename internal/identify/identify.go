@@ -236,10 +236,15 @@ func (ix *Index) byLooseTitle(title string) *Entry {
 }
 
 // titleForms are the ways to read a title when looking for a similar
-// one: as it is, without its edition, written out, and with "Edition".
+// one: as it is, without its edition, written out, with "Edition", and
+// last without "Remake".
 func titleForms(t string) []string {
 	out := []string{t, scan.StripEdition(t), scan.ExpandAbbrev(t), t + " Edition"}
-	return append(out, scan.Aliases(t)...)
+	out = append(out, scan.Aliases(t)...)
+	if r := scan.WithoutRemake(t); r != "" {
+		out = append(out, r)
+	}
+	return out
 }
 
 // Editions as they appear in names run together ("Fallout3GameoftheYearEdition").

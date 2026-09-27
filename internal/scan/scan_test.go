@@ -115,6 +115,24 @@ func TestStripEditionAndAbbrev(t *testing.T) {
 	}
 }
 
+func TestWithoutRemake(t *testing.T) {
+	for in, want := range map[string]string{
+		"Resident Evil 4 Remake":   "Resident Evil 4",
+		"Resident Evil 2 (Remake)": "Resident Evil 2",
+		"Dead Space - Remake":      "Dead Space",
+		"Resident Evil 4":          "",
+		"Remake":                   "",
+		"Remaker":                  "",
+	} {
+		if got := WithoutRemake(in); got != want {
+			t.Errorf("WithoutRemake(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if a := Aliases("RE4R"); len(a) == 0 || a[0] != "Resident Evil 4" {
+		t.Errorf("Aliases(RE4R) = %q", a)
+	}
+}
+
 func TestSortTitle(t *testing.T) {
 	if SortTitle("The Sims 4") != "sims 4" || SortTitle("A Hat in Time") != "hat in time" || SortTitle("The") != "the" {
 		t.Error("articles not dropped")
@@ -141,6 +159,24 @@ func TestDetectRUNE(t *testing.T) {
 	e := DetectEmulation(root, func(string) bool { return true })
 	if e.Emulator != "RUNE" || e.AppID != 1086940 || e.AppIDFrom != "steam_emu.ini" {
 		t.Errorf("got %+v", e)
+	}
+}
+
+func TestDetectUplay(t *testing.T) {
+	root := t.TempDir()
+	mk(t, root, map[string]string{
+		"ACShadows.exe":              big(100),
+		"upc_r2_loader64.dll":        "x",
+		"upc_r2.ini":                 "[Settings]\nUsername=Player\n",
+		"voices38.dll":               "x",
+		"real/game.exe":              big(100),
+		"real/uplay_r1_loader64.dll": "x",
+	})
+	if e := DetectEmulation(root, nil); e.Emulator != "VOICES38" || e.EmuDir != "." {
+		t.Errorf("voices38: %+v", e)
+	}
+	if e := DetectEmulation(filepath.Join(root, "real"), nil); e.Emulator != "" {
+		t.Errorf("a real copy's loader counted: %+v", e)
 	}
 }
 

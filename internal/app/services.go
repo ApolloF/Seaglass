@@ -155,6 +155,20 @@ func (s *LibraryService) SearchSteam(query string) ([]meta.StoreHit, error) {
 	ctx, cancel := context.WithTimeout(s.c.ctx, 20*time.Second)
 	defer cancel()
 	hits, err := s.c.meta.client.SearchSteam(ctx, query)
+	// Nothing for it as typed: the store may know it by another name
+	// ("Resident Evil 4 Remake" is "Resident Evil 4", "GTA V" is "Grand
+	// Theft Auto V").
+	tried := map[string]bool{scan.Normalize(query): true}
+	for _, t := range append([]string{scan.StripEdition(query), scan.WithoutRemake(query), scan.ExpandAbbrev(query)}, scan.Aliases(query)...) {
+		if err != nil || len(hits) > 0 {
+			break
+		}
+		if t == "" || tried[scan.Normalize(t)] {
+			continue
+		}
+		tried[scan.Normalize(t)] = true
+		hits, err = s.c.meta.client.SearchSteam(ctx, t)
+	}
 	if hits == nil {
 		hits = []meta.StoreHit{}
 	}

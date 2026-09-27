@@ -223,10 +223,10 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 // searchStore looks a title up on the Steam store: as it is, then without
 // its edition ("The Witcher 3: Wild Hunt - Complete Edition" finds
 // nothing, "The Witcher 3: Wild Hunt" does) and with a well-known
-// abbreviation written out ("GTA V").
+// abbreviation written out ("GTA V"), and last without "Remake".
 func (w *metaWorker) searchStore(ctx context.Context, title string) (meta.StoreHit, bool, error) {
 	tried := map[string]bool{}
-	for _, t := range append([]string{title, scan.StripEdition(title), scan.ExpandAbbrev(title)}, scan.Aliases(title)...) {
+	for _, t := range append(append([]string{title, scan.StripEdition(title), scan.ExpandAbbrev(title)}, scan.Aliases(title)...), scan.WithoutRemake(title)) {
 		if t == "" || tried[scan.Normalize(t)] {
 			continue
 		}
