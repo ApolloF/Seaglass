@@ -347,3 +347,22 @@ func TestCrashAndShown(t *testing.T) {
 		}
 	}
 }
+
+// A crash handler from the game's folder, left running after the game was
+// ended from Task Manager, doesn't keep the session going.
+func TestCrashHandlerLeftBehind(t *testing.T) {
+	game := platform.Proc{PID: 100, PPID: 1, Name: "game.exe"}
+	handler := platform.Proc{PID: 101, PPID: 100, Name: "UnityCrashHandler64.exe"}
+	f := &fakePC{
+		paths: map[uint32]string{100: gameDir + `\game.exe`, 101: gameDir + `\UnityCrashHandler64.exe`},
+		frames: [][]platform.Proc{
+			{game, handler}, {game, handler}, {handler},
+		},
+	}
+	m, r := newTest(f)
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{gameDir},
+		Start: func() (uint32, string, error) { return 100, "direct", nil }})
+	if s := wait(t, r); s.Phase != Ended || s.StartedAt == 0 {
+		t.Errorf("phase %s, started %d; want ended after running", s.Phase, s.StartedAt)
+	}
+}

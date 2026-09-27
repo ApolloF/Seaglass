@@ -169,10 +169,16 @@ class LibraryStore {
   async init() {
     api.onLibraryChanged(() => void this.refresh());
     api.onGamesUpdated((gs) => gs.forEach((g) => this.replace(g, true)));
-    api.onScanState((s) => (this.scan = s));
-    api.onMetaState((s) => (this.meta = s));
-    api.launch.onSession((s) => (this.session = s));
-    api.updates.onState((s) => (this.update = s));
+    // An event that arrives while the first snapshot is still loading is
+    // newer than it: the snapshot mustn't put the old state back. (The
+    // window reopens as a game closes, and its session ends a few seconds
+    // later, often while the library is still loading; a stale session
+    // left the game looking like it still ran.)
+    const fresh = new Set<string>();
+    api.onScanState((s) => ((this.scan = s), fresh.add("scan")));
+    api.onMetaState((s) => ((this.meta = s), fresh.add("meta")));
+    api.launch.onSession((s) => ((this.session = s), fresh.add("session")));
+    api.updates.onState((s) => ((this.update = s), fresh.add("update")));
     api.achievements.onSession((s) => {
       this.achSession = s;
       if (s.unlocked.length) this.toast(`${s.title}: ${unlockedText(s.unlocked.length)}`, "info", s.unlocked.slice(0, 5));
@@ -186,14 +192,14 @@ class LibraryStore {
       api.launch.session(),
       api.updates.state(),
     ]);
-    this.update = update;
+    if (!fresh.has("update")) this.update = update;
     this.announceVersion(info.version);
     if (info.crashedLastTime) this.toast("Seaglass closed unexpectedly last time. Settings → About → Copy diagnostics helps with a bug report.", "error");
-    this.meta = meta;
-    this.session = session;
+    if (!fresh.has("meta")) this.meta = meta;
+    if (!fresh.has("session")) this.session = session;
     this.games = games;
     this.settings = settings;
-    this.scan = scan;
+    if (!fresh.has("scan")) this.scan = scan;
     this.info = info;
     this.loaded = true;
   }
