@@ -331,3 +331,29 @@ func TestAliasesAndNotAGame(t *testing.T) {
 		}
 	}
 }
+
+func TestEmuDir(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string
+		emu   string
+		dir   string
+	}{
+		{"goldberg in bin", map[string]string{"Game.exe": "x", "bin/steam_api64.dll": "x", "bin/steam_settings/steam_appid.txt": "620"}, "Goldberg", "bin"},
+		{"gbe_fork configs", map[string]string{"Game.exe": "x", "steam_settings/configs.user.ini": "[user::saves]\n"}, "Goldberg", "."},
+		{"rune ini", map[string]string{"Game.exe": "x", "Binaries/Win64/rune.ini": "AppId=10\n"}, "RUNE", `Binaries\Win64`},
+		{"tenoke steamdata", map[string]string{"Game.exe": "x", "Game/SteamData/user_stats.ini": "[ACHIEVEMENTS]\n"}, "TENOKE", "Game"},
+		{"razor1911", map[string]string{"Game.exe": "x", ".1911": "x"}, "Razor1911", "."},
+		{"stray user_stats", map[string]string{"Game.exe": "x", "cfg/user_stats.ini": "x"}, "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			mk(t, root, tc.files)
+			e := DetectEmulation(root, func(string) bool { return true })
+			if e.Emulator != tc.emu || e.EmuDir != tc.dir {
+				t.Errorf("got emulator %q in %q, want %q in %q", e.Emulator, e.EmuDir, tc.emu, tc.dir)
+			}
+		})
+	}
+}

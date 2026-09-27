@@ -33,6 +33,7 @@ export interface Game {
   sourceLabel: string;
   unofficial: boolean;
   emulator?: string;
+  emuDir?: string;
   repacker?: string;
   drmFree?: string;
   installed: boolean;

@@ -19,6 +19,7 @@ var emuFiles = map[string]string{
 	"coldclientloader.ini":    "Goldberg",
 	"steam_interfaces.txt":    "Goldberg",
 	"local_save.txt":          "Goldberg",
+	"configs.user.ini":        "Goldberg", // gbe_fork
 	"smartsteamemu.ini":       "SmartSteamEmu",
 	"onlinefix.ini":           "OnlineFix",
 	"onlinefix64.dll":         "OnlineFix",
@@ -34,6 +35,7 @@ var emuFiles = map[string]string{
 	"steam_api.rne":           "RUNE",
 	"steam_api64.rne":         "RUNE",
 	"nemirtingasepicemu.json": "Epic emulator",
+	".1911":                   "Razor1911",
 }
 
 // unlockers wrap the real steam_api DLL (CreamAPI, SmokeAPI): the game
@@ -51,6 +53,9 @@ type Emulation struct {
 	Gog       *gogInfo // a GOG game info file, when present
 	GogFile   string
 	PadHint   string // "libScePad" (Sony's DualSense library) or "SDL" when the game ships one
+	// EmuDir is the folder, relative to the game folder, where the emulator
+	// marker (or steam_settings) was found; "." for the game folder itself.
+	EmuDir string
 }
 
 // DetectEmulation looks through a game folder for Steam emulators, cracks
@@ -68,7 +73,8 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 	depth0 := strings.Count(root, `\`)
 	var dlls []string
 	unlocker := false
-	appIDs := map[string]int{} // file → app id, first found per kind
+	appIDs := map[string]int{}        // file → app id, first found per kind
+	var markerDir, settingsDir string // where the marker and steam_settings were found
 	n := 0
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -89,8 +95,12 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 				return filepath.SkipDir
 			}
 			if name == "steam_settings" {
+				if settingsDir == "" {
+					settingsDir = filepath.Dir(p)
+				}
 				if e.Emulator == "" {
 					e.Emulator, e.Marker = "Goldberg", d.Name()
+					markerDir = filepath.Dir(p)
 				}
 				if id := readAppIDTxt(filepath.Join(p, "steam_appid.txt")); id > 0 {
 					appIDs["steam_settings"] = id
@@ -106,6 +116,11 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 			fp.dir(filepath.Dir(p))
 		}
 		switch {
+		case name == "user_stats.ini" && strings.EqualFold(filepath.Base(filepath.Dir(p)), "steamdata"):
+			// TENOKE keeps its settings and unlocks in SteamData.
+			if e.Emulator == "" || e.Emulator == "Steam emulator" {
+				e.Emulator, e.Marker, markerDir = "TENOKE", "SteamData\\"+d.Name(), filepath.Dir(filepath.Dir(p))
+			}
 		case name == "steam_appid.txt":
 			if id := readAppIDTxt(p); id > 0 {
 				if _, ok := appIDs["steam_appid.txt"]; !ok {
@@ -127,6 +142,7 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 			// A specific group beats the generic "Steam emulator".
 			if e.Emulator == "" || e.Emulator == "Steam emulator" {
 				e.Emulator, e.Marker = group, d.Name()
+				markerDir = filepath.Dir(p)
 			}
 		case unlockers[name]:
 			unlocker = true
@@ -147,8 +163,21 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 		for _, p := range dlls {
 			if !signed(p) {
 				e.Emulator, e.Marker = "Steam emulator", filepath.Base(p)+" (unsigned)"
+				markerDir = filepath.Dir(p)
 				break
 			}
+		}
+	}
+	if settingsDir != "" && e.Emulator != "" {
+		markerDir = settingsDir // where the schema and settings are
+	}
+	if markerDir != "" {
+		// gbe_fork keeps configs.user.ini inside steam_settings.
+		if strings.EqualFold(filepath.Base(markerDir), "steam_settings") {
+			markerDir = filepath.Dir(markerDir)
+		}
+		if rel, err := filepath.Rel(root, markerDir); err == nil && !strings.HasPrefix(rel, "..") {
+			e.EmuDir = rel
 		}
 	}
 	// Which file's app id to trust, most specific first.
@@ -164,7 +193,7 @@ func detectEmulation(dir string, signed func(string) bool, fp *fingerprint) Emul
 // telling reports whether a file name matters to DetectEmulation.
 func telling(name string) bool {
 	_, emu := emuFiles[name]
-	return emu || unlockers[name] || name == "steam_appid.txt" || name == "steam_api.dll" || name == "steam_api64.dll" ||
+	return emu || unlockers[name] || name == "steam_appid.txt" || name == "user_stats.ini" || name == "steam_api.dll" || name == "steam_api64.dll" ||
 		name == "libscepad.dll" || name == "libscepad_x64.dll" || name == "sdl2.dll" || name == "sdl3.dll" ||
 		(strings.HasPrefix(name, "goggame-") && strings.HasSuffix(name, ".info"))
 }

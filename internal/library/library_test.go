@@ -236,3 +236,20 @@ func TestOwnedGames(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyScanEmuDir(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "library.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := Found{Key: `c:\games\x`, Title: "X", Source: "folder", Dir: `C:\Games\X`, Emulator: "Goldberg", EmuDir: "bin", Unofficial: true}
+	s.ApplyScan([]Found{f}, time.Now())
+	if g := s.Games()[0]; g.EmuDir != "bin" {
+		t.Fatalf("EmuDir = %q", g.EmuDir)
+	}
+	f.Emulator, f.EmuDir, f.Unofficial = "", "", false
+	s.ApplyScan([]Found{f}, time.Now())
+	if g := s.Games()[0]; g.EmuDir != "" {
+		t.Fatalf("EmuDir kept after the emulator went: %q", g.EmuDir)
+	}
+}
