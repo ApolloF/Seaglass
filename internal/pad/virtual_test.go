@@ -51,7 +51,7 @@ func TestVirtualGamepad(t *testing.T) {
 	defer m.Stop()
 
 	var joy uintptr
-	name := cstr("WaterLauncher Test Pad")
+	name := cstr("Seaglass Test Pad")
 	run := func(fn func(s *sdl)) {
 		done := make(chan struct{})
 		deadline := time.After(3 * time.Second)
@@ -118,7 +118,7 @@ func TestVirtualGamepad(t *testing.T) {
 		}
 	}
 	st := waitState(func(s State) bool { return s.Connected })
-	if st.Name != "WaterLauncher Test Pad" {
+	if st.Name != "Seaglass Test Pad" {
 		t.Errorf("name = %q", st.Name)
 	}
 
@@ -280,7 +280,7 @@ func TestVirtualHatNotTwice(t *testing.T) {
 	}
 	time.Sleep(300 * time.Millisecond)
 	var joy uintptr
-	name := cstr("WaterLauncher Hat Pad")
+	name := cstr("Seaglass Hat Pad")
 	run(func(s *sdl) {
 		attach, _ := s.dll.FindProc("SDL_AttachVirtualJoystick")
 		open, _ := s.dll.FindProc("SDL_OpenJoystick")

@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/pad"
 )
 
 func TestRoute(t *testing.T) {
@@ -35,7 +35,7 @@ func TestRoute(t *testing.T) {
 }
 
 func TestPlayArg(t *testing.T) {
-	if id, ok := PlayArg([]string{`C:\WaterLauncher.exe`, "--play", "42"}); !ok || id != 42 {
+	if id, ok := PlayArg([]string{`C:\Seaglass.exe`, "--play", "42"}); !ok || id != 42 {
 		t.Errorf("PlayArg = %d, %v", id, ok)
 	}
 	for _, args := range [][]string{nil, {"--play"}, {"--play", "x"}, {"--play", "-1"}} {
@@ -46,7 +46,7 @@ func TestPlayArg(t *testing.T) {
 }
 
 func TestParseArgs(t *testing.T) {
-	a := ParseArgs([]string{`C:\WaterLauncher.exe`, "--tray", "--updated"})
+	a := ParseArgs([]string{`C:\Seaglass.exe`, "--tray", "--updated"})
 	if !a.Tray || !a.Updated || a.Quit || a.Play != 0 {
 		t.Errorf("ParseArgs = %+v", a)
 	}
@@ -72,7 +72,7 @@ func TestGameForPath(t *testing.T) {
 		`D:\Games\Gone\Gone.exe`:           1, // not installed: only the folder around it counts
 		`C:\Tools\Editor\editor.exe`:       0, // hidden
 		`C:\Program Files\Some\app.exe`:    0, // too broad a folder
-		`D:\Games\Hades\WaterLauncher.exe`: 0,
+		`D:\Games\Hades\Seaglass.exe`: 0,
 		`C:\Windows\System32\notepad.exe`:  0,
 	} {
 		g, ok := gameForPath(games, path)

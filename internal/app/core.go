@@ -1,4 +1,4 @@
-// Package app wires WaterLauncher together and holds the services the
+// Package app wires Seaglass together and holds the services the
 // frontend calls.
 package app
 
@@ -11,15 +11,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/identify"
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
-	"github.com/ApolloF/WaterLauncher/internal/settings"
+	"github.com/ApolloF/Seaglass/internal/identify"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/settings"
 	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -58,7 +58,6 @@ type Core struct {
 	// Frozen keeps the library as it is: no scans, metadata, store
 	// accounts or update checks (the test harness's --dev-data).
 	Frozen   bool
-	addons   *addonState
 	owned    *ownedState
 	updates  *updater
 	external *externalWatch
@@ -94,7 +93,6 @@ func NewCore(version string) (*Core, error) {
 	}
 	c.meta = newMetaWorker(c)
 	c.Launch = launch.NewManager(c.onSession)
-	c.addons = newAddonState(version)
 	c.owned = newOwnedState(c)
 	c.updates = newUpdater(c)
 	return c, nil
@@ -116,6 +114,9 @@ func (c *Core) Start() {
 	go c.updates.loop(c.ctx)
 	c.external = newExternalWatch(c)
 	c.external.set(c.Settings.Get().NoticeExternal)
+	if exe, err := os.Executable(); err == nil && platform.MoveOldStartup(exe) {
+		logx.Printf("start with Windows: WaterLauncher's entry is now Seaglass's")
+	}
 	if exe, err := os.Executable(); err == nil && platform.RepairStartup(exe) {
 		logx.Printf("start with Windows: now starts %s", exe)
 	}
@@ -160,7 +161,7 @@ func (c *Core) Stop() {
 	}
 }
 
-// quitForUpdate closes WaterLauncher so an update can take its place.
+// quitForUpdate closes Seaglass so an update can take its place.
 func (c *Core) quitForUpdate() {
 	if a := application.Get(); a != nil {
 		a.Quit()
@@ -191,7 +192,7 @@ func (c *Core) scanLoop() {
 
 // waitIdle holds background work (scans, metadata, store accounts) while
 // a game runs, so it gets the disk, network and CPU to itself. It reports
-// false when WaterLauncher is closing.
+// false when Seaglass is closing.
 func (c *Core) waitIdle(ctx context.Context) bool {
 	for c.Launch.Active() {
 		select {
@@ -213,10 +214,6 @@ func (c *Core) scanNow() {
 		return
 	}
 	ix := c.Manifest.Index()
-	known := map[int64]bool{}
-	for _, g := range c.Lib.Games() {
-		known[g.ID] = true
-	}
 	found := make([]library.Found, 0, len(res.Games))
 	for _, g := range res.Games {
 		found = append(found, toFound(g, ix.Identify(g), cfg))
@@ -231,15 +228,6 @@ func (c *Core) scanNow() {
 	c.rewatch(cfg)
 	c.meta.queueMissing()
 	c.pruned.Do(func() { go c.pruneArt() })
-	if added > 0 && len(known) > 0 {
-		var fresh []library.Game
-		for _, g := range c.Lib.Games() {
-			if !known[g.ID] {
-				fresh = append(fresh, g)
-			}
-		}
-		go c.tellAddonsAdded(fresh)
-	}
 	if added > 0 || removed > 0 || !c.registered {
 		c.registered = true
 		go c.registerWithSyncer()

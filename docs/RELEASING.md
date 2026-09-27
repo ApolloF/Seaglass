@@ -1,15 +1,15 @@
 # Releasing
 
-From v1.1, every release is signed with WaterLauncher's **release key**, an ed25519 key that never goes to GitHub. The updater (v1.1 and later) installs only files whose SHA-256 is listed in a `SHA256SUMS` signed with that key for that exact tag. So even someone who took over the GitHub account, or replaced release files, can't ship an update.
+From v1.1, every release is signed with Seaglass's **release key**, an ed25519 key that never goes to GitHub. The updater (v1.1 and later) installs only files whose SHA-256 is listed in a `SHA256SUMS` signed with that key for that exact tag. So even someone who took over the GitHub account, or replaced release files, can't ship an update.
 
 ## The key
 
-- It lives on the maintainer's PC, encrypted with Windows DPAPI for that Windows account: `%APPDATA%\WaterLauncher-release\release-key.dpapi` (outside WaterLauncher's own data folder, so uninstalling the app can't delete it).
+- It lives on the maintainer's PC, encrypted with Windows DPAPI for that Windows account: `%APPDATA%\Seaglass-release\release-key.dpapi` (outside Seaglass's own data folder, so uninstalling the app can't delete it).
 - Its public half is in `internal/update/keys.go`.
 - **Backup** (do this once, and keep it offline, apart from its password):
 
   ```bash
-  go run ./tools/release backup E:\waterlauncher-release-key.json
+  go run ./tools/release backup E:\seaglass-release-key.json
   ```
 
   The file is the key encrypted with AES-256-GCM under your password (PBKDF2-SHA256, 600,000 rounds). Without a backup, a lost PC means v1.1+ users can't receive updates until they install a new version by hand.

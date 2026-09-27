@@ -62,7 +62,7 @@ func foregroundCallback(hook, event, hwnd, idObject, idChild, thread, when uintp
 }
 
 // WatchForeground calls fn with the process id of each window that comes
-// to the front, other than WaterLauncher's own. Windows tells it (a
+// to the front, other than Seaglass's own. Windows tells it (a
 // WinEvent hook, out of context): nothing is polled and nothing is
 // injected into other processes. fn runs on the watcher's thread and must
 // return quickly. stop ends the watch.

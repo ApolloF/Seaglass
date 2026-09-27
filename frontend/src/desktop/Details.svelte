@@ -9,7 +9,6 @@
   import { padExplain } from "../lib/route";
   import { savesSummary } from "../lib/saves";
   import { sessionActive, storeName, type Saves } from "../lib/types";
-  import AddonCards from "./AddonCards.svelte";
   import MatchDialog from "./MatchDialog.svelte";
 
   let { game }: { game: Game } = $props();
@@ -76,6 +75,14 @@
       clearTimeout(t);
     };
   });
+
+  let installingSyncer = $state(false);
+  async function installSyncer() {
+    installingSyncer = true;
+    await lib.run(() => api.saves.installSyncer());
+    installingSyncer = false;
+    saves = (await api.saves.get(game.id, true).catch(() => null)) ?? saves;
+  }
 
   function startRename() {
     menuOpen = false;
@@ -230,7 +237,7 @@
     {#if game.needsReview}
       <div class="card review">
         <div class="card-head"><Icon name="warn" size={20} /><span>Is this {title(game)}?</span></div>
-        <p>WaterLauncher found this game by its folder name and couldn't match it to a known game. Pick the right one, or keep it as it is.</p>
+        <p>Seaglass found this game by its folder name and couldn't match it to a known game. Pick the right one, or keep it as it is.</p>
         <div class="row">
           <button type="button" class="btn primary" onclick={() => (matching = true)}>Find the game…</button>
           <button type="button" class="btn" onclick={() => lib.run(() => api.confirmMatch(game.id))}>Keep as is</button>
@@ -276,7 +283,9 @@
           <Icon name="cloudCheck" size={22} stroke={1.8} />
           <span class="grow">Saves</span>
           {#if savesInfo?.action === "get"}
-            <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.getSyncer())}>{saves?.outdated ? "Update Syncer" : "Get Syncer"}</button>
+            <button type="button" class="btn small" disabled={installingSyncer} onclick={installSyncer}
+              >{installingSyncer ? "Installing…" : saves?.outdated ? "Update Syncer" : "Install Syncer"}</button
+            >
           {:else if savesInfo?.action === "open"}
             <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.openSyncer())}>Open Syncer</button>
           {/if}
@@ -288,7 +297,6 @@
           <p>Asking Syncer…</p>
         {/if}
       </div>
-      <AddonCards {game} />
     {/if}
 
     <dl class="about">

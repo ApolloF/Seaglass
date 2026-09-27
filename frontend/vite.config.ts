@@ -6,7 +6,7 @@ import wails from "@wailsio/runtime/plugins/vite";
 // inline scripts, images only from the app itself (game art is served
 // locally by the Go side).
 const csp: Plugin = {
-  name: "waterlauncher-csp",
+  name: "seaglass-csp",
   apply: "build",
   transformIndexHtml(html) {
     const policy = [

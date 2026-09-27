@@ -7,22 +7,21 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as app$0 from "../../../../ApolloF/WaterLauncher/internal/app/models.js";
+import type * as app$0 from "../../../../ApolloF/Seaglass/internal/app/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as launch$0 from "../../../../ApolloF/WaterLauncher/internal/launch/models.js";
+import type * as launch$0 from "../../../../ApolloF/Seaglass/internal/launch/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as library$0 from "../../../../ApolloF/WaterLauncher/internal/library/models.js";
+import type * as library$0 from "../../../../ApolloF/Seaglass/internal/library/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as pad$0 from "../../../../ApolloF/WaterLauncher/internal/pad/models.js";
+import type * as pad$0 from "../../../../ApolloF/Seaglass/internal/pad/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "accounts:changed": app$0.Accounts;
-            "addon:progress": app$0.AddonProgress;
             "games:updated": library$0.Game[] | null;
             "launch:session": launch$0.Session;
             "library:changed": string;

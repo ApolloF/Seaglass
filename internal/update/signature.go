@@ -23,7 +23,7 @@ const (
 // SignedMessage is what a release signature covers: the tag as well as the
 // hashes, so an old release can't be passed off under a newer tag.
 func SignedMessage(tag string, sums []byte) []byte {
-	return append([]byte("WaterLauncher release "+tag+"\n"), sums...)
+	return append([]byte("Seaglass release "+tag+"\n"), sums...)
 }
 
 // FormatSums writes name → hash as sha256sum does, sorted by name.
@@ -85,7 +85,7 @@ func VerifySums(keys []ed25519.PublicKey, tag string, sums, sigFile []byte) (map
 			return ParseSums(sums)
 		}
 	}
-	return nil, errors.New("the release isn't signed with WaterLauncher's release key")
+	return nil, errors.New("the release isn't signed with Seaglass's release key")
 }
 
 // ParseKey reads a base64 public key.

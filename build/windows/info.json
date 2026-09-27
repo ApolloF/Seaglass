@@ -6,9 +6,9 @@
 		"0409": {
 			"ProductVersion": "1.4.0",
 			"CompanyName": "ApolloF",
-			"FileDescription": "WaterLauncher",
-			"LegalCopyright": "© 2026 ApolloF, MIT License",
-			"ProductName": "WaterLauncher",
+			"FileDescription": "Seaglass",
+			"LegalCopyright": "© 2026 ApolloF, AGPL-3.0 License",
+			"ProductName": "Seaglass",
 			"Comments": "Game launcher that finds every game on your PC"
 		}
 	}

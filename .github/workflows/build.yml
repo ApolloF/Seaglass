@@ -87,7 +87,7 @@ jobs:
 
       - name: Sign
         if: env.SIGNPATH != 'true'
-        run: ./build/windows/sign.ps1 bin/WaterLauncher.exe
+        run: ./build/windows/sign.ps1 bin/Seaglass.exe
 
       - name: WebView2 bootstrapper
         run: wails3 generate webview2bootstrapper -dir build/windows/nsis
@@ -98,12 +98,12 @@ jobs:
       - name: Uninstaller for SignPath
         if: env.SIGNPATH == 'true'
         run: |
-          & $env:MAKENSIS -V2 "-DARG_WAILS_AMD64_BINARY=$pwd\bin\WaterLauncher.exe" "-DINFO_PRODUCTVERSION=$env:WL_NUM" -DINNER build/windows/nsis/project.nsi
+          & $env:MAKENSIS -V2 "-DARG_WAILS_AMD64_BINARY=$pwd\bin\Seaglass.exe" "-DINFO_PRODUCTVERSION=$env:WL_NUM" -DINNER build/windows/nsis/project.nsi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Start-Process bin/uninstaller-maker.exe -Wait
           if (-not (Test-Path bin/uninstall.exe)) { throw 'the uninstaller was not written' }
           New-Item -ItemType Directory -Force unsigned | Out-Null
-          Copy-Item bin/WaterLauncher.exe, bin/uninstall.exe unsigned/
+          Copy-Item bin/Seaglass.exe, bin/uninstall.exe unsigned/
 
       - name: Upload binaries for signing
         id: unsigned-binaries
@@ -128,16 +128,16 @@ jobs:
 
       - name: Installer
         run: |
-          $defs = @("-DARG_WAILS_AMD64_BINARY=$pwd\bin\WaterLauncher.exe", "-DINFO_PRODUCTVERSION=$env:WL_NUM")
+          $defs = @("-DARG_WAILS_AMD64_BINARY=$pwd\bin\Seaglass.exe", "-DINFO_PRODUCTVERSION=$env:WL_NUM")
           if ($env:SIGNPATH -eq 'true') {
-            Copy-Item signed-binaries/WaterLauncher.exe, signed-binaries/uninstall.exe bin/ -Force
+            Copy-Item signed-binaries/Seaglass.exe, signed-binaries/uninstall.exe bin/ -Force
             $defs += "-DSIGNED_UNINSTALLER=$pwd\bin\uninstall.exe"
           } elseif ($env:SIGN_PFX_BASE64) {
             $defs += "-DSIGN_CMD=powershell -NoProfile -ExecutionPolicy Bypass -File $pwd\build\windows\sign.ps1"
           }
           & $env:MAKENSIS -V2 @defs build/windows/nsis/project.nsi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:SIGNPATH -ne 'true') { ./build/windows/sign.ps1 bin/WaterLauncher-setup.exe }
+          if ($env:SIGNPATH -ne 'true') { ./build/windows/sign.ps1 bin/Seaglass-setup.exe }
 
       - name: Upload installer for signing
         id: unsigned-installer
@@ -145,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-installer
-          path: bin/WaterLauncher-setup.exe
+          path: bin/Seaglass-setup.exe
 
       - name: Sign installer (SignPath)
         if: env.SIGNPATH == 'true'
@@ -162,49 +162,80 @@ jobs:
 
       - name: Use the signed installer
         if: env.SIGNPATH == 'true'
-        run: Copy-Item signed-installer/WaterLauncher-setup.exe bin/ -Force
+        run: Copy-Item signed-installer/Seaglass-setup.exe bin/ -Force
 
       - name: Installer smoke test
         # Install silently, start in the tray, close it the way the installer
         # does (--quit), uninstall silently: what an update and an uninstall do.
         run: |
-          $dir = Join-Path $env:RUNNER_TEMP 'WaterLauncher test'
-          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WaterLauncher'
-          Start-Process bin/WaterLauncher-setup.exe -ArgumentList "/S /D=$dir" -Wait
-          if (-not (Test-Path "$dir\WaterLauncher.exe") -or -not (Test-Path "$dir\uninstall.exe")) { throw 'files missing after install' }
+          $dir = Join-Path $env:RUNNER_TEMP 'Seaglass test'
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Seaglass'
+          Start-Process bin/Seaglass-setup.exe -ArgumentList "/S /D=$dir" -Wait
+          if (-not (Test-Path "$dir\Seaglass.exe") -or -not (Test-Path "$dir\uninstall.exe")) { throw 'files missing after install' }
           $ver = (Get-ItemProperty $key).DisplayVersion
           if ($ver -ne $env:WL_NUM) { throw "uninstall entry says $ver, expected $env:WL_NUM" }
-          $q = Start-Process "$dir\WaterLauncher.exe" -ArgumentList '--quit' -PassThru
+          $q = Start-Process "$dir\Seaglass.exe" -ArgumentList '--quit' -PassThru
           if (-not $q.WaitForExit(15000)) { throw '--quit with nothing running did not exit' }
-          $p = Start-Process "$dir\WaterLauncher.exe" -ArgumentList '--tray' -PassThru
+          $p = Start-Process "$dir\Seaglass.exe" -ArgumentList '--tray' -PassThru
           Start-Sleep -Seconds 10
-          if ($p.HasExited) { throw "WaterLauncher exited on its own (code $($p.ExitCode))" }
-          $q = Start-Process "$dir\WaterLauncher.exe" -ArgumentList '--quit' -PassThru
+          if ($p.HasExited) { throw "Seaglass exited on its own (code $($p.ExitCode))" }
+          $q = Start-Process "$dir\Seaglass.exe" -ArgumentList '--quit' -PassThru
           if (-not $q.WaitForExit(15000)) { throw '--quit did not return' }
-          if (-not $p.WaitForExit(20000)) { throw 'WaterLauncher did not quit when asked' }
+          if (-not $p.WaitForExit(20000)) { throw 'Seaglass did not quit when asked' }
           Start-Process "$dir\uninstall.exe" -ArgumentList '/S' -Wait
-          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\WaterLauncher.exe"); $i++) { Start-Sleep -Seconds 1 }
-          if (Test-Path "$dir\WaterLauncher.exe") { throw 'files left after uninstall' }
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\Seaglass.exe"); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path "$dir\Seaglass.exe") { throw 'files left after uninstall' }
           if (Test-Path $key) { throw 'uninstall entry left' }
-          Get-Content "$env:APPDATA\WaterLauncher\waterlauncher.log" -ErrorAction SilentlyContinue | Select-Object -Last 10
-          $crash = "$env:APPDATA\WaterLauncher\crash.log"
-          if ((Test-Path $crash) -and (Get-Item $crash).Length -gt 0) { Get-Content $crash; throw 'WaterLauncher crashed' }
+          Get-Content "$env:APPDATA\Seaglass\seaglass.log" -ErrorAction SilentlyContinue | Select-Object -Last 10
+          $crash = "$env:APPDATA\Seaglass\crash.log"
+          if ((Test-Path $crash) -and (Get-Item $crash).Length -gt 0) { Get-Content $crash; throw 'Seaglass crashed' }
+
+      - name: Update from WaterLauncher
+        # Installing Seaglass over WaterLauncher 1.4 (here given its folder,
+        # /D=...\WaterLauncher): Seaglass must end up in its own folder, take
+        # over the library and "start with Windows", and leave nothing of
+        # WaterLauncher behind.
+        run: |
+          $old = "$env:LOCALAPPDATA\Programs\WaterLauncher"
+          $new = "$env:LOCALAPPDATA\Programs\Seaglass"
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          Remove-Item "$env:APPDATA\Seaglass", "$env:LOCALAPPDATA\Seaglass" -Recurse -Force -ErrorAction SilentlyContinue
+          Invoke-WebRequest https://github.com/ApolloF/WaterLauncher/releases/download/v1.4.0/WaterLauncher-setup.exe -OutFile "$env:RUNNER_TEMP\wl-setup.exe"
+          Start-Process "$env:RUNNER_TEMP\wl-setup.exe" -ArgumentList '/S' -Wait
+          if (-not (Test-Path "$old\WaterLauncher.exe")) { throw 'WaterLauncher 1.4 did not install' }
+          New-Item -ItemType Directory "$env:APPDATA\WaterLauncher" -Force | Out-Null
+          '{"games":[]}' | Out-File "$env:APPDATA\WaterLauncher\library.json" -Encoding ascii
+          Set-ItemProperty $run -Name WaterLauncher -Value "`"$old\WaterLauncher.exe`" --tray"
+          $i = Start-Process bin/Seaglass-setup.exe -ArgumentList "/S /relaunch /tray /D=$old" -PassThru
+          $i.WaitForExit()
+          for ($t = 0; $t -lt 30 -and -not (Test-Path "$env:APPDATA\Seaglass\library.json"); $t++) { Start-Sleep -Seconds 1 }
+          if (-not (Test-Path "$new\Seaglass.exe")) { throw 'Seaglass not in its own folder' }
+          if (Test-Path $old) { throw 'WaterLauncher folder left' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WaterLauncher') { throw 'WaterLauncher uninstall entry left' }
+          if ((Test-Path "$env:APPDATA\WaterLauncher") -or -not (Test-Path "$env:APPDATA\Seaglass\library.json")) { throw 'library not moved' }
+          Start-Sleep -Seconds 3
+          $r = Get-ItemProperty $run
+          if ($r.WaterLauncher -or -not $r.Seaglass) { throw "start with Windows not moved: $($r.Seaglass)" }
+          $q = Start-Process "$new\Seaglass.exe" -ArgumentList '--quit' -PassThru
+          if (-not $q.WaitForExit(15000)) { throw '--quit did not return' }
+          Start-Process "$new\uninstall.exe" -ArgumentList '/S' -Wait
+          Get-Content "$env:APPDATA\Seaglass\seaglass.log" -ErrorAction SilentlyContinue | Select-Object -Last 10
 
       - name: Checksums
         run: |
-          foreach ($f in 'WaterLauncher.exe', 'WaterLauncher-setup.exe') {
+          foreach ($f in 'Seaglass.exe', 'Seaglass-setup.exe') {
             $h = (Get-FileHash "bin/$f" -Algorithm SHA256).Hash.ToLower()
             "$h  $f" | Out-File "bin/$f.sha256" -Encoding ascii
           }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: WaterLauncher
+          name: Seaglass
           path: |
-            bin/WaterLauncher.exe
-            bin/WaterLauncher.exe.sha256
-            bin/WaterLauncher-setup.exe
-            bin/WaterLauncher-setup.exe.sha256
+            bin/Seaglass.exe
+            bin/Seaglass.exe.sha256
+            bin/Seaglass-setup.exe
+            bin/Seaglass-setup.exe.sha256
 
       - name: Release notes
         if: startsWith(github.ref, 'refs/tags/v')
@@ -217,7 +248,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: WaterLauncher ${{ github.ref_name }}
+          name: Seaglass ${{ github.ref_name }}
           prerelease: ${{ env.WL_PRERELEASE == 'true' }}
           # A draft: the maintainer signs it with the offline release key and
           # publishes it (go run ./tools/release publish <tag>, RELEASING.md).
@@ -226,7 +257,7 @@ jobs:
           body_path: ${{ env.WL_NOTES }}
           generate_release_notes: true
           files: |
-            bin/WaterLauncher-setup.exe
-            bin/WaterLauncher-setup.exe.sha256
-            bin/WaterLauncher.exe
-            bin/WaterLauncher.exe.sha256
+            bin/Seaglass-setup.exe
+            bin/Seaglass-setup.exe.sha256
+            bin/Seaglass.exe
+            bin/Seaglass.exe.sha256

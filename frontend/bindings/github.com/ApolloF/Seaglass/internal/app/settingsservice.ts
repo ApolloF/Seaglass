@@ -25,66 +25,66 @@ import * as $models from "./models.js";
  * AddFolder asks for a folder whose subfolders are games and adds it.
  */
 export function AddFolder(): $CancellablePromise<settings$0.Settings> {
-    return $Call.ByID(2274181668);
+    return $Call.ByID(3571009574);
 }
 
 /**
  * AutoFolders lists the common game folders found on this PC.
  */
 export function AutoFolders(): $CancellablePromise<string[] | null> {
-    return $Call.ByID(1531654123);
+    return $Call.ByID(1625804781);
 }
 
 /**
  * CopyDiagnostics puts a report for a bug report on the clipboard: versions,
- * settings, what the library holds, controller, Syncer, add-ons, updates,
+ * settings, what the library holds, controller, Syncer, updates,
  * the last crash and the end of the log. It holds no keys or tokens, and
  * the user folder is shortened to %USERPROFILE%.
  */
 export function CopyDiagnostics(): $CancellablePromise<void> {
-    return $Call.ByID(2190312692);
+    return $Call.ByID(2318111602);
 }
 
 /**
  * Get returns the settings.
  */
 export function Get(): $CancellablePromise<settings$0.Settings> {
-    return $Call.ByID(758947099);
+    return $Call.ByID(1362880125);
 }
 
 /**
  * HasSteamGridDBKey reports whether a SteamGridDB key is stored.
  */
 export function HasSteamGridDBKey(): $CancellablePromise<boolean> {
-    return $Call.ByID(2555718238);
+    return $Call.ByID(3406083908);
 }
 
 /**
  * Info returns the version and where data is kept.
  */
 export function Info(): $CancellablePromise<$models.AppInfo> {
-    return $Call.ByID(1352809409);
+    return $Call.ByID(2748716359);
 }
 
 /**
  * OpenLog shows the log file's folder.
  */
 export function OpenLog(): $CancellablePromise<void> {
-    return $Call.ByID(703170417);
+    return $Call.ByID(296278351);
 }
 
 /**
  * RemoveFolder stops looking in a watched folder.
  */
 export function RemoveFolder(path: string): $CancellablePromise<settings$0.Settings> {
-    return $Call.ByID(1110927849, path);
+    return $Call.ByID(2243047723, path);
 }
 
 /**
- * ReportProblem opens a new GitHub issue for WaterLauncher.
+ * ReportProblem opens a new GitHub issue for Seaglass.
  */
 export function ReportProblem(): $CancellablePromise<void> {
-    return $Call.ByID(124522558);
+    return $Call.ByID(3612987556);
 }
 
 /**
@@ -92,21 +92,21 @@ export function ReportProblem(): $CancellablePromise<void> {
  * rejected promise), so it shows up in the log and in diagnostics.
  */
 export function ReportUIError(message: string): $CancellablePromise<void> {
-    return $Call.ByID(2064165481, message);
+    return $Call.ByID(1568113979, message);
 }
 
 /**
  * Save stores new settings; library settings trigger a scan.
  */
 export function Save(v: settings$0.Settings): $CancellablePromise<settings$0.Settings> {
-    return $Call.ByID(1096834604, v);
+    return $Call.ByID(3541197710, v);
 }
 
 /**
  * SetStartWithWindows turns starting with Windows on or off.
  */
 export function SetStartWithWindows(on: boolean): $CancellablePromise<platform$0.Startup> {
-    return $Call.ByID(1866676958, on);
+    return $Call.ByID(342786464, on);
 }
 
 /**
@@ -114,13 +114,13 @@ export function SetStartWithWindows(on: boolean): $CancellablePromise<platform$0
  * encrypted for this Windows user, and fetches art the stores lacked.
  */
 export function SetSteamGridDBKey(key: string): $CancellablePromise<void> {
-    return $Call.ByID(1960903710, key);
+    return $Call.ByID(3378448620, key);
 }
 
 /**
- * StartWithWindows reports whether WaterLauncher starts (in the tray) when
+ * StartWithWindows reports whether Seaglass starts (in the tray) when
  * you sign in to Windows.
  */
 export function StartWithWindows(): $CancellablePromise<platform$0.Startup> {
-    return $Call.ByID(1638874264);
+    return $Call.ByID(2893240378);
 }

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 func TestNewer(t *testing.T) {
@@ -90,7 +90,7 @@ func (f *fakeGitHub) publish(tag string, files map[string][]byte, extra ...map[s
 	for _, e := range extra {
 		assets = append(assets, e)
 	}
-	f.release = map[string]any{"tag_name": tag, "body": "notes", "html_url": "https://github.com/ApolloF/WaterLauncher/releases/tag/" + tag, "assets": assets}
+	f.release = map[string]any{"tag_name": tag, "body": "notes", "html_url": "https://github.com/ApolloF/Seaglass/releases/tag/" + tag, "assets": assets}
 }
 
 func sumLine(b []byte, name string) []byte {
@@ -226,7 +226,7 @@ func TestPendingRoundTrip(t *testing.T) {
 
 func TestSwapExe(t *testing.T) {
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "WaterLauncher.exe")
+	exe := filepath.Join(dir, "Seaglass.exe")
 	next := filepath.Join(dir, "next.exe")
 	_ = os.WriteFile(exe, []byte("old"), 0o755)
 	_ = os.WriteFile(next, []byte("new"), 0o755)
@@ -319,5 +319,36 @@ func TestSignedRelease(t *testing.T) {
 	// Right list, wrong file.
 	if err := try("v1.2.0", map[string][]byte{InstallerAsset: other, SumsAsset: sums, SigAsset: sign("v1.2.0", sums)}); err == nil {
 		t.Error("a file not matching the signed list was accepted")
+	}
+}
+
+// Releases without checksum files (like Syncer's) are checked against the
+// SHA-256 GitHub computed on upload.
+func TestDownloadUsesGitHubDigest(t *testing.T) {
+	f, feed := newFake(t)
+	ctx := context.Background()
+	body := []byte("MZ pretend Syncer installer")
+	h := sha256.Sum256(body)
+	f.files["Syncer-setup.exe"] = body
+	f.publish("v0.12.0", nil, map[string]any{
+		"name": "Syncer-setup.exe", "size": len(body), "digest": "sha256:" + hex.EncodeToString(h[:]),
+		"browser_download_url": f.srv.URL + "/download/Syncer-setup.exe",
+	})
+	rel, err := feed.Latest(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := feed.Download(ctx, rel, "Syncer-setup.exe", t.TempDir(), nil); err != nil {
+		t.Fatalf("download with a digest: %v", err)
+	}
+	f.publish("v0.12.1", nil, map[string]any{
+		"name": "Syncer-setup.exe", "size": len(body), "digest": "sha256:" + strings.Repeat("0", 64),
+		"browser_download_url": f.srv.URL + "/download/Syncer-setup.exe",
+	})
+	if rel, err = feed.Latest(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := feed.Download(ctx, rel, "Syncer-setup.exe", t.TempDir(), nil); err == nil {
+		t.Error("a file that doesn't match its digest was accepted")
 	}
 }

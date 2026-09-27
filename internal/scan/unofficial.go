@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // emuFiles are files Steam emulators and cracks drop next to the game,
-// mapped to the name WaterLauncher shows.
+// mapped to the name Seaglass shows.
 var emuFiles = map[string]string{
 	"steam_emu.ini":           "", // CODEX, RUNE and relatives; the group is worked out below
 	"coldclientloader.ini":    "Goldberg",

@@ -242,7 +242,7 @@
   </div>
 
   <nav class="rail" class:open={railOpen} aria-label="Big picture">
-    <div class="brand"><Logo size={32} /><span class="fade">WaterLauncher</span></div>
+    <div class="brand"><Logo size={32} /><span class="fade">Seaglass</span></div>
     {#each rail as item, k (item.id)}
       <button type="button" class="rail-item" class:on={railOpen && ri === k} onclick={() => ((ri = k), item.run())}>
         <span class="ico"><Icon name={item.icon} size={28} stroke={1.8} />{#if item.badge}<span class="dot"></span>{/if}</span>

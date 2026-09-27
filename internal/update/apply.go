@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // KindFor says how an update reaches the exe at path: through the
@@ -29,8 +29,8 @@ func KindFor(exe string) string {
 	return KindExe
 }
 
-// RunInstaller starts the installer silently, into the folder WaterLauncher
-// is installed in. With relaunch it starts WaterLauncher again when it's
+// RunInstaller starts the installer silently, into the folder Seaglass
+// is installed in. With relaunch it starts Seaglass again when it's
 // done (in the tray with tray). The caller quits right after; the installer
 // waits for it to exit.
 func RunInstaller(file, installDir string, relaunch, tray bool) error {

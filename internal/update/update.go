@@ -1,4 +1,4 @@
-// Package update keeps WaterLauncher up to date from its GitHub releases.
+// Package update keeps Seaglass up to date from its GitHub releases.
 //
 // It asks GitHub for the newest release (prereleases don't count), downloads
 // the installer (or, for a copy that wasn't installed, the bare exe) together
@@ -25,8 +25,8 @@ import (
 // Asset names every release carries. They stay the same across versions, so
 // github.com/…/releases/latest/download/<name> always points at the newest.
 const (
-	InstallerAsset = "WaterLauncher-setup.exe"
-	ExeAsset       = "WaterLauncher.exe"
+	InstallerAsset = "Seaglass-setup.exe"
+	ExeAsset       = "Seaglass.exe"
 )
 
 // Feed is where releases come from.
@@ -40,25 +40,26 @@ type Feed struct {
 	Keys []ed25519.PublicKey
 }
 
-// GitHub is WaterLauncher's own release feed.
+// GitHub is Seaglass's own release feed.
 var GitHub = Feed{
-	LatestURL:   "https://api.github.com/repos/ApolloF/WaterLauncher/releases/latest",
-	AssetPrefix: "https://github.com/ApolloF/WaterLauncher/releases/download/",
+	LatestURL:   "https://api.github.com/repos/ApolloF/Seaglass/releases/latest",
+	AssetPrefix: "https://github.com/ApolloF/Seaglass/releases/download/",
 	Hosts:       []string{"github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"},
 	Keys:        ReleaseKeys,
 }
 
-// ReleasesPage is where people download WaterLauncher by hand.
-const ReleasesPage = "https://github.com/ApolloF/WaterLauncher/releases/latest"
+// ReleasesPage is where people download Seaglass by hand.
+const ReleasesPage = "https://github.com/ApolloF/Seaglass/releases/latest"
 
 // Asset is one downloadable file of a release.
 type Asset struct {
-	Name string
-	URL  string
-	Size int64
+	Name   string
+	URL    string
+	Size   int64
+	Digest string // SHA-256 GitHub computed on upload ("sha256:<hex>"), when it did
 }
 
-// Release is a published WaterLauncher release.
+// Release is a published Seaglass release.
 type Release struct {
 	Tag       string // "v1.0.0"
 	Notes     string // markdown, shortened
@@ -124,7 +125,7 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 		return Release{}, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "WaterLauncher (+https://github.com/ApolloF/WaterLauncher)")
+	req.Header.Set("User-Agent", "Seaglass (+https://github.com/ApolloF/Seaglass)")
 	resp, err := f.client().Do(req)
 	if err != nil {
 		return Release{}, err
@@ -144,9 +145,10 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 		Prerelease bool      `json:"prerelease"`
 		Published  time.Time `json:"published_at"`
 		Assets     []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-			Size int64  `json:"size"`
+			Name   string `json:"name"`
+			URL    string `json:"browser_download_url"`
+			Size   int64  `json:"size"`
+			Digest string `json:"digest"`
 		} `json:"assets"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&r); err != nil {
@@ -167,7 +169,7 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 	}
 	for _, a := range r.Assets {
 		if f.inRelease(a.URL) {
-			rel.assets[a.Name] = Asset{Name: a.Name, URL: a.URL, Size: a.Size}
+			rel.assets[a.Name] = Asset{Name: a.Name, URL: a.URL, Size: a.Size, Digest: a.Digest}
 		}
 	}
 	return rel, nil
@@ -192,7 +194,7 @@ func Newer(a, b string) bool {
 	return false
 }
 
-// Valid reports whether v is a version WaterLauncher can compare.
+// Valid reports whether v is a version Seaglass can compare.
 func Valid(v string) bool {
 	_, ok := parse(v)
 	return ok

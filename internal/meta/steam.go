@@ -132,7 +132,7 @@ func (c *Client) steamArt(ctx context.Context, appID int) (*steamArt, error) {
 type StoreHit struct {
 	AppID int    `json:"appId"`
 	Name  string `json:"name"`
-	Image string `json:"image"` // small capsule on Steam's CDN (not fetched by WaterLauncher)
+	Image string `json:"image"` // small capsule on Steam's CDN (not fetched by Seaglass)
 }
 
 // BaseGame is the game a DLC belongs to; false when appID is a game

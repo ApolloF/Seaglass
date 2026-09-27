@@ -1,4 +1,4 @@
-// Command fakegame is a stand-in game for testing WaterLauncher's launch
+// Command fakegame is a stand-in game for testing Seaglass's launch
 // and tracking in the real app (tools/harness). It opens a full-screen
 // window like a game does, and can pretend to be a launcher that hands
 // over to the game, a game that is slow to start, or one that crashes.
@@ -190,7 +190,7 @@ func logf(format string, a ...any) {
 
 func window() {
 	inst, _, _ := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetModuleHandleW").Call(0)
-	cls, _ := windows.UTF16PtrFromString("WaterLauncherFakeGame")
+	cls, _ := windows.UTF16PtrFromString("SeaglassFakeGame")
 	cursor, _, _ := loadCursor.Call(0, 32512)
 	bg, _, _ := createSolidBrush.Call(0x3a1a10) // BGR: a dark blue
 	wc := wndClassEx{wndProc: windows.NewCallback(wndProc), instance: inst, className: cls, bg: bg, cursor: cursor}

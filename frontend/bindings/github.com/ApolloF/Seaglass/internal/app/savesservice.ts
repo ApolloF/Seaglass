@@ -15,17 +15,19 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
- * GetSyncer opens Syncer's download page.
+ * InstallSyncer installs Syncer, or updates it, from its latest release:
+ * the installer is checked against the SHA-256 GitHub published for it
+ * and runs silently, for this Windows account only (no administrator).
  */
-export function GetSyncer(): $CancellablePromise<void> {
-    return $Call.ByID(1796367496);
+export function InstallSyncer(): $CancellablePromise<void> {
+    return $Call.ByID(2508183485);
 }
 
 /**
  * OpenSyncer shows Syncer's window.
  */
 export function OpenSyncer(): $CancellablePromise<void> {
-    return $Call.ByID(2328167404);
+    return $Call.ByID(1792314974);
 }
 
 /**
@@ -34,7 +36,7 @@ export function OpenSyncer(): $CancellablePromise<void> {
  * for a little while; fresh asks again right away.
  */
 export function Saves(id: number, fresh: boolean): $CancellablePromise<$models.Saves> {
-    return $Call.ByID(959841094, id, fresh);
+    return $Call.ByID(2707000040, id, fresh);
 }
 
 /**
@@ -43,5 +45,12 @@ export function Saves(id: number, fresh: boolean): $CancellablePromise<$models.S
  * looks, so opening Settings doesn't start anything.
  */
 export function Syncer(start: boolean): $CancellablePromise<$models.SyncerStatus> {
-    return $Call.ByID(820300844, start);
+    return $Call.ByID(3087953406, start);
+}
+
+/**
+ * SyncerProject opens Syncer's home page.
+ */
+export function SyncerProject(): $CancellablePromise<void> {
+    return $Call.ByID(3950654015);
 }

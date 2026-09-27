@@ -1,7 +1,7 @@
-# WaterLauncher plan
+# Seaglass plan
 
 Status: **v1.4 released** (2026-09-26: art picking, controller test, welcome, collections, smooth big picture at 4K, PCGamingWiki and Epic store metadata; section 22); v1.0 to v1.3 before it, v0.1 to v0.7 as prereleases. Alongside: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.11.0 (launcher API) and DLSS Updater 1.4.0 (add-on mode). Code signing waits for a certificate ([SIGNING.md](SIGNING.md)). Section 17 has the v1.0 details and what comes after.
-Design reference: [WaterLauncher Design Directions](https://claude.ai/artifact/EUqrFQcmgAThrxbm8vAr6i) (A Console, B Orbit, C Deck, D Desktop).
+Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxbm8vAr6i) (A Console, B Orbit, C Deck, D Desktop).
 
 ## 1. Goals
 
@@ -12,7 +12,7 @@ Design reference: [WaterLauncher Design Directions](https://claude.ai/artifact/E
 - Add-ons through hooks, starting with DLSS Updater.
 - Pretty, responsive, secure and light: the interface unloads while you play.
 
-Not in v1: downloading games or cracks (WaterLauncher only manages what's installed), emulators and ROMs, achievements, macOS or Linux, importing from Playnite.
+Not in v1: downloading games or cracks (Seaglass only manages what's installed), emulators and ROMs, achievements, macOS or Linux, importing from Playnite.
 
 ## 2. Decisions
 
@@ -22,18 +22,18 @@ Not in v1: downloading games or cracks (WaterLauncher only manages what's instal
 | Why v3 | It can close windows and keep the app alive (the interface unloads while a game runs), has several windows (main and in-game overlay) and a built-in tray. v2 can only hide its one window. |
 | Library storage | In memory, saved as one JSON file with atomic writes (changed from SQLite during v0.1: even thousands of games stay a few MB, it loads in milliseconds, and it saves a ~7 MB dependency; search and filters run in the interface) |
 | Controller | SDL3 3.4.x (`SDL3.dll`, zlib license) through a small binding of our own over `golang.org/x/sys/windows`. No cgo. We need about 20 functions, all with integer arguments. |
-| Shared code | `github.com/ApolloF/gamekit` (public, MIT): VDF (text and binary), Steam (folder, libraries, installed apps, account, Authenticode, tamper and emulator checks) and the Ludusavi manifest parser. Store detection (Epic, GOG, Xbox, …) stays in each app for now: Syncer only needs names, WaterLauncher needs launch details. |
+| Shared code | `github.com/ApolloF/gamekit` (public, MIT): VDF (text and binary), Steam (folder, libraries, installed apps, account, Authenticode, tamper and emulator checks) and the Ludusavi manifest parser. Store detection (Epic, GOG, Xbox, …) stays in each app for now: Syncer only needs names, Seaglass needs launch details. |
 | Syncer | Stays a separate app and gets a local API (named pipe, current user only). Needs Syncer 0.11+; see [syncer-api.md](syncer-api.md) |
 | Add-ons | Separate executables using JSON-RPC 2.0 over stdio. Their UI is declarative, so it renders natively in every layout. |
 | Store games not installed | Optional, **off by default** |
 | Desktop theme | Follows the Windows light or dark setting (Mica). Big picture is always dark. |
-| License | MIT |
+| License | AGPL-3.0 (MIT until 1.4) |
 | Releases | Every phase version is published as a GitHub **prerelease** |
 
 ## 3. Architecture
 
 ```
-                    ┌───────────────────────── WaterLauncher.exe (Go core, always running) ─────────────────────────┐
+                    ┌───────────────────────── Seaglass.exe (Go core, always running) ─────────────────────────┐
  metadata hosts ◄───┤ library (JSON)  scan  identify  meta+images  launch/track  pad (SDL3)  syncer client  addon host   │
  (allowlist)        └──────┬───────────────────────┬──────────────────────┬───────────────────────┬───────────────────────┘
                            │ Wails bindings/events │                      │ \\.\pipe\syncer       │ stdio JSON-RPC
@@ -71,7 +71,7 @@ frontend/src/
 docs/                        PLAN.md, addon-protocol.md, syncer-api.md
 ```
 
-Data: `%APPDATA%\WaterLauncher` (`settings.json`, `library.json`, log), `%LOCALAPPDATA%\WaterLauncher\cache` (game database, images, WebView2 data).
+Data: `%APPDATA%\Seaglass` (`settings.json`, `library.json`, log), `%LOCALAPPDATA%\Seaglass\cache` (game database, images, WebView2 data).
 
 ## 4. Library and detection
 
@@ -112,16 +112,16 @@ Data: `%APPDATA%\WaterLauncher` (`settings.json`, `library.json`, log), `%LOCALA
 ## 6. Launching, tracking, controller
 
 - **Launch:** Steam games use `steam://rungameid/…` (setting: direct exe). Everything else starts with `CreateProcess`: explicit path, working folder and argument array, no shell. Elevation happens only when the game's manifest requires it.
-- **Tracking:** the process tree plus matching on the install folder, which covers launcher-to-game handoffs. It polls every 2 s only while a game runs. Playtime is saved every minute. Steam playtime is imported from `localconfig.vdf`. Optional passive tracking of games started outside WaterLauncher isn't built yet: it needs polling while idle, which works against the idle budget.
-- **Command line:** `WaterLauncher.exe --play <id>` starts a game without opening the interface (for shortcuts).
+- **Tracking:** the process tree plus matching on the install folder, which covers launcher-to-game handoffs. It polls every 2 s only while a game runs. Playtime is saved every minute. Steam playtime is imported from `localconfig.vdf`. Optional passive tracking of games started outside Seaglass isn't built yet: it needs polling while idle, which works against the idle budget.
+- **Command line:** `Seaglass.exe --play <id>` starts a game without opening the interface (for shortcuts).
 - **Hooks pipeline:** before launch (Syncer sync, add-ons) and after exit (Syncer backup, add-ons). Each step has a timeout, progress and a skip option, and the result is shown in the launch sequence.
 - **DualSense (SDL3):**
   - Features: hotplug, glyph detection (PS or Xbox), haptic ticks, a lightbar in the game's accent colour, and the PS button to summon the launcher.
-  - While a game runs, WaterLauncher releases the controller and keeps only a passive PS-button listener. It sends no output reports and never switches the controller's report mode.
+  - While a game runs, Seaglass releases the controller and keeps only a passive PS-button listener. It sends no output reports and never switches the controller's report mode.
 - **Per-game controller mode:** *Auto* / *Native* / *Steam Input*.
   - Auto uses Steam categories 55/57/58, Steam's controller support field, and whether `libScePad.dll` or SDL is in the game folder. A game goes through Steam Input only when a PlayStation controller is in use and the game supports Xbox controllers but not PlayStation ones.
-  - The Steam Input route uses non-Steam shortcuts that WaterLauncher manages in `shortcuts.vdf`, in a "WaterLauncher" collection. Changes are applied while Steam is closed, or after asking to restart it. These games launch through `steam://rungameid/<shortcut>`.
-- **Game mode:** all interface windows close; the smoke test measured about 420 MB for WebView2 alone. WaterLauncher stays in the tray (pulled forward from v1.0, because game mode needs it). Closing the window yourself quits, except while a game runs. Pressing PS opens a borderless topmost overlay window. Nothing is ever injected into games, so anti-cheat stays happy.
+  - The Steam Input route uses non-Steam shortcuts that Seaglass manages in `shortcuts.vdf`, in a "Seaglass" collection. Changes are applied while Steam is closed, or after asking to restart it. These games launch through `steam://rungameid/<shortcut>`.
+- **Game mode:** all interface windows close; the smoke test measured about 420 MB for WebView2 alone. Seaglass stays in the tray (pulled forward from v1.0, because game mode needs it). Closing the window yourself quits, except while a game runs. Pressing PS opens a borderless topmost overlay window. Nothing is ever injected into games, so anti-cheat stays happy.
   - Measured in v0.4: the Go core uses about 35 MB while a game runs with the interface closed.
   - Passive listening restarts SDL without its HIDAPI drivers and with enhanced reports off, so nothing is written to the controller.
 
@@ -135,12 +135,12 @@ Data: `%APPDATA%\WaterLauncher` (`settings.json`, `library.json`, log), `%LOCALA
 
 ## 8. Syncer integration
 
-Done in v0.5. Syncer's side is [ApolloF/syncer#7](https://github.com/ApolloF/syncer/pull/7); the protocol is Syncer's [docs/api.md](https://github.com/ApolloF/syncer/blob/main/docs/api.md), and WaterLauncher's use of it is in [syncer-api.md](syncer-api.md).
+Done in v0.5. Syncer's side is [ApolloF/syncer#7](https://github.com/ApolloF/syncer/pull/7); the protocol is Syncer's [docs/api.md](https://github.com/ApolloF/syncer/blob/main/docs/api.md), and Seaglass's use of it is in [syncer-api.md](syncer-api.md).
 
 1. Syncer imports `gamekit` for VDF, Steam libraries, tamper checks and the manifest parser. `internal/steam` keeps its API as thin wrappers, and the manifest parser gives identical results (13,719 games with Windows saves).
 2. `\\.\pipe\syncer`: JSON-RPC, one message per line, served by the window. A protected DACL grants only the current user, and remote clients are refused. `Syncer.exe --api` serves it without a window and exits a minute after the last connection. The client checks the server process's owner.
 3. Methods: `status`, `games`, `gameStatus` (by title, Steam app, install folder, or a title the launcher registered), `syncNow` (with timeout), `backupNow` (optionally waiting), `conflicts`, `resolveConflict`, `open`, `registerGames`, `subscribe` (`changed` notifications).
-4. The protocol is versioned (`status.protocol`, now 1). WaterLauncher handles Syncer being missing (*Get Syncer*) or older than 0.11 (*Update Syncer*; it never starts an old `Syncer.exe --api`, which would open its window).
+4. The protocol is versioned (`status.protocol`, now 1). Seaglass handles Syncer being missing (*Get Syncer*) or older than 0.11 (*Update Syncer*; it never starts an old `Syncer.exe --api`, which would open its window).
 
 Follow-ups in Syncer, after its `feature/steam-autocloud-copies` work lands: use `gamekit/steam.Accounts`, and let registered launcher games feed discovery (for now they only help `gameStatus`).
 
@@ -148,23 +148,23 @@ Follow-ups in Syncer, after its `feature/steam-autocloud-copies` work lands: use
 
 - **Manifest** `addon.json`: id, name, version, publisher, exe, protocol version, hooks, contributions (badges, actions, a settings schema) and permissions (for example `modifyGameFiles`, `network`).
 - **Hooks:** `library.gameAdded`, `game.beforeLaunch` (progress, skip), `game.afterExit`, `game.status`, `game.actions`, `settings`.
-- **Trust:** you enable each add-on explicitly and see its permissions. WaterLauncher pins its SHA-256 and asks again when it changes, and shows the Authenticode publisher when signed. Add-ons run with normal user rights, with timeouts and crash isolation.
-- **DLSS Updater:** a new `--addon` mode ([ApolloF/dlssupdater#1](https://github.com/ApolloF/dlssupdater/pull/1)). *Settings → General → Connect to WaterLauncher* writes its `addon.json`. The .NET 8 SDK (8.0.425) is installed per user in `%LOCALAPPDATA%\Microsoft\dotnet`.
+- **Trust:** you enable each add-on explicitly and see its permissions. Seaglass pins its SHA-256 and asks again when it changes, and shows the Authenticode publisher when signed. Add-ons run with normal user rights, with timeouts and crash isolation.
+- **DLSS Updater:** a new `--addon` mode ([ApolloF/dlssupdater#1](https://github.com/ApolloF/dlssupdater/pull/1)). *Settings → General → Connect to Seaglass* writes its `addon.json`. The .NET 8 SDK (8.0.425) is installed per user in `%LOCALAPPDATA%\Microsoft\dotnet`.
   - Before launch: re-apply DLSS if a game patch reverted it.
   - Status: DLSS and OptiScaler versions.
   - Actions: install OptiScaler, restore DLSS, open in DLSS Updater.
 - The spec is [addon-protocol.md](addon-protocol.md).
-- **Where add-ons live:** `%LOCALAPPDATA%\WaterLauncher\addons\<id>\addon.json`. Approvals (enabled, pinned SHA-256) are in `%APPDATA%\WaterLauncher\addons.json`.
+- **Where add-ons live:** `%LOCALAPPDATA%\Seaglass\addons\<id>\addon.json`. Approvals (enabled, pinned SHA-256) are in `%APPDATA%\Seaglass\addons.json`.
 - **Before-launch order:** Syncer's *Sync saves* first, then add-ons, then the Steam Input shortcut.
 - **Authenticode:** only the signed or unsigned state is shown for now, not the publisher's name. `library.gameAdded` goes only to add-ons that are running.
 
 ## 10. Security
 
 - **WebView:** strict CSP with no remote scripts. Navigation away from the app is blocked, devtools and the context menu are off in release, only bound services are exposed, and every value from the UI is validated in Go (paths must resolve inside known roots).
-- **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executable ever downloaded is WaterLauncher's own update from GitHub Releases, checked against its SHA-256.
+- **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executable ever downloaded is Seaglass's own update from GitHub Releases, checked against its SHA-256.
 - **Secrets:** the SteamGridDB key, Steam Web API key and Epic token are stored with DPAPI and never logged.
 - **Parsers:** VDF, ini, JSON, lnk and ACF files are treated as untrusted, with size limits and fuzz tests.
-- **Privileges:** WaterLauncher never elevates itself. The Syncer pipe is current-user only. Add-ons are covered in section 9.
+- **Privileges:** Seaglass never elevates itself. The Syncer pipe is current-user only. Add-ons are covered in section 9.
 
 ## 11. Performance budget (this laptop: Ryzen 7 7840HS, 16 GB)
 
@@ -215,14 +215,14 @@ Each phase ends with a working build, a GitHub prerelease and a check-in.
 ## 15. Workflow and releases
 
 - `main` always builds. Each phase gets a branch (`feature/v0.1-foundation`, and so on) and a PR, merged after tests and the build pass. Small fixes can go straight to `main`.
-- At the end of each phase, the tag `vX.Y.0` makes GitHub Actions build `WaterLauncher.exe` (plus the installer once it exists) with SHA-256 checksums, and publishes a **prerelease** with notes on what changed and what to test.
+- At the end of each phase, the tag `vX.Y.0` makes GitHub Actions build `Seaglass.exe` (plus the installer once it exists) with SHA-256 checksums, and publishes a **prerelease** with notes on what changed and what to test.
 - The Syncer and DLSS Updater changes (phases 5 and 6) happen in their own repos: `gamekit` as a new public repo, and PRs (or direct pushes to `main`) for Syncer and DLSS Updater.
-- License: MIT.
+- License: AGPL-3.0 (MIT until 1.4).
 
 ## 16. Environment (set up 2026-09-25)
 
 - Go 1.27.0, Wails CLI v3.0.0-beta.26, Node 24.19 and npm 11.17, NSIS, Git 2.55, GitHub CLI 2.101 (signed in as ApolloF, used as the Git credential helper), WebView2 153.
-- Repo: `C:\Users\Florian\Documents\Coding projects\WaterLauncher`, branch `main`, remote `https://github.com/ApolloF/WaterLauncher` (public). Repo-local identity `ApolloF <me@apollof.nl>`.
+- Repo: `C:\Users\Florian\Documents\Coding projects\Seaglass`, branch `main`, remote `https://github.com/ApolloF/Seaglass` (public). Repo-local identity `ApolloF <me@apollof.nl>`.
 - CI (`.github/workflows/build.yml`) builds and tests every push and PR on `windows-latest`. A `v*` tag publishes a prerelease with the exe, its SHA-256, and `docs/releases/<tag>.md` as notes.
 - Smoke test: a Wails v3 Svelte app built in 34 s into a 10.5 MB exe. At runtime the Go process used about 67 MB and WebView2 about 423 MB.
 - Installed later: SDL3 3.4.16 (phase 3, from the libsdl-org release, hash checked) and the .NET 8 SDK (phase 6).
@@ -231,9 +231,9 @@ Each phase ends with a working build, a GitHub prerelease and a check-in.
 
 **Built for v1.0**
 
-- **Installer** (`build/windows/nsis/project.nsi`): per-user (`%LOCALAPPDATA%\Programs\WaterLauncher`, no UAC), so updates never need elevation. It closes a running copy with `--quit`, remembers the install folder for updates, deletes only its own files on uninstall (the folder may have been picked by hand), removes the start-with-Windows entry, and asks before deleting the library and settings. `/relaunch` (and `/tray`) start WaterLauncher again after a silent update. About 7.5 MB with the WebView2 bootstrapper.
-- **Updates** (`internal/update`, `internal/app/updates.go`): the newest non-preview release from `api.github.com/…/releases/latest`. Downloads come only from below `github.com/ApolloF/WaterLauncher/releases/download/` (redirects limited to GitHub's download hosts), are checked against the release's `.sha256`, and, once builds are signed, against the running exe's Authenticode publisher. Installed copies run the installer silently; others swap their exe (a running exe can be renamed). Checked 90 s after start and every 12 h, never while a game runs. A downloaded update installs at the next start (not with `--play`), or at once with *Restart and update*. `pending.json` counts attempts, so an update that didn't take isn't retried on its own.
-- **Start with Windows**: `HKCU\…\Run\WaterLauncher = "<exe>" --tray`. Settings shows when Task Manager's switch turned it off, and the entry is repaired when WaterLauncher moved.
+- **Installer** (`build/windows/nsis/project.nsi`): per-user (`%LOCALAPPDATA%\Programs\Seaglass`, no UAC), so updates never need elevation. It closes a running copy with `--quit`, remembers the install folder for updates, deletes only its own files on uninstall (the folder may have been picked by hand), removes the start-with-Windows entry, and asks before deleting the library and settings. `/relaunch` (and `/tray`) start Seaglass again after a silent update. About 7.5 MB with the WebView2 bootstrapper.
+- **Updates** (`internal/update`, `internal/app/updates.go`): the newest non-preview release from `api.github.com/…/releases/latest`. Downloads come only from below `github.com/ApolloF/Seaglass/releases/download/` (redirects limited to GitHub's download hosts), are checked against the release's `.sha256`, and, once builds are signed, against the running exe's Authenticode publisher. Installed copies run the installer silently; others swap their exe (a running exe can be renamed). Checked 90 s after start and every 12 h, never while a game runs. A downloaded update installs at the next start (not with `--play`), or at once with *Restart and update*. `pending.json` counts attempts, so an update that didn't take isn't retried on its own.
+- **Start with Windows**: `HKCU\…\Run\Seaglass = "<exe>" --tray`. Settings shows when Task Manager's switch turned it off, and the entry is repaired when Seaglass moved.
 - **Single instance**: a second start hands its arguments over before the library is opened. The mutex name follows Wails beta.26; recheck it when upgrading Wails.
 - **Signing**: `build/windows/sign.ps1` and the CI secrets `SIGN_PFX_BASE64`/`SIGN_PFX_PASSWORD`; unsigned until a certificate exists.
 - **CI**: builds the installer, signs when configured, publishes `v1+` tags without a suffix as full releases (`make_latest`), and runs the race detector when gcc is available.
@@ -262,10 +262,10 @@ Checked and fine: no known vulnerabilities in Go modules (govulncheck) or npm pa
 1. **Get a signing certificate** (SignPath Foundation is free for open source), then signature-required updates switch on by themselves. Also consider signing each release's checksums with an ed25519 key kept outside GitHub: today a compromised GitHub account could replace both an asset and its `.sha256`.
 2. **Memory while playing**: the Go core is ~75 MB private with the interface closed (goal < 50 MB). The game database index is ~15 MB live; the rest needs a heap profile (`pprof`) to attribute (SDL, Wails, runtime). An interned or on-disk index would help, and GOG's database could be read by pages instead of whole.
 3. **Scan cost per game**: emulator detection and exe picking still read each game folder on every scan (~5–30 ms per game), so with hundreds of games a full scan takes seconds. Cache them by folder and marker-file modification times, like `looksLikeGame` now.
-4. **Passive play tracking** of games started outside WaterLauncher: a process-start event subscription (WMI `Win32_ProcessStartTrace`) avoids polling while idle.
+4. **Passive play tracking** of games started outside Seaglass: a process-start event subscription (WMI `Win32_ProcessStartTrace`) avoids polling while idle.
 5. **Tests**: Vitest for the focus engine and big picture navigation; a Playwright run of the mock interface at the two target sizes; an installer smoke test in CI (silent install to a temp folder, `--quit`, silent uninstall, as done by hand for v1.0).
 6. **Wails**: v3 is still beta; keep the pin, and when upgrading recheck the single-instance mutex name, event payloads and bindings.
-7. **Uninstall tidy-up**: offer to remove the non-Steam shortcuts WaterLauncher added to Steam (they're in a "WaterLauncher" collection).
+7. **Uninstall tidy-up**: offer to remove the non-Steam shortcuts Seaglass added to Steam (they're in a "Seaglass" collection).
 8. **Localisation**: the interface is English only, with strings inline in components. Extract them before adding languages.
 9. **Diagnostics**: panics in the core only reach the log; a *Copy diagnostics* button (log tail, versions, settings without secrets) would make bug reports easier.
 
@@ -300,14 +300,14 @@ Problem: the core holds ~75 MB private with the interface closed; goal < 50 MB.
 4. **Native side**: check SDL in passive mode (HIDAPI off) and Wails' idle allocations once the profile shows them; set `debug.SetMemoryLimit` only if the profile shows GC headroom as the cause.
 5. **Measure** before and after on this PC: private bytes 60 s into a game with the interface closed.
 
-### C. Games started outside WaterLauncher (recommendation 4)
+### C. Games started outside Seaglass (recommendation 4)
 
-Problem: playtime and game mode only work for games started from WaterLauncher. A game started from Steam or a desktop shortcut isn't noticed, and the controller layer stays in its active mode (SDL's HIDAPI drivers) while that game has the DualSense.
+Problem: playtime and game mode only work for games started from Seaglass. A game started from Steam or a desktop shortcut isn't noticed, and the controller layer stays in its active mode (SDL's HIDAPI drivers) while that game has the DualSense.
 
 1. **No polling**: a WinEvent hook on `EVENT_SYSTEM_FOREGROUND` (out of context, no injection, no administrator rights) on a small thread with its own message loop. Each time a window comes to the front, its process id arrives. (WMI's `Win32_ProcessStartTrace` would need administrator rights, and the non-admin WMI query polls.)
-2. **Match**: the process's image path against the installed games' folders (a sorted index built after each scan); WaterLauncher's own processes and non-game folders are skipped; each process id is checked once.
+2. **Match**: the process's image path against the installed games' folders (a sorted index built after each scan); Seaglass's own processes and non-game folders are skipped; each process id is checked once.
 3. **Session**: an "external" session in `launch.Manager` without hooks: the existing tracker follows the process tree and the folder, counts playtime, and ends the same way. The controller goes passive (or off, per setting), the tray says what's playing, the PS button opens the overlay. The interface isn't closed for a game you started elsewhere.
-4. **Setting**: *Notice games started outside WaterLauncher* (on by default) under *While playing*, in both Settings screens.
+4. **Setting**: *Notice games started outside Seaglass* (on by default) under *While playing*, in both Settings screens.
 5. **Tests**: the matcher and session start with fake processes; by hand: start a Steam game from Steam and a folder game from Explorer.
 
 ### D. Signed releases (recommendation 1)
@@ -319,7 +319,7 @@ Two independent parts.
    - CI publishes tags as **draft** releases. `go run ./tools/release publish vX.Y.Z` downloads the draft's assets, checks their `.sha256`, writes `SHA256SUMS` and `SHA256SUMS.sig`, uploads both and publishes the release. Drafts are invisible to the updater.
    - The updater embeds the public key(s) and, from v1.1 on, installs only updates whose hash is listed in a `SHA256SUMS` with a valid signature. v1.0 keeps using the `.sha256` files, so v1.0 → v1.1 still works.
    - Rotation: a list of accepted keys; a new key is added by a release signed with the old one.
-2. **Authenticode** (SmartScreen, and the publisher check the updater already has): SignPath Foundation (free for open source) signs from GitHub Actions after they approve the project. Needs the user to apply. Then: sign `WaterLauncher.exe`, build the uninstaller separately so it can be signed too (NSIS can't call a remote signer mid-build), sign the installer.
+2. **Authenticode** (SmartScreen, and the publisher check the updater already has): SignPath Foundation (free for open source) signs from GitHub Actions after they approve the project. Needs the user to apply. Then: sign `Seaglass.exe`, build the uninstaller separately so it can be signed too (NSIS can't call a remote signer mid-build), sign the installer.
 
 Decisions for the user: where the release key lives and how it's backed up; whether to apply to SignPath (or pay for Azure Artifact Signing).
 
@@ -353,7 +353,7 @@ On `fix/controller-and-polish`, from the maintainer's own list after section 20.
    - A controller whose mapping has no D-pad buttons gets its D-pad from the hat it reports (only when it never sends D-pad buttons, so nothing moves twice).
    - The DualSense touchpad click opens Search, like Create: the Search prompt showed a rectangle, which on a DualSense is the touchpad.
    - Prompts are drawn for what's in use: PlayStation shapes (Options and Create as the small buttons they are), Xbox letters, or keyboard keys while the keyboard is used or no controller is connected. Every prompt can be clicked.
-   - One press arriving twice (Steam's desktop configuration turns the controller into a keyboard while WaterLauncher reads the same controller) is dropped.
+   - One press arriving twice (Steam's desktop configuration turns the controller into a keyboard while Seaglass reads the same controller) is dropped.
    - The controller in use goes in the log.
 2. **Sections**: L1 / R1 (Q / E, PageUp / PageDown) step through Home, Library and Search from anywhere, shown as tabs at the top of each. Library's filters moved to L2 / R2, Orbit's zoom too; a Console game's details keep L1 / R1 for the previous and next game.
 3. **Keyboard**: Esc on Home opens Quick access (which has desktop mode, and says F11), M opens it, F searches. In Search, typed letters go into the search and Enter goes to the results.
@@ -377,7 +377,7 @@ The mock also takes `?art=steam` (real art from Steam's CDN, from the browser) a
 
 ## 22. Proving it in the real app (started 2026-09-26)
 
-Everything checked so far ran in the browser mock. This round drives the real `WaterLauncher.exe`, then builds on it. One branch and pull request per phase.
+Everything checked so far ran in the browser mock. This round drives the real `Seaglass.exe`, then builds on it. One branch and pull request per phase.
 
 | # | Phase | Status |
 |---|---|---|
@@ -389,7 +389,7 @@ Everything checked so far ran in the browser mock. This round drives the real `W
 
 **Maintainer's additions (2026-09-26):** hide the mouse pointer in big picture while the controller is used (done in phase 2); Orbit flickers and stutters while swiping (phase 3); backdrops picked better and sharper (done, PR #14); Alan Wake II (a DODI repack of a game only Epic sells) had no art and "no controller support known" (done, PR #14: PCGamingWiki and the Epic store's page content).
 
-**Phase 1.** The harness is in [tools/harness](../tools/harness/README.md). Dev flags work only in dev builds. With `--dev-data` the library is frozen and the real games in it start the fake game (store links cleared, controller mode *Native*), so a test never starts a real game or touches Steam's shortcuts. `%APPDATA%\WaterLauncher` is backed up before each run and restored after. First run: the app started and was reachable over CDP in 2.2 s; the virtual DualSense showed up as `DualSense Wireless Controller (virtual)` and moved the cover grid's selection.
+**Phase 1.** The harness is in [tools/harness](../tools/harness/README.md). Dev flags work only in dev builds. With `--dev-data` the library is frozen and the real games in it start the fake game (store links cleared, controller mode *Native*), so a test never starts a real game or touches Steam's shortcuts. `%APPDATA%\Seaglass` is backed up before each run and restored after. First run: the app started and was reachable over CDP in 2.2 s; the virtual DualSense showed up as `DualSense Wireless Controller (virtual)` and moved the cover grid's selection.
 
 **Phase 2.** `tools/harness/tour.mjs` drives desktop mode and 10 big picture screens in each of the three layouts (31 screens), with the virtual controller and then with the keyboard, at six screen sizes with the display scale Windows picks for each (1440p at 125 %, 4K at 150 %), and checks every screenshot for text that overlaps text, is cut off, or overflows its box. `launches.mjs` plays the four fake games from big picture with the controller and from desktop mode. Found and fixed:
 
@@ -424,7 +424,7 @@ The DOM stays the same size with 500 or 2,000 games (virtualised grids and rows)
 
 Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame counts include the emulation; the before and after runs used the same setup.
 
-**Phase 4.** `TestMatchAudit` now reads 958 cases from `internal/app/testdata/match_audit.tsv` (made by `gen_match_audit.py`): 333 real games as their store names them, as scene releases, repacks, installer entries, underscored, run-together or lower-case folders, 200 hand-written real-world folder and installer names (dropped subtitles, abbreviations, store install folders), and 50 folders that aren't games. Each case says which game it is, so a wrong match is caught, not just a miss. It runs what WaterLauncher does (game database, Steam store search, PCGamingWiki) and keeps the sources' answers in a cache, so a rerun takes seconds.
+**Phase 4.** `TestMatchAudit` now reads 958 cases from `internal/app/testdata/match_audit.tsv` (made by `gen_match_audit.py`): 333 real games as their store names them, as scene releases, repacks, installer entries, underscored, run-together or lower-case folders, 200 hand-written real-world folder and installer names (dropped subtitles, abbreviations, store install folders), and 50 folders that aren't games. Each case says which game it is, so a wrong match is caught, not just a miss. It runs what Seaglass does (game database, Steam store search, PCGamingWiki) and keeps the sources' answers in a cache, so a rerun takes seconds.
 
 | | Found right | Wrong game | Missed | Non-games matched |
 |---|---|---|---|---|
@@ -446,12 +446,27 @@ Measured with an emulated 4K screen on a 2880×1800 laptop, so absolute frame co
 
 - **Art in big picture**: the game page's *Art* opens a picker for the cover, the background (backdrop), the banner (hero) and the logo, switched with L1 / R1. Pictures come from Steam (its library art and every screenshot, originals first), the Epic store's page for games only Epic sells, PCGamingWiki's cover and, with a key, SteamGridDB; each is downloaded and stored like fetched art (the page's security policy only shows local art), and a choice goes into `artOverrides`, so refreshes keep it. Without a SteamGridDB key a line says where to add one. (`LibraryService.ArtChoices` / `SetArt`; only stored art names are accepted.)
 - **Controller test**: *Settings → Test controller*. The controller layer streams every button and axis while the screen is open (`PadService.TestInput`, event `pad:raw`); buttons light up while held and stay marked once they've worked, triggers show how far they're pressed, sticks move and show their values (drift shows as movement at rest). Holding ✕ plays each rumble effect, holding ○ leaves (every button is being tested), Esc leaves at once.
-- **Welcome**: a new install opens with four steps (what WaterLauncher finds, with the games found so far; where it looks, with *Add a folder*; how you play: layout, big picture when a controller connects, start in big picture; ready). Mouse, keyboard and controller all work, in either mode; the rest of the window is inert behind it. `settings.welcomed`; settings saved before it existed count as welcomed, so updating doesn't show it.
+- **Welcome**: a new install opens with four steps (what Seaglass finds, with the games found so far; where it looks, with *Add a folder*; how you play: layout, big picture when a controller connects, start in big picture; ready). Mouse, keyboard and controller all work, in either mode; the rest of the window is inert behind it. `settings.welcomed`; settings saved before it existed count as welcomed, so updating doesn't show it.
 - **Collections**: games can be in collections of your own (`Game.collections`, kept through scans and merged with owned-game records). Desktop mode lists them in the sidebar, and a collection's heading renames or deletes it; the game's details add and remove them (with suggestions). Big picture shows them as Library tabs (L2 / R2, the tabs around the current one when there are many) and has a *Collections* picker on the game page with a few common ones to start with. New names are typed in desktop mode.
 - Also: toasts sit above big picture's prompts, and the game page's five buttons fit on one line.
 
+## 23. v1.5: Seaglass (2026-09-27)
+
+WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the license AGPL-3.0 (1.4 and earlier stay MIT). Maintainer's list:
+
+- The PS button in big picture took the window out of full screen (`Shell.OpenMain` called Wails' `Restore`, which also leaves full screen). It now only un-minimises, and big picture goes back to full screen if it left it.
+- Orbit puts the ten games played in the last 60 days in the middle, then favorites, then the rest (`orbitOrder`).
+- Libraries can be hidden (`settings.hiddenSources`: steam, epic, gog, ea, ubisoft, battlenet, xbox, unofficial, standalone, folder) in desktop Settings → Library and big picture Settings.
+- *Install Syncer* / *Update Syncer* downloads Syncer's latest `Syncer-amd64-installer.exe` from its releases, checks it against the SHA-256 GitHub computed on upload (`digest`), and runs it silently (per user). *About Syncer* links to the project.
+- The add-on host and DLSS Updater's add-on moved to the `feature/dlss-addon` branch, with [ideas](https://github.com/ApolloF/Seaglass/blob/feature/dlss-addon/docs/dlss-addon.md) for integrating it better.
+
+**Carrying WaterLauncher over.** WaterLauncher's release key was lost, so 1.4 can't update to Seaglass (it only trusts that key, and only downloads from `ApolloF/WaterLauncher`). Seaglass has a new release key (2026-09-27) and signs "Seaglass release <tag>". Installing Seaglass over WaterLauncher still carries it over:
+
+1. The installer finds WaterLauncher's uninstall entry, installs into a Seaglass folder next to WaterLauncher's, and removes the old program, shortcuts and uninstall entry (keeps a desktop shortcut if there was one).
+2. Seaglass moves `%APPDATA%\WaterLauncher` and `%LOCALAPPDATA%\WaterLauncher` into its own folders on first start (merging, never deleting, not while WaterLauncher runs), and turns the old *start with Windows* entry into its own.
+
 ## To-do (maintainer)
 
-- [ ] **Back up the release key** before the next release: `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
+- [ ] **Back up the release key** (made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
 - [ ] **Apply to SignPath Foundation** (signpath.org) for Authenticode signing. Once approved: the project, signing policy and the `binaries` and `installer` artifact configurations in SignPath, then the `SIGNPATH_API_TOKEN` secret and `SIGNPATH_*` variables on GitHub ([SIGNING.md](SIGNING.md)). Until then releases carry the release-key signature but no Authenticode signature, so SmartScreen warns on first run.
 - [ ] Turn on GitHub's private vulnerability reporting (Settings → Security), which [SECURITY.md](../SECURITY.md) points to.

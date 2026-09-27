@@ -10,7 +10,7 @@
   import { feedback, useInput } from "../lib/input.svelte";
   import { lib } from "../lib/store.svelte";
   import { savesSummary } from "../lib/saves";
-  import { storeName, title, type AddonBadge, type Game, type Saves, type StoreHit } from "../lib/types";
+  import { storeName, title, type Game, type Saves, type StoreHit } from "../lib/types";
   import ArtPicker from "./ArtPicker.svelte";
   import CollectionPicker from "./CollectionPicker.svelte";
   import Hints from "./Hints.svelte";
@@ -22,19 +22,6 @@
 
   let b = $state(0);
   let logoFailed = $state(false);
-
-  let addonBadges = $state<AddonBadge[]>([]);
-  $effect(() => {
-    const id = game.id;
-    let live = true;
-    addonBadges = [];
-    if (game.installed)
-      api.addons
-        .forGame(id)
-        .then((r) => live && (addonBadges = r.flatMap((a) => a.badges).slice(0, 4)))
-        .catch(() => {});
-    return () => (live = false);
-  });
 
   let saves = $state<Saves | null>(null);
   const savesInfo = $derived(savesSummary(saves));
@@ -164,7 +151,7 @@
     {#if game.needsReview}
       <div class="check">
         <span class="q"><Icon name="warn" size={24} />Is this {title(game)}?</span>
-        <span class="why">WaterLauncher found it by its folder name and couldn't match it to a known game for sure.</span>
+        <span class="why">Seaglass found it by its folder name and couldn't match it to a known game for sure.</span>
         <span class="path">{game.dir}</span>
       </div>
     {:else if game.meta?.description}<p class="desc">{game.meta.description}</p>{/if}
@@ -177,11 +164,6 @@
       {/each}
     </div>
     {#if !game.needsReview}<div class="note">{pad.long}</div>{/if}
-    {#if addonBadges.length}
-      <div class="badges">
-        {#each addonBadges as bd (bd.text)}<span class="badge {bd.tone ?? 'info'}">{bd.text}</span>{/each}
-      </div>
-    {/if}
     {#if savesInfo && saves?.installed}
       <div class="note saves" class:warn={savesInfo.tone === "warn"}>Saves: {savesInfo.text}</div>
     {/if}
@@ -356,28 +338,6 @@
   .note {
     font-size: 18px;
     color: rgba(243, 245, 247, 0.6);
-  }
-  .badges {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: -8px;
-  }
-  .badge {
-    font-size: 17px;
-    font-weight: 700;
-    padding: 5px 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.1);
-    color: #dfe6ec;
-  }
-  .badge.ok {
-    background: color-mix(in oklab, oklch(0.8 0.12 205) 22%, transparent);
-    color: oklch(0.88 0.09 205);
-  }
-  .badge.warn {
-    background: rgba(255, 210, 138, 0.16);
-    color: #ffd28a;
   }
   .note.saves {
     margin-top: -12px;

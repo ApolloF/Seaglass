@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/steaminput"
-	"github.com/ApolloF/WaterLauncher/internal/syncer"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/steaminput"
+	"github.com/ApolloF/Seaglass/internal/syncer"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -33,7 +33,7 @@ func init() {
 
 // Routes: how a game is started.
 const (
-	RouteDirect     = "direct"     // its exe, by WaterLauncher
+	RouteDirect     = "direct"     // its exe, by Seaglass
 	RouteStore      = "store"      // handed to its store (Steam, Epic, …)
 	RouteSteamInput = "steamInput" // a non-Steam shortcut, so Steam Input handles the controller
 )
@@ -158,8 +158,6 @@ func (c *Core) plan(g library.Game) launch.Plan {
 			after = append(after, c.savesAfterStep(g, &known, true))
 		}
 	}
-	ab, aa := c.addonSteps(g)
-	before, after = append(before, ab...), append(after, aa...)
 	if r == RouteSteamInput {
 		before = append(before, c.steamInputStep(g, &steamURI))
 	}
@@ -202,7 +200,7 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		},
 		OnRun: func() {
 			heapDiag("playing")
-			c.shell.setTrayTooltip("WaterLauncher · playing " + title)
+			c.shell.setTrayTooltip("Seaglass · playing " + title)
 			cfg := c.Settings.Get()
 			if m := c.padManager(); m != nil {
 				if cfg.PadWhilePlaying == "off" {
@@ -255,7 +253,7 @@ func (c *Core) onSession(s launch.Session) {
 		m.SetMode(pad.Active)
 	}
 	if c.shell != nil {
-		c.shell.setTrayTooltip("WaterLauncher")
+		c.shell.setTrayTooltip("Seaglass")
 		if s.Route == RouteExternal {
 			c.shell.CloseOverlay() // the interface wasn't closed for it
 		} else {
@@ -325,11 +323,11 @@ func shortcutFor(g library.Game) steaminput.Shortcut {
 	return steaminput.Shortcut{Name: g.DisplayTitle(), Exe: g.Exe, WorkDir: g.WorkDir, Args: g.Args}
 }
 
-// Args are WaterLauncher's command-line options.
+// Args are Seaglass's command-line options.
 type Args struct {
 	Play    int64 // --play <id>: start this game without the interface
 	Tray    bool  // --tray: start in the tray (at sign-in)
-	Quit    bool  // --quit: close the running WaterLauncher (installer)
+	Quit    bool  // --quit: close the running Seaglass (installer)
 	Updated bool  // --updated: started by an update
 	// --diagnostics: write a diagnostics report to the desktop and exit,
 	// for when the interface won't open.
@@ -360,7 +358,7 @@ func ParseArgs(args []string) Args {
 }
 
 // PlayArg finds "--play <id>" in command-line arguments, so a desktop
-// shortcut can start a game through WaterLauncher.
+// shortcut can start a game through Seaglass.
 func PlayArg(args []string) (int64, bool) {
 	for i, a := range args {
 		if a == "--play" && i+1 < len(args) {

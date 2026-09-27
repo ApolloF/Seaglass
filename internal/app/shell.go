@@ -5,14 +5,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// Shell owns WaterLauncher's windows and tray icon. The Go core keeps
+// Shell owns Seaglass's windows and tray icon. The Go core keeps
 // running without any window: while a game runs the interface is closed
 // to free its memory, and comes back when the game exits.
 type Shell struct {
@@ -24,7 +24,7 @@ type Shell struct {
 	tray     *application.SystemTray
 	uiMode   string // "desktop" or "bigpicture": what the main window shows
 	gameMode bool   // the main window was closed for a game
-	closing  bool   // WaterLauncher closes a window itself (not the user)
+	closing  bool   // Seaglass closes a window itself (not the user)
 	waitGame int    // counts closeMainWhenGameInFront calls, so only the latest acts
 }
 
@@ -65,7 +65,22 @@ func (s *Shell) OpenMain() {
 	}
 	s.gameMode = false
 	s.mu.Unlock()
-	w.Restore()
+	s.bringForward(w)
+}
+
+// bringForward shows w in front. Wails' Restore also takes a window out of
+// full screen, so it's only used on a minimised one; big picture goes back
+// to full screen if it left it.
+func (s *Shell) bringForward(w *application.WebviewWindow) {
+	if w.IsMinimised() {
+		w.UnMinimise()
+	}
+	s.mu.Lock()
+	bp := s.uiMode == "bigpicture"
+	s.mu.Unlock()
+	if bp && !w.IsFullscreen() {
+		w.Fullscreen()
+	}
 	w.Show()
 	w.Focus()
 }
@@ -84,7 +99,7 @@ func (s *Shell) newMain(mode string) *application.WebviewWindow {
 	}
 	w := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
-		Title:            "WaterLauncher",
+		Title:            "Seaglass",
 		Width:            1440,
 		Height:           900,
 		MinWidth:         980,
@@ -102,7 +117,7 @@ func (s *Shell) newMain(mode string) *application.WebviewWindow {
 			s.main = nil
 		}
 		s.mu.Unlock()
-		// Closing the window closes WaterLauncher, except while a game
+		// Closing the window closes Seaglass, except while a game
 		// runs: then it stays in the tray, following the game.
 		if byUser && !s.c.Launch.Active() {
 			go application.Get().Quit()
@@ -204,7 +219,7 @@ func (s *Shell) OpenOverlay() {
 	}
 	w := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "overlay",
-		Title:            "WaterLauncher",
+		Title:            "Seaglass",
 		Frameless:        true,
 		AlwaysOnTop:      true,
 		StartState:       application.WindowStateFullscreen,
@@ -255,25 +270,23 @@ func (s *Shell) FocusMain() bool {
 	if w == nil {
 		return false
 	}
-	w.Restore()
-	w.Show()
-	w.Focus()
+	s.bringForward(w)
 	return true
 }
 
 func (s *Shell) startTray() {
 	a := application.Get()
 	t := a.SystemTray.New() // shows the exe's own icon
-	t.SetTooltip("WaterLauncher")
+	t.SetTooltip("Seaglass")
 	menu := a.NewMenu()
-	menu.Add("Open WaterLauncher").OnClick(func(*application.Context) { s.OpenMain() })
+	menu.Add("Open Seaglass").OnClick(func(*application.Context) { s.OpenMain() })
 	menu.Add("Big picture").OnClick(func(*application.Context) {
 		s.SetUIMode("bigpicture")
 		s.OpenMain()
 		s.c.emit(EventUIMode, "bigpicture")
 	})
 	menu.AddSeparator()
-	menu.Add("Quit WaterLauncher").OnClick(func(*application.Context) { a.Quit() })
+	menu.Add("Quit Seaglass").OnClick(func(*application.Context) { a.Quit() })
 	t.SetMenu(menu)
 	t.OnClick(func() { s.OpenMain() })
 	s.mu.Lock()
@@ -281,7 +294,7 @@ func (s *Shell) startTray() {
 	s.mu.Unlock()
 }
 
-// setTrayTooltip shows what WaterLauncher is doing on the tray icon.
+// setTrayTooltip shows what Seaglass is doing on the tray icon.
 func (s *Shell) setTrayTooltip(text string) {
 	s.mu.Lock()
 	t := s.tray

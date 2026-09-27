@@ -127,7 +127,7 @@
         <div class="empty">
           <Icon name="folder" size={40} stroke={1.6} />
           <h2>No games found yet</h2>
-          <p>If your games live in a folder of their own, add it and WaterLauncher will look inside.</p>
+          <p>If your games live in a folder of their own, add it and Seaglass will look inside.</p>
           <button type="button" class="primary" onclick={() => (settingsOpen = true)}>Add a game folder</button>
         </div>
       {:else if lib.visible.length === 0}

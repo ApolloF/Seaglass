@@ -10,7 +10,7 @@ import { api } from "./lib/api";
 import App from "./App.svelte";
 import Overlay from "./overlay/Overlay.svelte";
 
-// Errors the interface runs into go to WaterLauncher's log (and so into
+// Errors the interface runs into go to Seaglass's log (and so into
 // diagnostics), not only to a console nobody sees.
 window.addEventListener("error", (e) => api.reportUIError(`${e.message} at ${e.filename}:${e.lineno}:${e.colno}`));
 window.addEventListener("unhandledrejection", (e) => {

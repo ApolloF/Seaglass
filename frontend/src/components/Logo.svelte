@@ -1,5 +1,5 @@
 <script lang="ts">
-  // WaterLauncher's mark: a drop with a play triangle.
+  // Seaglass's mark: a drop with a play triangle.
   let { size = 24 }: { size?: number } = $props();
 </script>
 

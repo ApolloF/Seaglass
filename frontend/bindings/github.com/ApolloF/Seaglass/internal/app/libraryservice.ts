@@ -27,70 +27,70 @@ import * as $models from "./models.js";
  * It asks the stores, so it can take a few seconds.
  */
 export function ArtChoices(id: number, kind: string): $CancellablePromise<meta$0.Choice[] | null> {
-    return $Call.ByID(640068882, id, kind);
+    return $Call.ByID(697163200, id, kind);
 }
 
 /**
  * ChooseExe lets the user pick the executable that starts the game.
  */
 export function ChooseExe(id: number): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(794819148, id);
+    return $Call.ByID(1621179858, id);
 }
 
 /**
  * ConfirmMatch accepts the game's identity, so it no longer waits for a check in New on this PC.
  */
 export function ConfirmMatch(id: number): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(3836606500, id);
+    return $Call.ByID(2550635910, id);
 }
 
 /**
  * Game returns one game.
  */
 export function Game(id: number): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(976483851, id);
+    return $Call.ByID(3258190977, id);
 }
 
 /**
  * Games returns every game in the library.
  */
 export function Games(): $CancellablePromise<library$0.Game[] | null> {
-    return $Call.ByID(399310568);
+    return $Call.ByID(2851102966);
 }
 
 /**
  * Install asks the game's store to install it (owned, not installed).
  */
 export function Install(id: number): $CancellablePromise<void> {
-    return $Call.ByID(2311012180, id);
+    return $Call.ByID(3864775490, id);
 }
 
 /**
  * MetaState reports metadata fetching progress.
  */
 export function MetaState(): $CancellablePromise<$models.MetaState> {
-    return $Call.ByID(2108934609);
+    return $Call.ByID(3704126675);
 }
 
 /**
  * OpenFolder shows the game's folder in Explorer.
  */
 export function OpenFolder(id: number): $CancellablePromise<void> {
-    return $Call.ByID(211439525, id);
+    return $Call.ByID(1976215147, id);
 }
 
 /**
  * RefreshMetadata fetches a game's metadata and art again.
  */
 export function RefreshMetadata(id: number): $CancellablePromise<void> {
-    return $Call.ByID(2213972277, id);
+    return $Call.ByID(3269451891, id);
 }
 
 /**
  * Rename sets the title shown for a game ("" restores the found one).
  */
 export function Rename(id: number, title: string): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(760188831, id, title);
+    return $Call.ByID(2404438665, id, title);
 }
 
 /**
@@ -98,28 +98,28 @@ export function Rename(id: number, title: string): $CancellablePromise<library$0
  * deletes it (the games stay).
  */
 export function RenameCollection(old: string, name: string): $CancellablePromise<void> {
-    return $Call.ByID(1212202047, old, name);
+    return $Call.ByID(3994719709, old, name);
 }
 
 /**
  * Rescan looks for games again now.
  */
 export function Rescan(): $CancellablePromise<void> {
-    return $Call.ByID(3402996597);
+    return $Call.ByID(3200454951);
 }
 
 /**
  * ScanState reports what the scanner is doing.
  */
 export function ScanState(): $CancellablePromise<$models.ScanState> {
-    return $Call.ByID(2418544241);
+    return $Call.ByID(1138768279);
 }
 
 /**
  * SearchSteam looks up titles on the Steam store, to pick the right game.
  */
 export function SearchSteam(query: string): $CancellablePromise<meta$0.StoreHit[] | null> {
-    return $Call.ByID(582756011, query);
+    return $Call.ByID(2831298449, query);
 }
 
 /**
@@ -127,28 +127,28 @@ export function SearchSteam(query: string): $CancellablePromise<meta$0.StoreHit[
  * or logo, kept through later refreshes.
  */
 export function SetArt(id: number, kind: string, art: string): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(2411251804, id, kind, art);
+    return $Call.ByID(2120409302, id, kind, art);
 }
 
 /**
  * SetCollections puts a game in these collections (and out of others).
  */
 export function SetCollections(id: number, names: string[] | null): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(4088671900, id, names);
+    return $Call.ByID(630414306, id, names);
 }
 
 /**
  * SetFavorite marks or unmarks a favorite.
  */
 export function SetFavorite(id: number, on: boolean): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(2150311527, id, on);
+    return $Call.ByID(1893656129, id, on);
 }
 
 /**
  * SetHidden hides a game from the library views (or shows it again).
  */
 export function SetHidden(id: number, on: boolean): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(3616234503, id, on);
+    return $Call.ByID(775406597, id, on);
 }
 
 /**
@@ -156,12 +156,12 @@ export function SetHidden(id: number, on: boolean): $CancellablePromise<library$
  * is kept across scans, and metadata is fetched for it.
  */
 export function SetMatch(id: number, steamAppID: number, name: string): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(3788970144, id, steamAppID, name);
+    return $Call.ByID(3387719082, id, steamAppID, name);
 }
 
 /**
  * SetPadMode picks how a controller reaches the game: "" (auto), "native" or "steam".
  */
 export function SetPadMode(id: number, mode: string): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(2840651259, id, mode);
+    return $Call.ByID(880089469, id, mode);
 }

@@ -84,7 +84,7 @@
 
   <div class="foot">
     {#if lib.update?.status === "ready" && !lib.update.failed}
-      <button type="button" class="update" onclick={() => lib.installUpdate()} title="Installs {lib.update.latest} and restarts WaterLauncher">
+      <button type="button" class="update" onclick={() => lib.installUpdate()} title="Installs {lib.update.latest} and restarts Seaglass">
         <Icon name="sparkle" size={16} stroke={2} />
         <span class="grow">{lib.update.latest} is ready</span>
         <span class="go">Restart</span>

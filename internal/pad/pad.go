@@ -212,14 +212,14 @@ func (m *Manager) rawListener() func(Raw) {
 	return m.raw
 }
 
-// Mode is how much of the controller WaterLauncher uses.
+// Mode is how much of the controller Seaglass uses.
 type Mode int
 
 const (
 	// Active is the full layer: input, rumble, lightbar.
 	Active Mode = iota
 	// Passive only listens, for while a game runs. Controllers are read
-	// without SDL's HIDAPI drivers, so WaterLauncher never writes to one
+	// without SDL's HIDAPI drivers, so Seaglass never writes to one
 	// or switches a DualSense or DualShock 4 into its enhanced report
 	// mode; the game gets the controller exactly as it expects. Actions
 	// keep coming (the PS button opens the overlay).
@@ -260,7 +260,7 @@ func (m *Manager) start(s *sdl, passive bool) error {
 	if passive {
 		hidapi, reports = "0", "0"
 	}
-	// WaterLauncher has no SDL window, so SDL must deliver input no matter
+	// Seaglass has no SDL window, so SDL must deliver input no matter
 	// which window has focus.
 	for _, h := range [][2]string{
 		{"SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1"},

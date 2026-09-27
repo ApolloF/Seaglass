@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Settings → Saves: how WaterLauncher and Syncer get on, and what it does
+  // Settings → Saves: how Seaglass and Syncer get on, and what it does
   // with a game's saves around playing.
   import Icon from "../components/Icon.svelte";
   import Toggle from "../components/Toggle.svelte";
@@ -29,6 +29,13 @@
     const t = setInterval(() => !busy && check(), 15000);
     return () => clearInterval(t);
   });
+  let installing = $state(false);
+  async function install() {
+    installing = true;
+    await lib.run(() => api.saves.installSyncer());
+    installing = false;
+    check();
+  }
   const sum = $derived(syncerSummary(status, s?.startSyncer ?? true));
   const waits: [number, string][] = [
     [30, "30 s"],
@@ -48,7 +55,9 @@
   </div>
   <div class="row">
     {#if sum?.action === "get" || sum?.action === "update"}
-      <button type="button" class="btn primary" onclick={() => lib.run(() => api.saves.getSyncer())}><Icon name="download" size={16} />{sum.action === "get" ? "Get Syncer" : "Update Syncer"}</button>
+      <button type="button" class="btn primary" disabled={installing} onclick={install}
+        ><Icon name="download" size={16} />{installing ? (sum.action === "get" ? "Installing Syncer…" : "Updating Syncer…") : sum.action === "get" ? "Install Syncer" : "Update Syncer"}</button
+      >
     {:else if sum?.action === "start"}
       <button type="button" class="btn primary" disabled={busy} onclick={() => check(true)}><Icon name="play" size={16} />Start Syncer</button>
     {/if}
@@ -56,6 +65,7 @@
       <button type="button" class="btn" onclick={() => lib.run(() => api.saves.openSyncer())}><Icon name="link" size={16} />Open Syncer</button>
     {/if}
     <button type="button" class="btn" disabled={busy} onclick={() => check(false)}><Icon name="refresh" size={16} />{busy ? "Checking…" : "Check again"}</button>
+    <button type="button" class="btn" onclick={() => lib.run(() => api.saves.syncerProject())}><Icon name="link" size={16} />About Syncer</button>
   </div>
 
   <div class="group">
@@ -69,7 +79,7 @@
         {/each}
       </div>
     </div>
-    <Toggle checked={s.backupSavesAfter} title="Back up saves after playing" detail="A backup runs as soon as the game exits, also for games started outside WaterLauncher." onchange={(v) => set({ backupSavesAfter: v })} />
+    <Toggle checked={s.backupSavesAfter} title="Back up saves after playing" detail="A backup runs as soon as the game exits, also for games started outside Seaglass." onchange={(v) => set({ backupSavesAfter: v })} />
     <Toggle checked={s.startSyncer} title="Start Syncer when it isn't running" detail="In the background, without its window. Off: games whose saves need Syncer start without syncing until you open it." onchange={(v) => set({ startSyncer: v })} />
   </div>
   <p class="hint">Which games and folders Syncer looks after, and your other PCs, are set up in Syncer.</p>

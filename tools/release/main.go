@@ -1,4 +1,4 @@
-// Command release signs and publishes WaterLauncher releases with the
+// Command release signs and publishes Seaglass releases with the
 // offline release key (internal/update/signature.go).
 //
 //	go run ./tools/release keygen            make the key (once), print its public half
@@ -11,8 +11,8 @@
 //	                                         the whole release from main, checked step by step (cut.go)
 //
 // The private key is stored encrypted with Windows DPAPI (this Windows
-// account only) in %APPDATA%\WaterLauncher-release, outside the app's data
-// folder so uninstalling WaterLauncher can't delete it. It never goes to
+// account only) in %APPDATA%\Seaglass-release, outside the app's data
+// folder so uninstalling Seaglass can't delete it. It never goes to
 // GitHub. publish uses the GitHub CLI (gh), signed in as a maintainer.
 package main
 
@@ -34,12 +34,28 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/update"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/update"
 	"golang.org/x/sys/windows"
 )
 
-const repo = "ApolloF/WaterLauncher"
+// repo is the GitHub repository origin points at: ApolloF/Seaglass, or
+// ApolloF/WaterLauncher in a clone from before the rename.
+var repo = originRepo()
+
+func originRepo() string {
+	out, err := exec.Command("git", "remote", "get-url", "origin").Output()
+	if err == nil {
+		u := strings.TrimSuffix(strings.TrimSpace(string(out)), ".git")
+		if _, r, ok := strings.Cut(u, "github.com/"); ok && strings.Count(r, "/") == 1 {
+			return r
+		}
+		if _, r, ok := strings.Cut(u, "github.com:"); ok && strings.Count(r, "/") == 1 {
+			return r
+		}
+	}
+	return "ApolloF/Seaglass"
+}
 
 // The files a release signs, besides the signature files themselves.
 var signed = []string{update.InstallerAsset, update.ExeAsset}
@@ -99,7 +115,7 @@ func usage() {
 }
 
 func keyPath() string {
-	return filepath.Join(platform.Roaming, "WaterLauncher-release", "release-key.dpapi")
+	return filepath.Join(platform.Roaming, "Seaglass-release", "release-key.dpapi")
 }
 
 func load() (ed25519.PrivateKey, error) {

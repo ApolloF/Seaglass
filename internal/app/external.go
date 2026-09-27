@@ -6,19 +6,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/syncer"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/syncer"
 )
 
-// RouteExternal is a game started outside WaterLauncher (from Steam, a
-// desktop shortcut, …) that WaterLauncher noticed and follows.
+// RouteExternal is a game started outside Seaglass (from Steam, a
+// desktop shortcut, …) that Seaglass noticed and follows.
 const RouteExternal = "external"
 
-// externalWatch notices games started outside WaterLauncher: Windows says
+// externalWatch notices games started outside Seaglass: Windows says
 // which process's window came to the front, and when that process runs
 // from an installed game's folder, a session follows it like one started
 // here (playtime, the controller let go, the PS button for the overlay),
@@ -97,7 +97,7 @@ func (w *externalWatch) check(pid uint32) {
 	if !ok {
 		return
 	}
-	logx.Printf("noticed %q started outside WaterLauncher (%s)", g.DisplayTitle(), filepath.Base(path))
+	logx.Printf("noticed %q started outside Seaglass (%s)", g.DisplayTitle(), filepath.Base(path))
 	if err := w.c.Launch.Launch(w.c.ctx, w.c.externalPlan(g, pid)); err != nil {
 		logx.Printf("following %q: %v", g.DisplayTitle(), err)
 	}
@@ -119,7 +119,7 @@ func gameForPath(games []library.Game, path string) (library.Game, bool) {
 			}
 		}
 	}
-	return best, bestLen > 0 && !strings.EqualFold(filepath.Base(path), "WaterLauncher.exe")
+	return best, bestLen > 0 && !strings.EqualFold(filepath.Base(path), "Seaglass.exe")
 }
 
 // externalPlan follows a game that is already running.
@@ -150,7 +150,7 @@ func (c *Core) externalPlan(g library.Game, pid uint32) launch.Plan {
 		},
 		OnRun: func() {
 			heapDiag("playing")
-			c.shell.setTrayTooltip("WaterLauncher · playing " + title)
+			c.shell.setTrayTooltip("Seaglass · playing " + title)
 			if m := c.padManager(); m != nil {
 				if c.Settings.Get().PadWhilePlaying == "off" {
 					m.SetMode(pad.Off)

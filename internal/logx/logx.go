@@ -1,4 +1,4 @@
-// Package logx writes a small, self-rotating log to %APPDATA%\WaterLauncher\waterlauncher.log.
+// Package logx writes a small, self-rotating log to %APPDATA%\Seaglass\seaglass.log.
 package logx
 
 import (
@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 const maxSize = 1 << 20 // rotate at 1 MiB
@@ -17,7 +17,7 @@ const maxSize = 1 << 20 // rotate at 1 MiB
 var mu sync.Mutex
 
 // Path of the current log file.
-func Path() string { return filepath.Join(platform.AppDir(), "waterlauncher.log") }
+func Path() string { return filepath.Join(platform.AppDir(), "seaglass.log") }
 
 // Printf appends a timestamped line to the log.
 func Printf(format string, args ...any) {

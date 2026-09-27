@@ -11,8 +11,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/pad"
 	"github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )
@@ -45,7 +45,7 @@ type DevArgs struct {
 func (d DevArgs) Any() bool { return d.VirtualPad != "" || d.CDPPort != 0 || d.DataDir != "" }
 
 // DevPipe is the control pipe's name.
-const DevPipe = `\\.\pipe\waterlauncher-dev`
+const DevPipe = `\\.\pipe\seaglass-dev`
 
 func parseDevArg(a *DevArgs, s string) {
 	name, val, _ := strings.Cut(s, "=")

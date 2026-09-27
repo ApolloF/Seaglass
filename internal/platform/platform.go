@@ -1,4 +1,4 @@
-// Package platform wraps the Windows specifics the rest of WaterLauncher
+// Package platform wraps the Windows specifics the rest of Seaglass
 // needs: known folders, the app's own data folders, drives and path checks.
 package platform
 
@@ -34,12 +34,12 @@ func known(id *windows.KNOWNFOLDERID) string {
 	return filepath.Clean(p)
 }
 
-// AppDir is WaterLauncher's settings folder (%APPDATA%\WaterLauncher), created on demand.
+// AppDir is Seaglass's settings folder (%APPDATA%\Seaglass), created on demand.
 func AppDir() string {
 	if appDirOverride != "" {
 		return ensure(appDirOverride)
 	}
-	return ensure(filepath.Join(Roaming, "WaterLauncher"))
+	return ensure(filepath.Join(Roaming, "Seaglass"))
 }
 
 var appDirOverride string
@@ -48,10 +48,17 @@ var appDirOverride string
 // harness's own data). Call it before anything is opened.
 func UseAppDir(dir string) { appDirOverride = filepath.Clean(dir) }
 
-// CacheDir is a folder under %LOCALAPPDATA%\WaterLauncher, created on demand.
+// CacheDir is a folder under %LOCALAPPDATA%\Seaglass, created on demand.
 func CacheDir(sub ...string) string {
-	return ensure(filepath.Join(append([]string{Local, "WaterLauncher"}, sub...)...))
+	base := filepath.Join(Local, "Seaglass")
+	if localDirOverride != "" {
+		base = localDirOverride
+	}
+	return ensure(filepath.Join(append([]string{base}, sub...)...))
 }
+
+// localDirOverride is WaterLauncher's folder when it couldn't be moved.
+var localDirOverride string
 
 func ensure(dir string) string {
 	_ = os.MkdirAll(dir, 0o755)

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/pad"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -72,7 +72,7 @@ func (s *PadService) onAction(action string, repeat bool) {
 		}
 		return
 	}
-	// Otherwise the PS / Xbox button brings WaterLauncher forward, from
+	// Otherwise the PS / Xbox button brings Seaglass forward, from
 	// wherever the user is.
 	if home {
 		s.c.shell.OpenMain()

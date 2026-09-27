@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
+	"github.com/ApolloF/Seaglass/internal/library"
 )
 
 // Choice is one picture a game's art can be changed to: already stored

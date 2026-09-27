@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/meta"
 )
 
 func TestPickStoreHit(t *testing.T) {

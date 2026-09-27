@@ -43,6 +43,11 @@ export interface Settings {
     "ownedGOG": boolean;
 
     /**
+     * libraries whose games aren't shown (steam, epic, …, unofficial, folder)
+     */
+    "hiddenSources": string[] | null;
+
+    /**
      * Appearance
      * system, dark, light (desktop mode)
      */
@@ -80,7 +85,7 @@ export interface Settings {
     "padWhilePlaying": string;
 
     /**
-     * follow games started outside WaterLauncher (playtime, controller)
+     * follow games started outside Seaglass (playtime, controller)
      */
     "noticeExternal": boolean;
 

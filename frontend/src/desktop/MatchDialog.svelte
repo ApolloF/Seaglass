@@ -52,7 +52,7 @@
       <h2>Which game is this?</h2>
       <button type="button" class="close" aria-label="Close" onclick={onclose}><Icon name="close" size={18} stroke={2.2} /></button>
     </div>
-    <p class="hint">Search the Steam store and pick the right game. WaterLauncher uses it for the title, details and art, and remembers your choice.</p>
+    <p class="hint">Search the Steam store and pick the right game. Seaglass uses it for the title, details and art, and remembers your choice.</p>
     <form
       class="search"
       onsubmit={(e) => {

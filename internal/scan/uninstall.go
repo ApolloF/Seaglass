@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -63,7 +63,7 @@ func repackerOf(publisher, dir string) string {
 var launcherNames = []string{
 	"steam", "epic games launcher", "gog galaxy", "ubisoft connect", "uplay", "ea app", "ea", "origin", "battle.net",
 	"xbox", "rockstar games launcher", "riot client", "amazon games", "itch", "playnite", "launchbox", "heroic",
-	"nvidia app", "geforce experience", "amd software", "discord", "waterlauncher", "syncer", "dlss updater",
+	"nvidia app", "geforce experience", "amd software", "discord", "seaglass", "waterlauncher", "syncer", "dlss updater",
 }
 
 // toolWords mark runtimes, drivers and redistributables.

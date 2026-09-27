@@ -55,11 +55,14 @@ class LibraryStore {
   toasts = $state<Toast[]>([]);
 
   /** Games the library views show at all: installed ones (or every one when
-   * the setting says so), without hidden ones. */
+   * the setting says so), without hidden ones or ones from hidden libraries. */
   base = $derived.by(() => {
     const showAll = this.settings?.showNotInstalled ?? false;
     const showOwned = this.settings?.showOwned ?? false;
-    return this.games.filter((g) => !g.hidden && (g.installed || (showAll && !ownedOnly(g)) || (showOwned && !!g.owned)));
+    const hiddenLibs = SOURCE_GROUPS.filter((s) => this.settings?.hiddenSources?.includes(s.id));
+    return this.games.filter(
+      (g) => !g.hidden && (g.installed || (showAll && !ownedOnly(g)) || (showOwned && !!g.owned)) && !hiddenLibs.some((s) => s.match(g)),
+    );
   });
 
   visible = $derived.by(() => {
@@ -140,6 +143,24 @@ class LibraryStore {
     SOURCE_GROUPS.map((s) => ({ ...s, count: this.base.filter(s.match).length })).filter((s) => s.count > 0),
   );
 
+  /** Every library with games on this PC, shown or not, for Settings. */
+  libraries = $derived.by(() =>
+    SOURCE_GROUPS.map((s) => ({
+      ...s,
+      count: this.games.filter((g) => !g.hidden && g.installed && s.match(g)).length,
+      hidden: !!this.settings?.hiddenSources?.includes(s.id),
+    })).filter((s) => s.count > 0 || s.hidden),
+  );
+
+  /** Shows or hides a library's games. */
+  toggleLibrary(id: string) {
+    const s = this.settings;
+    if (!s) return;
+    const hidden = s.hiddenSources.includes(id) ? s.hiddenSources.filter((h) => h !== id) : [...s.hiddenSources, id];
+    if (this.filter.kind === "source" && this.filter.source === id) this.filter = { kind: "all" };
+    void this.saveSettings({ ...s, hiddenSources: hidden });
+  }
+
   async init() {
     api.onLibraryChanged(() => void this.refresh());
     api.onGamesUpdated((gs) => gs.forEach((g) => this.replace(g, true)));
@@ -158,7 +179,7 @@ class LibraryStore {
     ]);
     this.update = update;
     this.announceVersion(info.version);
-    if (info.crashedLastTime) this.toast("WaterLauncher closed unexpectedly last time. Settings → About → Copy diagnostics helps with a bug report.", "error");
+    if (info.crashedLastTime) this.toast("Seaglass closed unexpectedly last time. Settings → About → Copy diagnostics helps with a bug report.", "error");
     this.meta = meta;
     this.session = session;
     this.games = games;
@@ -168,18 +189,18 @@ class LibraryStore {
     this.loaded = true;
   }
 
-  /** Says so once after WaterLauncher was updated. */
+  /** Says so once after Seaglass was updated. */
   private announceVersion(version: string) {
     try {
       const seen = localStorage.getItem("wl.version");
       localStorage.setItem("wl.version", version);
-      if (seen && seen !== version && version !== "dev") this.toast(`Updated to WaterLauncher ${version}`);
+      if (seen && seen !== version && version !== "dev") this.toast(`Updated to Seaglass ${version}`);
     } catch {
       /* storage unavailable: skip the note */
     }
   }
 
-  /** Installs the downloaded update; WaterLauncher restarts. */
+  /** Installs the downloaded update; Seaglass restarts. */
   installUpdate() {
     return this.run(() => api.updates.install());
   }

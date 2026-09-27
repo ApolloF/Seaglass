@@ -80,6 +80,8 @@ export interface Settings {
   showNotInstalled: boolean;
   showOwned: boolean;
   ownedGOG: boolean;
+  /** Libraries whose games aren't shown (ids from SOURCE_GROUPS). */
+  hiddenSources: string[];
   theme: "system" | "dark" | "light";
   bigPictureLayout: Layout;
   openBigPictureOnController: boolean;
@@ -122,7 +124,7 @@ export interface SaveFolder {
 }
 
 /** What Syncer knows about a game's saves. */
-/** How WaterLauncher and Syncer get on. */
+/** How Seaglass and Syncer get on. */
 export interface SyncerStatus {
   installed: boolean;
   version?: string;
@@ -219,7 +221,7 @@ export interface Session {
   gameId: number;
   title: string;
   phase: Phase;
-  /** "external": started outside WaterLauncher and noticed. */
+  /** "external": started outside Seaglass and noticed. */
   route: "direct" | "store" | "steamInput" | "external" | "";
   before: StepState[];
   after: StepState[];
@@ -245,47 +247,6 @@ export const crashText = (s: Session) =>
 
 export const sessionActive = (s: Session | null | undefined) =>
   !!s && s.phase !== "" && s.phase !== "ended" && s.phase !== "failed" && s.phase !== "cancelled";
-
-export interface AddonView {
-  id: string;
-  name: string;
-  version: string;
-  publisher: string;
-  description: string;
-  homepage: string;
-  exe: string;
-  hooks: string[];
-  permissions: { id: string; label: string }[];
-  signed: boolean;
-  sha256: string;
-  enabled: boolean;
-  running: boolean;
-  state: "off" | "on" | "changed" | "missing" | "broken";
-  error?: string;
-}
-
-export interface AddonBadge {
-  text: string;
-  tone?: "info" | "ok" | "warn";
-  tooltip?: string;
-}
-
-export interface AddonAction {
-  id: string;
-  label: string;
-  description?: string;
-  confirm?: string;
-}
-
-/** What one add-on says about a game. */
-export interface AddonGame {
-  addon: string;
-  name: string;
-  badges: AddonBadge[];
-  lines: { label: string; value: string }[];
-  actions: AddonAction[];
-  error?: string;
-}
 
 export interface StoreAccount {
   connected: boolean;
@@ -332,7 +293,7 @@ export interface UpdateState {
   failed: boolean;
 }
 
-/** Whether WaterLauncher starts when you sign in to Windows. */
+/** Whether Seaglass starts when you sign in to Windows. */
 export interface Startup {
   on: boolean;
   /** Turned off in Task Manager's Startup apps. */
@@ -341,8 +302,8 @@ export interface Startup {
 
 export const title = (g: Game) => g.customTitle || g.title;
 
-/** Playtime in seconds: WaterLauncher's own or the store's, whichever is larger. */
+/** Playtime in seconds: Seaglass's own or the store's, whichever is larger. */
 export const played = (g: Game) => Math.max(g.playtime ?? 0, g.storePlaytime ?? 0);
 
-/** When the game was last played, by WaterLauncher or the store. */
+/** When the game was last played, by Seaglass or the store. */
 export const lastPlayed = (g: Game) => Math.max(g.lastPlayed ?? 0, g.storeLastPlayed ?? 0);

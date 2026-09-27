@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"golang.org/x/sys/windows"
 )
 
@@ -21,7 +21,7 @@ var sdlDLL []byte
 // sdlHash pins the embedded SDL3.dll (see sdl3/README.md).
 const sdlHash = "1f98969319302a100931f4385e5918a0bd53ab07773040682d22e7edb54858c0"
 
-// sdl holds the SDL3 functions WaterLauncher calls. Every one takes and
+// sdl holds the SDL3 functions Seaglass calls. Every one takes and
 // returns plain integers and pointers, so they are called without cgo.
 type sdl struct {
 	dll                    *windows.DLL
@@ -38,7 +38,7 @@ type sdl struct {
 	gamepadConnectionState *windows.Proc
 }
 
-// loadSDL writes the embedded DLL to WaterLauncher's own folder (once),
+// loadSDL writes the embedded DLL to Seaglass's own folder (once),
 // checks its hash every time, and loads it from that exact path.
 func loadSDL() (*sdl, error) {
 	sum := sha256.Sum256(sdlDLL)

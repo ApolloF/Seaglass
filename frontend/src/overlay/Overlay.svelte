@@ -48,7 +48,7 @@
 
   const items = $derived([
     { id: "resume", title: "Back to the game", detail: "Close this overlay", run: close },
-    { id: "library", title: "Open WaterLauncher", detail: "The game keeps running", run: () => api.launch.openMain() },
+    { id: "library", title: "Open Seaglass", detail: "The game keeps running", run: () => api.launch.openMain() },
     {
       id: "quit",
       title: quitArmed ? "Press again to quit" : "Quit game",

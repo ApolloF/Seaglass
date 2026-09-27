@@ -12,10 +12,10 @@ import (
 const (
 	runKey      = `Software\Microsoft\Windows\CurrentVersion\Run`
 	approvedKey = `Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`
-	runValue    = "WaterLauncher"
+	runValue    = "Seaglass"
 )
 
-// Startup is whether WaterLauncher starts when you sign in to Windows.
+// Startup is whether Seaglass starts when you sign in to Windows.
 type Startup struct {
 	On bool `json:"on"`
 	// Off in Task Manager's Startup apps: Windows skips it even though
@@ -28,7 +28,7 @@ func StartupCommand(exe string) string {
 	return syscall.EscapeArg(filepath.Clean(exe)) + " --tray"
 }
 
-// GetStartup reads the current user's Run entry for WaterLauncher.
+// GetStartup reads the current user's Run entry for Seaglass.
 func GetStartup() Startup {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE)
 	if err != nil {
@@ -67,13 +67,13 @@ func SetStartup(exe string, on bool) error {
 		return nil
 	}
 	if !filepath.IsAbs(exe) || !IsFile(exe) {
-		return errors.New("can't find WaterLauncher's program file")
+		return errors.New("can't find Seaglass's program file")
 	}
 	return k.SetStringValue(runValue, StartupCommand(exe))
 }
 
 // RepairStartup points an existing Run entry at exe when the program it
-// names is gone (WaterLauncher was moved). It reports whether it changed.
+// names is gone (Seaglass was moved). It reports whether it changed.
 func RepairStartup(exe string) bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE|registry.SET_VALUE)
 	if err != nil {

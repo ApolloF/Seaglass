@@ -124,7 +124,7 @@ var notGames = func() map[string]bool {
 		"steam", "steamlibrary", "steamapps", "common", "epic games", "epic games launcher", "gog galaxy", "gog games",
 		"ubisoft connect", "ubisoft game launcher", "ea app", "ea desktop", "ea games", "origin", "battle net", "xbox",
 		"xboxgames", "playnite", "launchbox", "retroarch", "yuzu", "ryujinx", "pcsx2", "rpcs3", "dolphin", "cemu",
-		"qbittorrent", "fitgirl repacks", "dodi repacks", "repacks", "waterlauncher", "dlss updater", "nvidia", "amd",
+		"qbittorrent", "fitgirl repacks", "dodi repacks", "repacks", "seaglass", "waterlauncher", "dlss updater", "nvidia", "amd",
 		"geforce experience", "hwinfo", "cpu z", "gpu z", "program files", "program files x86",
 	} {
 		m[Normalize(n)] = true

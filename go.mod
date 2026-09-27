@@ -1,4 +1,4 @@
-module github.com/ApolloF/WaterLauncher
+module github.com/ApolloF/Seaglass
 
 go 1.27
 

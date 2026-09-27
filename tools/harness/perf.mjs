@@ -134,9 +134,9 @@ function frames(file) {
   return out;
 }
 
-// WebView2's processes for WaterLauncher (browser, GPU, renderers): private memory.
+// WebView2's processes for Seaglass (browser, GPU, renderers): private memory.
 function webviewPrivateMB() {
-  const ps = `Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*WaterLauncher*' } | ForEach-Object { (Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue).PrivateMemorySize64 } | Measure-Object -Sum | ForEach-Object { $_.Sum }`;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*Seaglass*' } | ForEach-Object { (Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue).PrivateMemorySize64 } | Measure-Object -Sum | ForEach-Object { $_.Sum }`;
   try {
     return Number(execFileSync("powershell", ["-NoProfile", "-Command", ps], { encoding: "utf8" }).trim()) / 2 ** 20;
   } catch {

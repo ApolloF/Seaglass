@@ -6,10 +6,10 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "ApolloF" # The name of the company
-  productName: "WaterLauncher" # The name of the application
-  productIdentifier: "nl.apollof.waterlauncher" # The unique product identifier
+  productName: "Seaglass" # The name of the application
+  productIdentifier: "nl.apollof.seaglass" # The unique product identifier
   description: "Game launcher that finds every game on your PC" # The application description
-  copyright: "(c) 2026 ApolloF, MIT License" # Copyright text
+  copyright: "(c) 2026 ApolloF, AGPL-3.0 License" # Copyright text
   comments: "Game launcher that finds every game on your PC" # Comments
   version: "0.1.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)

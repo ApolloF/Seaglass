@@ -13,16 +13,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/syncer"
-	"github.com/ApolloF/WaterLauncher/internal/update"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/syncer"
+	"github.com/ApolloF/Seaglass/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
-// crashFile receives what Go prints when WaterLauncher crashes (an
+// crashFile receives what Go prints when Seaglass crashes (an
 // unhandled panic or a fatal error). It's emptied at every start, so a
 // file with something in it means the last run crashed.
 func crashFile(dir string) string { return filepath.Join(dir, "crash.log") }
@@ -82,7 +82,7 @@ func (s *SettingsService) ReportUIError(message string) {
 }
 
 // CopyDiagnostics puts a report for a bug report on the clipboard: versions,
-// settings, what the library holds, controller, Syncer, add-ons, updates,
+// settings, what the library holds, controller, Syncer, updates,
 // the last crash and the end of the log. It holds no keys or tokens, and
 // the user folder is shortened to %USERPROFILE%.
 func (s *SettingsService) CopyDiagnostics() error {
@@ -95,26 +95,26 @@ func (s *SettingsService) CopyDiagnostics() error {
 }
 
 // WriteDiagnostics writes the diagnostics report to the desktop and
-// returns its path (WaterLauncher.exe --diagnostics).
+// returns its path (Seaglass.exe --diagnostics).
 func WriteDiagnostics(c *Core) (string, error) {
 	dir := platform.Desktop
 	if dir == "" {
 		dir = platform.AppDir()
 	}
-	p := filepath.Join(dir, "WaterLauncher diagnostics.txt")
+	p := filepath.Join(dir, "Seaglass diagnostics.txt")
 	return p, os.WriteFile(p, []byte(c.diagnostics()), 0o644)
 }
 
-// ReportProblem opens a new GitHub issue for WaterLauncher.
+// ReportProblem opens a new GitHub issue for Seaglass.
 func (s *SettingsService) ReportProblem() error {
-	return platform.OpenWebPage("https://github.com/ApolloF/WaterLauncher/issues/new")
+	return platform.OpenWebPage("https://github.com/ApolloF/Seaglass/issues/new")
 }
 
 func (c *Core) diagnostics() string {
 	var b strings.Builder
 	line := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
 
-	line("WaterLauncher diagnostics, %s", time.Now().Format(time.RFC3339))
+	line("Seaglass diagnostics, %s", time.Now().Format(time.RFC3339))
 	line("")
 	line("## Versions")
 	exe, _ := os.Executable()
@@ -128,7 +128,7 @@ func (c *Core) diagnostics() string {
 	if !update.Valid(c.Version) {
 		kind = "development build"
 	}
-	line("WaterLauncher %s (%s), %s", c.Version, kind, runtime.Version())
+	line("Seaglass %s (%s), %s", c.Version, kind, runtime.Version())
 	v := windows.RtlGetVersion()
 	line("Windows %d.%d build %d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
 	line("WebView2 %s", webView2Version())
@@ -199,20 +199,6 @@ func (c *Core) diagnostics() string {
 	ses := c.Launch.Current()
 	if ses.ID > 0 {
 		line("Last session: %q, %s via %s, %d s played %s %s", ses.Title, ses.Phase, orUnknown(ses.Route), ses.Seconds, ses.Error, ses.Note)
-	}
-
-	line("")
-	line("## Add-ons")
-	found, broken := c.addons.discover()
-	for _, m := range found {
-		a := c.addons.trust.Get(m.ID)
-		line("%s %s by %s: on %v, running %v", m.ID, m.Version, m.Publisher, a.Enabled, c.addons.host.Running(m.ID))
-	}
-	for dir, err := range broken {
-		line("%s: broken (%v)", dir, err)
-	}
-	if len(found)+len(broken) == 0 {
-		line("none")
 	}
 
 	line("")

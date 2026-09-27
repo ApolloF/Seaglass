@@ -7,7 +7,7 @@ import (
 )
 
 // A virtual controller, for testing the real app without a real one
-// (WaterLauncher's --virtual-pad dev flag). SDL makes it and reads it
+// (Seaglass's --virtual-pad dev flag). SDL makes it and reads it
 // like any other gamepad, so everything after SDL is the real path.
 
 // virtualDesc mirrors SDL_VirtualJoystickDesc (SDL 3.4, x64).

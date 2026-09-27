@@ -165,7 +165,7 @@
       <p>The game is loading. It comes to the front when it's ready.</p>
     {:else if phase === "running"}
       <p class="time">{clock(session.seconds)}</p>
-      <p>{session.route === "external" ? "Started outside WaterLauncher; its playtime counts here too." : "The game is running."} Press the PS button in the game to open the overlay.</p>
+      <p>{session.route === "external" ? "Started outside Seaglass; its playtime counts here too." : "The game is running."} Press the PS button in the game to open the overlay.</p>
     {:else if phase === "failed"}
       <p class="err">{session.error}</p>
     {:else if session.note}

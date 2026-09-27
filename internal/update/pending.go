@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // How an update is put in place.
 const (
-	KindInstaller = "installer" // WaterLauncher was installed: run the new installer silently
+	KindInstaller = "installer" // Seaglass was installed: run the new installer silently
 	KindExe       = "exe"       // a copy that wasn't installed: swap the exe
 )
 
@@ -85,7 +85,7 @@ func (p Pending) Check(running string) error {
 }
 
 // CheckPublisher refuses a file that isn't signed by the running exe's
-// publisher. While WaterLauncher itself is unsigned, the SHA-256 published
+// publisher. While Seaglass itself is unsigned, the SHA-256 published
 // with the release is the check.
 func CheckPublisher(file, running string) error {
 	want, err := platform.Signer(running)

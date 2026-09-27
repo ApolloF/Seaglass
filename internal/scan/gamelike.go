@@ -68,7 +68,7 @@ var strongDirs = map[string]string{
 	"renpy":          "Ren'Py",
 }
 
-// gameLike remembers looksLikeGame's answers for this run of WaterLauncher.
+// gameLike remembers looksLikeGame's answers for this run of Seaglass.
 // A folder is looked at again when its own modification time changes
 // (files added or removed at its top), so later scans only stat it.
 var gameLike = struct {

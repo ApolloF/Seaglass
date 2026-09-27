@@ -18,26 +18,26 @@ import * as $models from "./models.js";
  * Check looks for a new version now (and downloads it).
  */
 export function Check(): $CancellablePromise<void> {
-    return $Call.ByID(3964175519);
+    return $Call.ByID(156095481);
 }
 
 /**
- * Install installs the downloaded update and restarts WaterLauncher.
+ * Install installs the downloaded update and restarts Seaglass.
  */
 export function Install(): $CancellablePromise<void> {
-    return $Call.ByID(2421731896);
+    return $Call.ByID(1139137454);
 }
 
 /**
  * OpenReleasePage opens the newest release on GitHub.
  */
 export function OpenReleasePage(): $CancellablePromise<void> {
-    return $Call.ByID(1315509785);
+    return $Call.ByID(254604083);
 }
 
 /**
  * State reports what the updater knows.
  */
 export function State(): $CancellablePromise<$models.UpdateState> {
-    return $Call.ByID(2614641198);
+    return $Call.ByID(99384440);
 }

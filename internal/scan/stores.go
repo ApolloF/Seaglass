@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"golang.org/x/sys/windows/registry"
 )
 

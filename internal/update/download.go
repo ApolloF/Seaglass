@@ -19,7 +19,8 @@ const MaxSize = 128 << 20
 
 // Download fetches the release asset called name into dir and checks it:
 // against the release's signed SHA256SUMS when the feed has release keys,
-// else against its published "<name>.sha256". It returns the file's path
+// else against its published "<name>.sha256", or else the SHA-256 GitHub
+// computed when the file was uploaded. It returns the file's path
 // and SHA-256. progress (optional) hears how far it got.
 func (f Feed) Download(ctx context.Context, rel Release, name, dir string, progress func(done, total int64)) (string, string, error) {
 	a, ok := rel.Asset(name)
@@ -57,11 +58,14 @@ func (f Feed) Download(ctx context.Context, rel Release, name, dir string, progr
 // expected is the SHA-256 the release promises for name.
 func (f Feed) expected(ctx context.Context, rel Release, name string) (string, error) {
 	if len(f.Keys) == 0 {
-		s, ok := rel.Asset(name + ".sha256")
-		if !ok {
-			return "", fmt.Errorf("%s has no checksum for %s", rel.Tag, name)
+		if s, ok := rel.Asset(name + ".sha256"); ok {
+			return f.checksum(ctx, s, name)
 		}
-		return f.checksum(ctx, s, name)
+		a, _ := rel.Asset(name)
+		if d, ok := strings.CutPrefix(a.Digest, "sha256:"); ok && isSHA256(d) {
+			return strings.ToLower(d), nil
+		}
+		return "", fmt.Errorf("%s has no checksum for %s", rel.Tag, name)
 	}
 	sa, ok1 := rel.Asset(SumsAsset)
 	ga, ok2 := rel.Asset(SigAsset)
@@ -162,13 +166,13 @@ func (f Feed) fetch(ctx context.Context, a Asset, dst string, progress func(done
 
 func (f Feed) get(ctx context.Context, raw string) (*http.Response, error) {
 	if !f.inRelease(raw) {
-		return nil, errors.New("refusing to download from outside WaterLauncher's releases")
+		return nil, errors.New("refusing to download from outside the release")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "WaterLauncher (+https://github.com/ApolloF/WaterLauncher)")
+	req.Header.Set("User-Agent", "Seaglass (+https://github.com/ApolloF/Seaglass)")
 	req.Header.Set("Accept", "application/octet-stream")
 	resp, err := f.client().Do(req)
 	if err != nil {

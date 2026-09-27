@@ -18,7 +18,7 @@ $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\si
 if (-not $signtool) { throw 'signtool.exe not found (install the Windows SDK)' }
 
 $ts = if ($env:SIGN_TIMESTAMP_URL) { $env:SIGN_TIMESTAMP_URL } else { 'http://timestamp.digicert.com' }
-$signArgs = @('sign', '/fd', 'sha256', '/tr', $ts, '/td', 'sha256', '/d', 'WaterLauncher', '/du', 'https://github.com/ApolloF/WaterLauncher')
+$signArgs = @('sign', '/fd', 'sha256', '/tr', $ts, '/td', 'sha256', '/d', 'Seaglass', '/du', 'https://github.com/ApolloF/Seaglass')
 $pfx = $null
 try {
     if ($env:SIGN_PFX_BASE64) {

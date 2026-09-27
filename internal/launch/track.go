@@ -1,7 +1,7 @@
 package launch
 
 import (
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // procInfo is what is known about one process id.
@@ -12,7 +12,7 @@ type procInfo struct {
 }
 
 // tracker finds the processes that belong to a running game: the process
-// WaterLauncher started, everything it starts in turn, and anything
+// Seaglass started, everything it starts in turn, and anything
 // running from the game's folder. The folder rule covers launchers that
 // hand over to the game, and games started through a store or Steam.
 type tracker struct {

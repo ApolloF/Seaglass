@@ -14,9 +14,10 @@
     | { key: keyof Settings; title: string; detail: string; kind: "toggle"; group?: string }
     | { key: keyof Settings; title: string; detail: string; kind: "choice"; options: [string | number, string][]; group?: string }
     | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string }
-    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string };
+    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string }
+    | { key: `library:${string}`; source: string; title: string; detail: string; kind: "library"; group?: string };
 
-  const rows: Row[] = [
+  const fixed: Row[] = [
     {
       group: "Big picture",
       key: "bigPictureLayout",
@@ -30,7 +31,7 @@
       ],
     },
     { key: "sounds", title: "Navigation sounds", detail: "Soft clicks as you move.", kind: "toggle" },
-    { key: "startInBigPicture", title: "Start in big picture", detail: "Skip the desktop window when WaterLauncher starts.", kind: "toggle" },
+    { key: "startInBigPicture", title: "Start in big picture", detail: "Skip the desktop window when Seaglass starts.", kind: "toggle" },
     {
       group: "Controller",
       key: "glyphs",
@@ -47,7 +48,7 @@
     { key: "haptics", title: "Haptics", detail: "A tick as you move, a bump at the end of a row, a firmer pulse when you choose.", kind: "toggle" },
     { key: "lightbar", title: "Lightbar follows the game", detail: "Tints the DualSense to the selected game.", kind: "toggle" },
     { key: "openBigPictureOnController", title: "Open big picture when a controller connects", detail: "Switches over as soon as you pick one up.", kind: "toggle" },
-    { key: "psButton", title: "PS / Xbox button opens WaterLauncher", detail: "From other apps, and the overlay in games. Turn off Steam's guide-button shortcut to avoid both opening.", kind: "toggle" },
+    { key: "psButton", title: "PS / Xbox button opens Seaglass", detail: "From other apps, and the overlay in games. Turn off Steam's guide-button shortcut to avoid both opening.", kind: "toggle" },
     {
       key: "padWhilePlaying",
       title: "Controller while playing",
@@ -77,8 +78,22 @@
     { group: "Library and playing", key: "showOwned", title: "Show games you own that aren't installed", detail: "From the store accounts connected in desktop Settings.", kind: "toggle" },
     { key: "closeWhilePlaying", title: "Close the interface while playing", detail: "Frees its memory. It comes back when the game exits.", kind: "toggle" },
     { key: "noticeExternal", title: "Notice games started elsewhere", detail: "Games started from Steam or a shortcut count their playtime here too.", kind: "toggle" },
-    { key: "autoUpdate", title: "Keep WaterLauncher up to date", detail: "New versions download in the background and install the next time WaterLauncher starts.", kind: "toggle" },
+    { key: "autoUpdate", title: "Keep Seaglass up to date", detail: "New versions download in the background and install the next time Seaglass starts.", kind: "toggle" },
   ];
+
+  // One row per library on this PC, to show or hide its games.
+  const rows = $derived.by(() => {
+    const libs: Row[] = lib.libraries.map((l, k) => ({
+      group: k === 0 ? "Libraries" : undefined,
+      key: `library:${l.id}` as const,
+      source: l.id,
+      title: `${l.label} games`,
+      detail: `${l.count} ${l.count === 1 ? "game" : "games"}${l.hidden ? ", hidden" : ""}`,
+      kind: "library" as const,
+    }));
+    const at = fixed.findIndex((r) => r.key === "showOwned");
+    return [...fixed.slice(0, at), ...libs, ...fixed.slice(at)];
+  });
 
   let i = $state(0);
   const s = $derived(lib.settings);
@@ -99,6 +114,14 @@
     check(false);
   });
   const syncerSum = $derived(syncerSummary(syncer, s?.startSyncer ?? true));
+  let installing = $state(false);
+  async function install() {
+    if (installing) return;
+    installing = true;
+    await lib.run(() => api.saves.installSyncer());
+    installing = false;
+    check(false);
+  }
 
   function change(dir: 1 | -1) {
     if (!s) return;
@@ -111,8 +134,10 @@
     if (row.kind === "status") {
       // ✕ on Syncer: start it (or look again), or open it to sort things out.
       if (syncerSum?.action === "open") lib.run(() => api.saves.openSyncer());
-      else if (syncerSum?.action === "get" || syncerSum?.action === "update") lib.run(() => api.saves.getSyncer());
+      else if (syncerSum?.action === "get" || syncerSum?.action === "update") install();
       else check(true);
+    } else if (row.kind === "library") {
+      lib.toggleLibrary(row.source);
     } else if (row.kind === "toggle") {
       lib.saveSettings({ ...s, [row.key]: !s[row.key] });
     } else {
@@ -143,7 +168,7 @@
   );
 
   function valueLabel(row: Row): string {
-    if (!s || row.kind === "status" || row.kind === "action") return "";
+    if (!s || row.kind === "status" || row.kind === "action" || row.kind === "library") return "";
     if (row.kind === "toggle") return s[row.key] ? "On" : "Off";
     return row.options.find((o) => String(o[0]) === String(s[row.key]))?.[1] ?? "";
   }
@@ -162,13 +187,15 @@
           >
           {#if syncerSum}
             <span class="act"
-              >{syncerSum.action === "open" ? "Open Syncer" : syncerSum.action === "get" ? "Get Syncer" : syncerSum.action === "update" ? "Update" : syncerSum.action === "start" ? "Start" : "Check again"}</span
+              >{syncerSum.action === "open" ? "Open Syncer" : installing ? "Installing…" : syncerSum.action === "get" ? "Install Syncer" : syncerSum.action === "update" ? "Update" : syncerSum.action === "start" ? "Start" : "Check again"}</span
             >
           {/if}
         {:else}
           <span class="text"><span class="t">{row.title}</span><span class="d">{row.detail}</span></span>
           {#if row.kind === "action"}
             <span class="act">Open</span>
+          {:else if row.kind === "library"}
+            <span class="track" class:yes={!s?.hiddenSources.includes(row.source)}><span class="knob"></span></span>
           {:else if row.kind === "toggle"}
             <span class="track" class:yes={!!s?.[row.key]}><span class="knob"></span></span>
           {:else}

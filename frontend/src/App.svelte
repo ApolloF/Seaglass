@@ -95,7 +95,7 @@
 
 {#if failed}
   <div class="fatal">
-    <h1>WaterLauncher couldn't start</h1>
+    <h1>Seaglass couldn't start</h1>
     <p>{failed}</p>
   </div>
 {:else}

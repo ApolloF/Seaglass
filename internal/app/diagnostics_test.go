@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // A crashing run leaves crash.log behind; the next start keeps it as

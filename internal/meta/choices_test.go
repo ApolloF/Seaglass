@@ -6,10 +6,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
+	"github.com/ApolloF/Seaglass/internal/library"
 )
 
-// A chosen picture must be one WaterLauncher stored, and is kept as the
+// A chosen picture must be one Seaglass stored, and is kept as the
 // user's choice.
 func TestSetArt(t *testing.T) {
 	dir := t.TempDir()

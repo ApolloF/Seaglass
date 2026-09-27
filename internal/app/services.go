@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
-	"github.com/ApolloF/WaterLauncher/internal/settings"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/settings"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -372,7 +372,7 @@ func (s *SettingsService) SetSteamGridDBKey(key string) error {
 	return nil
 }
 
-// StartWithWindows reports whether WaterLauncher starts (in the tray) when
+// StartWithWindows reports whether Seaglass starts (in the tray) when
 // you sign in to Windows.
 func (s *SettingsService) StartWithWindows() platform.Startup { return platform.GetStartup() }
 

@@ -1,6 +1,6 @@
 // Package steaminput routes games without DualSense support through Steam
 // Input. Each such game gets a non-Steam shortcut in the user's
-// shortcuts.vdf (in a "WaterLauncher" collection) and is started with
+// shortcuts.vdf (in a "Seaglass" collection) and is started with
 // steam://rungameid/…, so Steam presents the controller as an Xbox pad.
 //
 // Steam keeps shortcuts.vdf in memory and writes it back when it exits,
@@ -18,13 +18,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
 	"github.com/ApolloF/gamekit/vdf"
 )
 
-// Tag is the Steam collection WaterLauncher's shortcuts go in.
-const Tag = "WaterLauncher"
+// Tag is the Steam collection Seaglass's shortcuts go in.
+const Tag = "Seaglass"
 
 // Shortcut is a game as Steam should start it.
 type Shortcut struct {
@@ -110,7 +110,7 @@ func read(path string) (*vdf.BNode, error) {
 
 // Add puts the shortcuts that are missing into every file. Steam must be
 // closed. The first time a file is changed, a copy of the original is kept
-// next to it (shortcuts.vdf.waterlauncher-backup).
+// next to it (shortcuts.vdf.seaglass-backup).
 func Add(files []string, list []Shortcut) error {
 	if Running() {
 		return errors.New("Steam is running")
@@ -193,7 +193,7 @@ func entry(key string, s Shortcut) *vdf.BNode {
 }
 
 func backupOnce(f string) error {
-	bak := f + ".waterlauncher-backup"
+	bak := f + ".seaglass-backup"
 	if platform.IsFile(bak) {
 		return nil
 	}

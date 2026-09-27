@@ -1,4 +1,4 @@
-// WaterLauncher is a Windows game launcher that finds every game on the PC
+// Seaglass is a Windows game launcher that finds every game on the PC
 // on its own, store installs and unofficial copies alike.
 package main
 
@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/app"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/app"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -23,8 +23,11 @@ var assets embed.FS
 // version is set at build time (-ldflags "-X main.version=v0.1.0").
 var version = "dev"
 
-// uniqueID keeps WaterLauncher to one instance per Windows session.
-const uniqueID = "nl.apollof.waterlauncher"
+// uniqueID keeps Seaglass to one instance per Windows session.
+const uniqueID = "nl.apollof.seaglass"
+
+// oldUniqueID is WaterLauncher's, from before the rename.
+const oldUniqueID = "nl.apollof.waterlauncher"
 
 func main() {
 	args := app.ParseArgs(os.Args[1:])
@@ -32,8 +35,19 @@ func main() {
 	if dev && args.Dev.DataDir != "" {
 		platform.UseAppDir(args.Dev.DataDir)
 	}
+	if args.Updated {
+		// Started by an update: the old version may still be closing
+		// (WaterLauncher, when it's the one that updated).
+		platform.WaitInstanceGone(uniqueID, 15*time.Second)
+		platform.WaitInstanceGone(oldUniqueID, 15*time.Second)
+	}
+	var moved []string
+	if !(dev && args.Dev.DataDir != "") && !platform.InstanceRunning(uniqueID) {
+		// WaterLauncher's library and settings.
+		moved = platform.MoveOldData(platform.InstanceRunning(oldUniqueID))
+	}
 	if args.Diagnostics {
-		// Works while WaterLauncher runs, or when its interface won't open.
+		// Works while Seaglass runs, or when its interface won't open.
 		core, err := app.NewCore(version)
 		if err != nil {
 			log.Fatal(err)
@@ -43,15 +57,11 @@ func main() {
 		}
 		return
 	}
-	if args.Updated {
-		// Started by an update: the old version may still be closing.
-		platform.WaitInstanceGone(uniqueID, 15*time.Second)
-	}
 	if platform.InstanceRunning(uniqueID) {
-		// Hand the arguments to the running WaterLauncher; Wails passes
+		// Hand the arguments to the running Seaglass; Wails passes
 		// them on and exits, before the library is even opened.
 		application.New(application.Options{
-			Name:           "WaterLauncher",
+			Name:           "Seaglass",
 			Assets:         application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 			SingleInstance: &application.SingleInstanceOptions{UniqueID: uniqueID},
 		})
@@ -72,7 +82,10 @@ func main() {
 		log.Fatal(err)
 	}
 	core.Frozen = dev && args.Dev.DataDir != ""
-	logx.Printf("WaterLauncher %s starting", version)
+	logx.Printf("Seaglass %s starting", version)
+	for _, m := range moved {
+		logx.Printf("rename: %s", m)
+	}
 	shell := app.NewShell(core)
 	launcher := app.NewLaunchService(core)
 
@@ -81,13 +94,12 @@ func main() {
 		browserArgs = append(browserArgs, "--remote-debugging-port="+strconv.Itoa(args.Dev.CDPPort))
 	}
 	wa := application.New(application.Options{
-		Name:        "WaterLauncher",
+		Name:        "Seaglass",
 		Description: "Game launcher that finds every game on your PC",
 		Services: []application.Service{
 			application.NewService(app.NewLibraryService(core)),
 			application.NewService(launcher),
 			application.NewService(app.NewSavesService(core)),
-			application.NewService(app.NewAddonsService(core)),
 			application.NewService(app.NewAccountsService(core)),
 			application.NewService(app.NewSettingsService(core)),
 			application.NewService(app.NewPadService(core)),
@@ -102,7 +114,7 @@ func main() {
 			OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
 				a := app.ParseArgs(d.Args)
 				switch {
-				case a.Quit: // the installer or uninstaller needs WaterLauncher closed
+				case a.Quit: // the installer or uninstaller needs Seaglass closed
 					logx.Printf("asked to quit")
 					application.Get().Quit()
 				case a.Play != 0:
@@ -115,7 +127,7 @@ func main() {
 		},
 		Windows: application.WindowsOptions{
 			WebviewUserDataPath: platform.CacheDir("webview"),
-			// The interface closes while a game runs; WaterLauncher keeps
+			// The interface closes while a game runs; Seaglass keeps
 			// going in the tray. Closing the window yourself still quits.
 			DisableQuitOnLastWindowClosed: true,
 			AdditionalBrowserArgs:         browserArgs,
