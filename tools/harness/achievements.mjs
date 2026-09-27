@@ -9,7 +9,9 @@
 // The unlock file that was there before (if any) is put back afterwards.
 import fs from "node:fs";
 import path from "node:path";
+import { auditPage } from "./audit.mjs";
 import { OUT, backupAppData, fakeGameExe, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { SIZES } from "./sizes.mjs";
 
 const APP = 400;
 const dir = path.join(OUT, "achievements");
@@ -113,6 +115,39 @@ try {
   await main.waitForFunction(() => (document.querySelector(".card.ach")?.textContent ?? "").includes("3 / 3"), null, { timeout: 10000 }).catch(() => {});
   const after = (await main.locator(".card.ach").textContent().catch(() => "")) ?? "";
   check("card shows the new count", after.includes("3 / 3"), after.replace(/\s+/g, " ").trim());
+
+  // Layout: the full list at every tour size, then big picture's screen
+  // (the only game is the focused one: △ opens its sheet).
+  const audit = async (name) => {
+    const found = {};
+    for (const [w, h, scale] of SIZES) {
+      await app.viewport(w, h, scale, main);
+      await sleep(400);
+      await app.shot(path.join(dir, name, `${w}x${h}.png`), main);
+      const issues = await main.evaluate(auditPage);
+      if (issues.length) found[`${w}x${h}`] = issues;
+    }
+    check(`${name}: no layout issues`, !Object.keys(found).length, JSON.stringify(found).slice(0, 400));
+  };
+  await main.locator(".card.ach").getByRole("button", { name: "Show all" }).click();
+  await main.locator(".dialog").waitFor();
+  await audit("desktop-dialog");
+  await main.keyboard.press("Escape");
+  await app.viewport(1920, 1080, 1, main);
+  await main.keyboard.press("F11");
+  await sleep(3000);
+  for (let k = 0; k < 5 && !(await main.locator(".sheet").count()); k++) {
+    await main.keyboard.press("i");
+    await sleep(800);
+  }
+  for (let k = 0; k < 8; k++) (await main.keyboard.press("ArrowRight"), await sleep(150));
+  const label = await main.evaluate(() => document.querySelector(".buttons .btn.on")?.textContent?.trim() ?? "");
+  check("big picture sheet has the achievements button", label.startsWith("Achievements"), label);
+  if (label.startsWith("Achievements")) await main.keyboard.press("Enter"); // anything else might start the game
+  await sleep(800);
+  const bp = await main.evaluate(() => document.querySelector(".screen")?.textContent ?? "");
+  check("big picture achievements screen", bp.includes("3 / 3"), bp.replace(/\s+/g, " ").slice(0, 80));
+  await audit("bigpicture-screen");
 } finally {
   await app?.quit();
   restoreAppData();
