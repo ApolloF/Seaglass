@@ -40,7 +40,12 @@ jobs:
       - name: Install NSIS
         run: |
           $nsis = "${env:ProgramFiles(x86)}\NSIS"
-          if (-not (Test-Path "$nsis\makensis.exe")) { choco install nsis -y --no-progress }
+          # Newer runner images don't have it; Chocolatey's feed sometimes answers 503.
+          for ($i = 0; $i -lt 4 -and -not (Test-Path "$nsis\makensis.exe"); $i++) {
+            if ($i) { Start-Sleep -Seconds 30 }
+            choco install nsis -y --no-progress
+          }
+          if (-not (Test-Path "$nsis\makensis.exe")) { throw 'NSIS could not be installed' }
           "MAKENSIS=$nsis\makensis.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Version
