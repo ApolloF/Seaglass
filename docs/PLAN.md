@@ -1,6 +1,6 @@
 # Seaglass plan
 
-Status: **v1.6 released** (2026-09-27: achievements from Steam, Epic, GOG and Steam emulators; section 24). v1.5 as Seaglass (2026-09-27: renamed from WaterLauncher, AGPL-3.0, new release key, Syncer install, hidden libraries, Orbit centre, PS button fix; section 23); v1.0 to v1.4 before it as WaterLauncher, v0.1 to v0.7 as prereleases. Alongside: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.11.1 and DLSS Updater 1.4.1. Code signing waits for a certificate ([SIGNING.md](SIGNING.md)). Section 17 has the v1.0 details and what comes after.
+Status: **v1.6.1 released** (2026-09-27: achievements from Steam, Epic, GOG and Steam emulators, section 24; 1.6.1 drops the empty achievements card on games with nothing to look up). v1.5 as Seaglass (2026-09-27: renamed from WaterLauncher, AGPL-3.0, new release key, Syncer install, hidden libraries, Orbit centre, PS button fix; section 23); v1.0 to v1.4 before it as WaterLauncher, v0.1 to v0.7 as prereleases. Alongside: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.11.1 and DLSS Updater 1.4.1. Code signing waits for a certificate ([SIGNING.md](SIGNING.md)). Section 17 has the v1.0 details and what comes after.
 Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxbm8vAr6i) (A Console, B Orbit, C Deck, D Desktop).
 
 ## 1. Goals
