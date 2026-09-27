@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
 )
@@ -16,14 +17,16 @@ import (
 func TestCrashCapture(t *testing.T) {
 	if os.Getenv("WL_CRASH_DIR") != "" {
 		captureCrashes(os.Getenv("WL_CRASH_DIR"))
-		done := make(chan struct{})
 		go func() { // outside the test's own recover
-			defer close(done)
 			var m map[string]int
 			m["boom"] = 1 // nil map: an unhandled panic
 		}()
-		<-done
-		return
+		// Wait for the crash to end the process. Nothing may signal back
+		// from the panicking goroutine: its deferred calls run while the
+		// panic unwinds, so the test could return (and the process exit 0)
+		// before the runtime ends it.
+		time.Sleep(time.Minute)
+		t.Fatal("the panic didn't end the process")
 	}
 	dir := t.TempDir()
 	if captureCrashes(dir) {
