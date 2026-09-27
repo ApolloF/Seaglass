@@ -164,9 +164,23 @@ var skipSections = map[string]bool{"steamachievements": true, "steam": true, "se
 //	OnlineFix:            achieved=true, timestamp=…
 //	CreamAPI:             achieved=true, unlocktime=… (seven digits: ×1000)
 //	ALI213:               HaveAchieved=1, HaveAchievedTime=…
+//
+// CODEX and RUNE also list what's unlocked, in unlock order, in
+// [SteamAchievements] (00000=ID, …, Count=N); an ID listed there without a
+// section of its own counts as unlocked. An achievement whose progress
+// reached its maximum is unlocked too (some games only report progress).
 func parseINIUnlocks(b []byte) (map[string]Unlock, error) {
 	out := map[string]Unlock{}
+	var listed []string
 	for _, s := range parseINI(b) {
+		if strings.EqualFold(s.name, "steamachievements") {
+			for k, v := range s.kv {
+				if k != "count" && isDigits(k) && strings.TrimSpace(v) != "" {
+					listed = append(listed, strings.TrimSpace(v))
+				}
+			}
+			continue
+		}
 		if s.name == "" || skipSections[strings.ToLower(s.name)] {
 			continue
 		}
@@ -188,7 +202,15 @@ func parseINIUnlocks(b []byte) (map[string]Unlock, error) {
 		if m, ok := first(s.kv, "maxprogress", "max_progress"); ok {
 			u.Max = num(m)
 		}
+		if u.Max > 0 && u.Progress >= u.Max {
+			u.Achieved = true
+		}
 		out[s.name] = u
+	}
+	for _, id := range listed {
+		if _, ok := out[id]; !ok {
+			out[id] = Unlock{Achieved: true}
+		}
 	}
 	if len(out) == 0 && !bytes.Contains(b, []byte("[")) && len(bytes.TrimSpace(b)) > 0 {
 		return nil, errFormat
