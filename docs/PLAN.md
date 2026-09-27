@@ -1,6 +1,6 @@
 # Seaglass plan
 
-Status: **v1.6.1 released** (2026-09-27: achievements from Steam, Epic, GOG and Steam emulators, section 24; 1.6.1 drops the empty achievements card on games with nothing to look up). v1.5 as Seaglass (2026-09-27: renamed from WaterLauncher, AGPL-3.0, new release key, Syncer install, hidden libraries, Orbit centre, PS button fix; section 23); v1.0 to v1.4 before it as WaterLauncher, v0.1 to v0.7 as prereleases. Alongside: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.11.1 and DLSS Updater 1.4.1. Code signing waits for a certificate ([SIGNING.md](SIGNING.md)). Section 17 has the v1.0 details and what comes after.
+Status: **v1.7 released** (2026-09-27: Ubisoft achievements on Uplay emulators, remake matching, launch sequence and return by the mode a game was started from, Bluetooth controller and window fixes; section 25). v1.6 (2026-09-27: achievements from Steam, Epic, GOG and Steam emulators, section 24; 1.6.1 drops the empty achievements card on games with nothing to look up). v1.5 as Seaglass (2026-09-27: renamed from WaterLauncher, AGPL-3.0, new release key, Syncer install, hidden libraries, Orbit centre, PS button fix; section 23); v1.0 to v1.4 before it as WaterLauncher, v0.1 to v0.7 as prereleases. Alongside: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.11.1 and DLSS Updater 1.4.1. Code signing waits for a certificate ([SIGNING.md](SIGNING.md)). Section 17 has the v1.0 details and what comes after.
 Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxbm8vAr6i) (A Console, B Orbit, C Deck, D Desktop).
 
 ## 1. Goals
@@ -484,6 +484,6 @@ Steam-style achievements for every game Seaglass can read: a card in the details
 
 ## To-do (maintainer)
 
-- [ ] **Back up the release key** (made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
+- [x] **Back up the release key** (backed up 2026-09-27; made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
 - [ ] **Apply to SignPath Foundation** (signpath.org) for Authenticode signing. Once approved: the project, signing policy and the `binaries` and `installer` artifact configurations in SignPath, then the `SIGNPATH_API_TOKEN` secret and `SIGNPATH_*` variables on GitHub ([SIGNING.md](SIGNING.md)). Until then releases carry the release-key signature but no Authenticode signature, so SmartScreen warns on first run.
 - [ ] Turn on GitHub's private vulnerability reporting (Settings → Security), which [SECURITY.md](../SECURITY.md) points to.
