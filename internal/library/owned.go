@@ -45,16 +45,21 @@ func (g *Game) storeID(store string) string {
 // ApplyOwned merges one store's owned games. A game already in the library
 // (found on this PC, installed or not anymore) is marked owned and gets the
 // install link; other games are added as owned-only, not installed.
-// Owned-only games the account no longer lists are removed.
+// Owned-only games the account no longer lists are removed, and so is the
+// mark this store gave a found game the account no longer lists.
 func (s *Store) ApplyOwned(store string, list []Owned, now time.Time) (added, removed int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ts := now.Unix()
-	// Games found on this PC, by their id at this store.
-	local := map[string]*Game{}
+	// Games found on this PC, by their id at this store (several copies
+	// can share one). The mark this store gave them is set again below.
+	local := map[string][]*Game{}
 	for _, g := range s.games {
 		if id := g.storeID(store); id != "" && !g.IsOwnedOnly() {
-			local[strings.ToLower(id)] = g
+			local[strings.ToLower(id)] = append(local[strings.ToLower(id)], g)
+			if g.Owned && strings.HasPrefix(g.InstallURI, installScheme(store)) {
+				g.Owned, g.InstallURI = false, ""
+			}
 		}
 	}
 	keep := map[string]bool{}
@@ -63,10 +68,12 @@ func (s *Store) ApplyOwned(store string, list []Owned, now time.Time) (added, re
 		if id == "" || strings.TrimSpace(o.Title) == "" {
 			continue
 		}
-		if g := local[id]; g != nil {
-			g.Owned, g.InstallURI = true, o.InstallURI
-			g.StorePlaytime = max(g.StorePlaytime, o.Playtime)
-			g.StoreLastPlayed = max(g.StoreLastPlayed, o.LastPlayed)
+		if gs := local[id]; len(gs) > 0 {
+			for _, g := range gs {
+				g.Owned, g.InstallURI = true, o.InstallURI
+				g.StorePlaytime = max(g.StorePlaytime, o.Playtime)
+				g.StoreLastPlayed = max(g.StoreLastPlayed, o.LastPlayed)
+			}
 			continue
 		}
 		key := OwnedKey(store, id)
@@ -109,8 +116,8 @@ func (s *Store) ApplyOwned(store string, list []Owned, now time.Time) (added, re
 	return added, removed
 }
 
-// ForgetOwned removes a store's owned-only games and the owned mark from
-// the others (the account was disconnected).
+// ForgetOwned removes a store's owned-only games and the owned mark it gave
+// the others, whatever their source (the account was disconnected).
 func (s *Store) ForgetOwned(store string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -119,7 +126,7 @@ func (s *Store) ForgetOwned(store string) int {
 		if strings.HasPrefix(k, ownedPrefix+store+":") {
 			s.dropLocked(g)
 			n++
-		} else if g.Source == store && g.Owned {
+		} else if g.Owned && strings.HasPrefix(g.InstallURI, installScheme(store)) {
 			g.Owned, g.InstallURI = false, ""
 		}
 	}
@@ -183,6 +190,20 @@ func (s *Store) mergeOwnedLocked() {
 func (s *Store) dropLocked(g *Game) {
 	delete(s.games, g.ID)
 	delete(s.byKey, g.Key)
+}
+
+// installScheme starts a store's install link, which tells which store
+// gave a game its owned mark.
+func installScheme(store string) string {
+	switch store {
+	case "steam":
+		return "steam://"
+	case "gog":
+		return "goggalaxy://"
+	case "epic":
+		return "com.epicgames.launcher://"
+	}
+	return store + "://"
 }
 
 func storeLabel(store string) string {

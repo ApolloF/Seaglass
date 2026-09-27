@@ -162,7 +162,7 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 	}
 	rel := Release{Tag: r.Tag, Notes: r.Body, Page: r.HTMLURL, Published: r.Published, assets: map[string]Asset{}}
 	if len(rel.Notes) > maxNotes {
-		rel.Notes = rel.Notes[:maxNotes] + "…"
+		rel.Notes = strings.ToValidUTF8(rel.Notes[:maxNotes], "") + "…" // drop a rune cut in half
 	}
 	if !strings.HasPrefix(rel.Page, "https://github.com/") {
 		rel.Page = ReleasesPage

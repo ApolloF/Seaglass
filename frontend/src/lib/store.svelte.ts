@@ -167,14 +167,15 @@ class LibraryStore {
   }
 
   async init() {
-    api.onLibraryChanged(() => void this.refresh());
-    api.onGamesUpdated((gs) => gs.forEach((g) => this.replace(g, true)));
     // An event that arrives while the first snapshot is still loading is
     // newer than it: the snapshot mustn't put the old state back. (The
     // window reopens as a game closes, and its session ends a few seconds
     // later, often while the library is still loading; a stale session
-    // left the game looking like it still ran.)
+    // left the game looking like it still ran.) Games changed meanwhile are
+    // read again once the snapshot is in.
     const fresh = new Set<string>();
+    api.onLibraryChanged(() => (fresh.add("games"), void this.refresh()));
+    api.onGamesUpdated((gs) => (fresh.add("games"), gs.forEach((g) => this.replace(g, true))));
     api.onScanState((s) => ((this.scan = s), fresh.add("scan")));
     api.onMetaState((s) => ((this.meta = s), fresh.add("meta")));
     api.launch.onSession((s) => ((this.session = s), fresh.add("session")));
@@ -198,6 +199,7 @@ class LibraryStore {
     if (!fresh.has("meta")) this.meta = meta;
     if (!fresh.has("session")) this.session = session;
     this.games = games;
+    if (fresh.has("games")) void this.refresh();
     this.settings = settings;
     if (!fresh.has("scan")) this.scan = scan;
     this.info = info;
@@ -220,11 +222,16 @@ class LibraryStore {
     return this.run(() => api.updates.install());
   }
 
+  private refreshSeq = 0;
   async refresh() {
+    // Two refreshes close together can resolve out of order: only the
+    // newest one's list is put in place.
+    const n = ++this.refreshSeq;
     try {
-      this.games = await api.games();
+      const gs = await api.games();
+      if (n === this.refreshSeq) this.games = gs;
     } catch (e) {
-      this.toast(String(e), "error");
+      this.toast(errText(e), "error");
     }
   }
 

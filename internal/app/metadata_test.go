@@ -56,3 +56,37 @@ func TestAdoptStoreMatch(t *testing.T) {
 		t.Errorf("confirmed game changed: %+v", c)
 	}
 }
+
+func TestMetaStale(t *testing.T) {
+	g := library.Game{SteamAppID: 10, Meta: &library.Meta{Cover: "a.jpg"}}
+	for _, c := range []struct {
+		name string
+		now  library.Game
+		want bool
+	}{
+		{"unchanged", g, false},
+		{"another game chosen", library.Game{SteamAppID: 20}, true},
+		{"gog id changed", library.Game{SteamAppID: 10, GogID: "1", Meta: g.Meta}, true},
+		{"metadata cleared", library.Game{SteamAppID: 10}, true},
+	} {
+		if got := metaStale(g, c.now); got != c.want {
+			t.Errorf("%s: metaStale = %v, want %v", c.name, got, c.want)
+		}
+	}
+	if metaStale(library.Game{SteamAppID: 10}, library.Game{SteamAppID: 10}) {
+		t.Error("a first fetch is not stale")
+	}
+}
+
+func TestSameArt(t *testing.T) {
+	a := &library.Meta{Cover: "a.jpg", Description: "old"}
+	if !sameArt(a, &library.Meta{Cover: "a.jpg", Description: "new"}) || !sameArt(nil, nil) {
+		t.Error("the same art should count as unchanged")
+	}
+	if sameArt(a, &library.Meta{Cover: "b.jpg", ArtOverrides: []string{"cover"}}) {
+		t.Error("a chosen cover should count as changed")
+	}
+	if sameArt(nil, &library.Meta{Cover: "b.jpg", ArtOverrides: []string{"cover"}}) {
+		t.Error("art chosen before the first fetch should count as changed")
+	}
+}

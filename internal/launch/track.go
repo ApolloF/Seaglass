@@ -37,11 +37,14 @@ type procInfo struct {
 // running from the game's folder. The folder rule covers launchers that
 // hand over to the game, and games started through a store or Steam.
 type tracker struct {
-	dirs  []string
-	root  uint32
-	self  uint32
-	known map[uint32]*procInfo
-	image func(pid uint32) (string, uint64, error)
+	dirs []string
+	root uint32
+	self uint32
+	// rootStarted is when the started process began, to tell it apart
+	// from a process that got its id after it exited.
+	rootStarted uint64
+	known       map[uint32]*procInfo
+	image       func(pid uint32) (string, uint64, error)
 }
 
 func newTracker(dirs []string, root, self uint32, image func(uint32) (string, uint64, error)) *tracker {
@@ -63,12 +66,24 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 	}
 	// Folder rule: look up each new process's exe once.
 	for _, p := range ps {
-		if p.PID == 0 || p.PID == 4 || p.PID == t.self || t.known[p.PID] != nil {
+		if p.PID == 0 || p.PID == 4 || p.PID == t.self {
+			continue
+		}
+		// A known id that now lists another exe was handed out again
+		// between polls: look it up afresh.
+		k := t.known[p.PID]
+		if k != nil && (k.path == "" || strings.EqualFold(p.Name, filepath.Base(k.path))) {
 			continue
 		}
 		info := &procInfo{}
 		if path, started, err := t.image(p.PID); err == nil {
+			if k != nil && k.started == started {
+				continue // the same process after all: keep what's known
+			}
 			info.path, info.started = path, started
+			if p.PID == t.root && t.rootStarted == 0 {
+				t.rootStarted = started
+			}
 			if isHelper(path) {
 				info.helper = true
 				t.known[p.PID] = info
@@ -100,6 +115,10 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 		}
 		for pid, n := p.PID, 0; pid != 0 && n < 16; pid, n = parent[pid], n+1 {
 			if pid == t.root {
+				// The root's id, now used by another process: not the game.
+				if r := t.known[pid]; alive[pid] && t.rootStarted != 0 && r != nil && r.started != t.rootStarted {
+					break
+				}
 				info.game = true // stays in once seen
 				out[p.PID] = info.started
 				break

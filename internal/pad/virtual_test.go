@@ -397,3 +397,129 @@ func TestPlugVirtual(t *testing.T) {
 	}
 	waitFor("unplugged", func(s State) bool { return !s.Connected })
 }
+
+// A hat-only controller unplugged while a direction is held lets go of it:
+// the direction doesn't go on repeating.
+func TestVirtualHatUnplugLetsGo(t *testing.T) {
+	actions := make(chan string, 64)
+	m := Start(func(a string, repeat bool) {
+		if repeat {
+			a += "+"
+		}
+		actions <- a
+	}, func(State) {})
+	defer m.Stop()
+	run := func(fn func(s *sdl)) {
+		done := make(chan struct{})
+		select {
+		case m.cmds <- func(s *sdl) { fn(s); close(done) }:
+			<-done
+		case <-time.After(3 * time.Second):
+			t.Fatal("SDL thread not ready")
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+	var joy, id uintptr
+	name := cstr("Seaglass Hat Pad")
+	run(func(s *sdl) {
+		attach, _ := s.dll.FindProc("SDL_AttachVirtualJoystick")
+		open, _ := s.dll.FindProc("SDL_OpenJoystick")
+		d := sdlVirtualJoystickDesc{Type: 1, NAxes: 6, NButtons: 11, NHats: 1, ButtonMask: 1<<11 - 1, AxisMask: 1<<6 - 1, Name: name}
+		d.Version = uint32(unsafe.Sizeof(d))
+		id, _, _ = attach.Call(uintptr(unsafe.Pointer(&d)))
+		joy, _, _ = open.Call(id)
+	})
+	if joy == 0 {
+		t.Fatal("virtual joystick not opened")
+	}
+	time.Sleep(200 * time.Millisecond)
+	run(func(s *sdl) {
+		set, _ := s.dll.FindProc("SDL_SetJoystickVirtualHat")
+		set.Call(joy, 0, 1) // up, held
+	})
+	time.Sleep(repeatDelay + 2*repeatEvery)
+	run(func(s *sdl) {
+		closeJ, _ := s.dll.FindProc("SDL_CloseJoystick")
+		detach, _ := s.dll.FindProc("SDL_DetachVirtualJoystick")
+		closeJ.Call(joy)
+		detach.Call(id)
+	})
+	time.Sleep(200 * time.Millisecond)
+	for len(actions) > 0 {
+		<-actions
+	}
+	time.Sleep(4 * repeatEvery)
+	if n := len(actions); n != 0 {
+		t.Errorf("%d actions after the pad was unplugged", n)
+	}
+}
+
+// Plugging the virtual controller in again replaces it, and a resting
+// stick's jitter on it doesn't take over from the controller in use.
+func TestPlugVirtualTwice(t *testing.T) {
+	m := Start(func(string, bool) {}, func(State) {})
+	defer m.Stop()
+	time.Sleep(300 * time.Millisecond)
+	waitFor := func(what string, ok func(State) bool) {
+		for k := 0; k < 60 && !ok(m.State()); k++ {
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !ok(m.State()) {
+			t.Fatalf("%s: state %+v", what, m.State())
+		}
+	}
+	count := func() int {
+		padsMu.Lock()
+		defer padsMu.Unlock()
+		return len(pads)
+	}
+	if err := m.PlugVirtual(PlayStation); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("playstation pad", func(s State) bool { return s.Connected && s.Kind == PlayStation })
+	if err := m.PlugVirtual(Xbox); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("xbox pad", func(s State) bool { return s.Connected && s.Kind == Xbox })
+	time.Sleep(200 * time.Millisecond)
+	if n := count(); n != 1 {
+		t.Errorf("%d controllers after plugging in again, want 1", n)
+	}
+
+	// A second controller, opened last, is the current one.
+	var joy, id uintptr
+	name := cstr("Seaglass Other Pad")
+	if err := m.sdlDo(func(s *sdl) error {
+		attach, _ := s.dll.FindProc("SDL_AttachVirtualJoystick")
+		open, _ := s.dll.FindProc("SDL_OpenJoystick")
+		d := sdlVirtualJoystickDesc{Type: 1, NAxes: 6, NButtons: 11, ButtonMask: 1<<11 - 1, AxisMask: 1<<6 - 1, Name: name}
+		d.Version = uint32(unsafe.Sizeof(d))
+		id, _, _ = attach.Call(uintptr(unsafe.Pointer(&d)))
+		joy, _, _ = open.Call(id)
+		return nil
+	}); err != nil || joy == 0 {
+		t.Fatal("second joystick not opened", err)
+	}
+	defer m.sdlDo(func(s *sdl) error {
+		closeJ, _ := s.dll.FindProc("SDL_CloseJoystick")
+		detach, _ := s.dll.FindProc("SDL_DetachVirtualJoystick")
+		closeJ.Call(joy)
+		detach.Call(id)
+		return nil
+	})
+	waitFor("other pad current", func(s State) bool { return s.Connected && s.Kind == Other })
+	for _, v := range []int16{300, -250, 400, 0} {
+		_ = m.VirtualAxis(VirtualAxes["lx"], v)
+		time.Sleep(30 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if s := m.State(); s.Kind != Other {
+		t.Errorf("stick jitter made the idle pad current: %+v", s)
+	}
+	_ = m.VirtualAxis(VirtualAxes["lx"], 20000)
+	waitFor("pushed pad current", func(s State) bool { return s.Kind == Xbox })
+	_ = m.VirtualAxis(VirtualAxes["lx"], 0)
+	if err := m.UnplugVirtual(); err != nil {
+		t.Fatal(err)
+	}
+}

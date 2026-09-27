@@ -1,6 +1,7 @@
 <script lang="ts">
   // Console layout: one row of games over full-screen art. Down shows the
   // selected game's details.
+  import { untrack } from "svelte";
   import GameArt from "../components/GameArt.svelte";
   import Icon from "../components/Icon.svelte";
   import Logo from "../components/Logo.svelte";
@@ -12,6 +13,7 @@
   import { isFresh, lib } from "../lib/store.svelte";
   import { title, type Game, type Saves } from "../lib/types";
   import Hints from "./Hints.svelte";
+  import { rowOffset } from "./nav";
   import Sections, { type Section } from "./Sections.svelte";
 
   type Props = {
@@ -37,6 +39,18 @@
   let details = $state(false);
   const n = $derived(games.length + 1); // + "All games"
   const g = $derived(games[i] ?? null);
+  // The list re-sorts (a game just played moves to the front): the cursor
+  // stays on the game, not on the slot. Re-find runs before the id is
+  // recorded again, so it still sees the old one.
+  let selId: number | null = null;
+  $effect(() => {
+    const list = games;
+    const k = selId === null ? -1 : list.findIndex((x) => x.id === selId);
+    if (k >= 0) untrack(() => k !== i && (i = k));
+  });
+  $effect(() => {
+    selId = g?.id ?? null;
+  });
   $effect(() => p.onfocus(g));
   $effect(() => {
     if (i >= n) i = Math.max(0, n - 1);
@@ -216,7 +230,7 @@
 
   const TILE = 172;
   const GAP = 20;
-  const rowX = $derived(-Math.max(0, i - 1) * (TILE + GAP));
+  const rowX = $derived(rowOffset(i, TILE, GAP));
   const logoSize = $derived(g ? Math.round(Math.min(130, 1500 / (title(g).length * 0.6))) : 100);
   let logoFailed = $state(false);
   $effect(() => {

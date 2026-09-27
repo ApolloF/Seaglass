@@ -17,10 +17,19 @@
 
   let { game }: { game: Game } = $props();
 
+  // Primitives the effects key on: `game` is a new object after every
+  // update of the game (a favourite, a playtime flush, a scan), and the
+  // session one after every poll while a game runs.
+  const gid = $derived(game.id);
+  const installed = $derived(game.installed);
+  const owned = $derived(!!game.owned);
+  const logo = $derived(game.meta?.logo);
+  const phase = $derived(lib.session?.phase);
+
   let matching = $state(false);
   let logoFailed = $state(false);
   $effect(() => {
-    game.meta?.logo;
+    logo;
     logoFailed = false;
   });
   const m = $derived(game.meta);
@@ -38,7 +47,7 @@
   let input: HTMLInputElement | undefined = $state();
 
   $effect(() => {
-    game.id;
+    gid;
     menuOpen = false;
     renaming = false;
   });
@@ -62,11 +71,11 @@
   let saves = $state<Saves | null>(null);
   const savesInfo = $derived(savesSummary(saves));
   $effect(() => {
-    const id = game.id;
-    const installed = game.installed;
-    lib.session?.phase; // ask again once a game session ends
+    const id = gid;
+    const inst = installed;
+    phase; // ask again once a game session ends
     saves = null;
-    if (!installed) return;
+    if (!inst) return;
     let live = true;
     const t = setTimeout(() => {
       api.saves
@@ -90,9 +99,9 @@
   const achInfo = $derived(achievementsSummary(ach));
   const achRecent = $derived(ach ? recentUnlocks(ach.items) : []);
   $effect(() => {
-    const id = game.id;
-    const show = achOn && (game.installed || !!game.owned);
-    lib.session?.phase;
+    const id = gid;
+    const show = achOn && (installed || owned);
+    phase;
     lib.achSession; // the backend read them again after a session
     if (id !== achFor) ach = null;
     achFor = id;
@@ -110,7 +119,7 @@
     };
   });
   $effect(() => {
-    game.id;
+    gid;
     achOpen = false;
   });
 
@@ -130,6 +139,7 @@
   }
 
   async function saveRename() {
+    if (!renaming) return; // Escape or Enter already ended it; the input's blur follows
     renaming = false;
     const t = draft.trim();
     if (t && t !== title(game)) await lib.run(() => api.rename(game.id, t === game.title ? "" : t));

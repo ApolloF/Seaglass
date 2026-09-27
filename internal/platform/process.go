@@ -119,4 +119,10 @@ func (w *ExitWatch) Close() { windows.CloseHandle(w.h) }
 // Crashed reports whether an exit code is one Windows gives a process
 // that crashed (an NTSTATUS error: an access violation, a stack overrun,
 // heap corruption, an unhandled exception, …) rather than one that quit.
-func Crashed(code uint32) bool { return code >= 0xC0000000 || code == 0x80000003 }
+func Crashed(code uint32) bool {
+	switch code {
+	case 0xFFFFFFFF, 0xC000013A: // exit(-1); STATUS_CONTROL_C_EXIT (console closed or Ctrl+C)
+		return false
+	}
+	return code >= 0xC0000000 || code == 0x80000003
+}

@@ -152,6 +152,9 @@ func pickExeCached(dir, title string) string {
 	}
 	fp := &fingerprint{}
 	exe := pickExe(dir, title, fp)
-	exeCache.put(key, exe, fp)
+	// An empty pick may be a folder still being extracted; look again next scan.
+	if exe != "" {
+		exeCache.put(key, exe, fp)
+	}
 	return exe
 }

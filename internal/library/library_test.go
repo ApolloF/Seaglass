@@ -237,6 +237,62 @@ func TestOwnedGames(t *testing.T) {
 	}
 }
 
+func TestOwnedMarkAcrossSources(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "library.json"))
+	now := time.Now()
+	found := []Found{
+		{Key: `c:\steam\common\portal`, Title: "Portal", Source: "steam", SteamAppID: 400},
+		{Key: `d:\repacks\portal`, Title: "Portal", Source: "installer", SteamAppID: 400},
+		{Key: `d:\games\hl2`, Title: "Half-Life 2", Source: "folder", SteamAppID: 220},
+		{Key: `d:\gog\witcher`, Title: "The Witcher", Source: "gog", GogID: "1207658924"},
+	}
+	s.ApplyScan(found, now)
+	byKey := func() map[string]Game {
+		m := map[string]Game{}
+		for _, g := range s.Games() {
+			m[g.Key] = g
+		}
+		return m
+	}
+	s.ApplyOwned("steam", []Owned{
+		{Store: "steam", ID: "400", Title: "Portal", InstallURI: "steam://install/400"},
+		{Store: "steam", ID: "220", Title: "Half-Life 2", InstallURI: "steam://install/220"},
+	}, now)
+	s.ApplyOwned("gog", []Owned{{Store: "gog", ID: "1207658924", Title: "The Witcher", InstallURI: "goggalaxy://openGameView/1207658924", Playtime: 3600}}, now)
+	g := byKey()
+	for _, k := range []string{`c:\steam\common\portal`, `d:\repacks\portal`, `d:\games\hl2`} {
+		if !g[k].Owned || g[k].InstallURI == "" {
+			t.Errorf("%s not marked owned: %+v", k, g[k])
+		}
+	}
+
+	// A rescan keeps Galaxy's playtime.
+	s.ApplyScan(found, now)
+	if w := byKey()[`d:\gog\witcher`]; w.StorePlaytime != 3600 || !w.Owned {
+		t.Errorf("GOG playtime lost on rescan: %+v", w)
+	}
+
+	// The account stops listing Half-Life 2: its mark goes, Portal keeps it.
+	s.ApplyOwned("steam", []Owned{{Store: "steam", ID: "400", Title: "Portal", InstallURI: "steam://install/400"}}, now)
+	g = byKey()
+	if hl := g[`d:\games\hl2`]; hl.Owned || hl.InstallURI != "" {
+		t.Errorf("unlisted game still owned: %+v", hl)
+	}
+	if !g[`d:\repacks\portal`].Owned || !g[`c:\steam\common\portal`].Owned {
+		t.Error("listed copies lost the mark")
+	}
+
+	// Disconnecting Steam clears the repack too, but not GOG's mark.
+	s.ForgetOwned("steam")
+	g = byKey()
+	if r := g[`d:\repacks\portal`]; r.Owned || r.InstallURI != "" {
+		t.Errorf("repack still owned after disconnecting Steam: %+v", r)
+	}
+	if !g[`d:\gog\witcher`].Owned {
+		t.Error("disconnecting Steam cleared GOG's mark")
+	}
+}
+
 func TestApplyScanEmuDir(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "library.json"))
 	if err != nil {

@@ -32,6 +32,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
@@ -323,6 +324,9 @@ func publish(tag string) error {
 	if err != nil {
 		return err
 	}
+	if err := trusted(k, update.ReleaseKeys); err != nil {
+		return err
+	}
 	var info struct {
 		IsDraft bool `json:"isDraft"`
 		Assets  []struct {
@@ -389,6 +393,16 @@ func publish(tag string) error {
 	return verify(tag)
 }
 
+// trusted fails when keys (the updater's release keys) is set but doesn't
+// hold k's public half: updaters would reject everything k signs.
+func trusted(k ed25519.PrivateKey, keys []ed25519.PublicKey) error {
+	pub := k.Public().(ed25519.PublicKey)
+	if len(keys) == 0 || slices.ContainsFunc(keys, func(r ed25519.PublicKey) bool { return r.Equal(pub) }) {
+		return nil
+	}
+	return fmt.Errorf("this PC's release key (%s) isn't in internal/update/keys.go; updaters would reject the release", base64.StdEncoding.EncodeToString(pub))
+}
+
 // verify checks a published release against the keys the updater knows.
 func verify(tag string) error {
 	dir, err := os.MkdirTemp("", "wl-verify-")
@@ -401,9 +415,13 @@ func verify(tag string) error {
 	}
 	list, _ := os.ReadFile(filepath.Join(dir, update.SumsAsset))
 	sig, _ := os.ReadFile(filepath.Join(dir, update.SigAsset))
+	// Check exactly what installed updaters check; only while keys.go has
+	// no key yet does this PC's key stand in for it.
 	keys := append([]ed25519.PublicKey(nil), update.ReleaseKeys...)
-	if k, err := load(); err == nil {
-		keys = append(keys, k.Public().(ed25519.PublicKey))
+	if len(keys) == 0 {
+		if k, err := load(); err == nil {
+			keys = append(keys, k.Public().(ed25519.PublicKey))
+		}
 	}
 	sums, err := update.VerifySums(keys, tag, list, sig)
 	if err != nil {

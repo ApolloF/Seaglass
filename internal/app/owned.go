@@ -290,10 +290,18 @@ func (s *AccountsService) EpicSignIn(pasted string) (Accounts, error) {
 	if err != nil {
 		return s.Get(), err
 	}
-	if err := saveEpic(epicAccount{Refresh: tok.RefreshToken, Account: tok.AccountID, Name: tok.DisplayName}); err != nil {
+	// Under the refresh lock, so a refresh of an older sign-in that's
+	// still running can't save its token over this one.
+	o := s.c.owned
+	o.epicMu.Lock()
+	err = saveEpic(epicAccount{Refresh: tok.RefreshToken, Account: tok.AccountID, Name: tok.DisplayName})
+	if err == nil {
+		o.epicTok = tok
+	}
+	o.epicMu.Unlock()
+	if err != nil {
 		return s.Get(), err
 	}
-	s.c.owned.setEpicToken(tok)
 	s.c.ach.clear() // Epic games can show progress now
 	logx.Printf("owned epic: signed in")
 	s.c.owned.run(ctx, "epic", func(ctx context.Context) ([]library.Owned, error) { return s.c.owned.client.Epic(ctx, tok.AccessToken) })
@@ -304,10 +312,18 @@ func (s *AccountsService) EpicSignIn(pasted string) (Accounts, error) {
 
 // EpicSignOut forgets the Epic sign-in and its owned games.
 func (s *AccountsService) EpicSignOut() (Accounts, error) {
-	if err := platform.SaveSecret(epicSecret, ""); err != nil {
+	// Under the refresh lock, so a refresh that's still running can't
+	// save the account back after it's forgotten.
+	o := s.c.owned
+	o.epicMu.Lock()
+	err := platform.SaveSecret(epicSecret, "")
+	if err == nil {
+		o.epicTok = owned.EpicToken{}
+	}
+	o.epicMu.Unlock()
+	if err != nil {
 		return s.Get(), err
 	}
-	s.c.owned.setEpicToken(owned.EpicToken{})
 	s.c.ach.clear()
 	s.c.Lib.ForgetOwned("epic")
 	s.c.owned.setStatus("epic", func(a *StoreAccount) { *a = StoreAccount{} })
@@ -345,13 +361,6 @@ func (o *ownedState) epicAccess(ctx context.Context) (access, account string, er
 	}
 	o.epicTok = tok
 	return tok.AccessToken, ep.Account, nil
-}
-
-// setEpicToken keeps a fresh sign-in's token (or forgets it).
-func (o *ownedState) setEpicToken(t owned.EpicToken) {
-	o.epicMu.Lock()
-	o.epicTok = t
-	o.epicMu.Unlock()
 }
 
 // ---- GOG sign-in (achievements) ----
@@ -421,13 +430,17 @@ func (s *AccountsService) GOGSignIn(pasted string) (Accounts, error) {
 	if err != nil {
 		return s.Get(), err
 	}
-	if err := saveGOG(gogAccount{Refresh: tok.RefreshToken, User: tok.UserID}); err != nil {
-		return s.Get(), err
-	}
+	// Under the refresh lock, like the Epic sign-in.
 	o := s.c.owned
 	o.gogMu.Lock()
-	o.gogTok, o.gogExp = tok, time.Now().Add(time.Duration(max(tok.ExpiresIn, 60))*time.Second)
+	err = saveGOG(gogAccount{Refresh: tok.RefreshToken, User: tok.UserID})
+	if err == nil {
+		o.gogTok, o.gogExp = tok, time.Now().Add(time.Duration(max(tok.ExpiresIn, 60))*time.Second)
+	}
 	o.gogMu.Unlock()
+	if err != nil {
+		return s.Get(), err
+	}
 	s.c.ach.clear()
 	logx.Printf("gog: signed in for achievements")
 	a := s.Get()
@@ -437,13 +450,16 @@ func (s *AccountsService) GOGSignIn(pasted string) (Accounts, error) {
 
 // GOGSignOut forgets the GOG sign-in.
 func (s *AccountsService) GOGSignOut() (Accounts, error) {
-	if err := platform.SaveSecret(gogSecret, ""); err != nil {
-		return s.Get(), err
-	}
 	o := s.c.owned
 	o.gogMu.Lock()
-	o.gogTok, o.gogExp = owned.GOGToken{}, time.Time{}
+	err := platform.SaveSecret(gogSecret, "")
+	if err == nil {
+		o.gogTok, o.gogExp = owned.GOGToken{}, time.Time{}
+	}
 	o.gogMu.Unlock()
+	if err != nil {
+		return s.Get(), err
+	}
 	s.c.ach.clear()
 	a := s.Get()
 	s.c.emit(EventAccounts, a)

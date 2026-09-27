@@ -17,7 +17,8 @@
     onfocus,
     onback,
     onsection,
-  }: { width: number; onplay: (g: Game) => void; oninfo: (g: Game) => void; onfocus: (g: Game | null) => void; onback: () => void; onsection: (s: Section) => void } = $props();
+    active = true,
+  }: { width: number; active?: boolean; onplay: (g: Game) => void; oninfo: (g: Game) => void; onfocus: (g: Game | null) => void; onback: () => void; onsection: (s: Section) => void } = $props();
 
   const KEYS = [..."1234567890", ..."qwertyuiop", ..."asdfghjkl'", ..."zxcvbnm-:.", "space", "del", "clear", "done"];
   const COLS = 10;
@@ -122,7 +123,10 @@
   );
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    // A sheet, quick access or the launch sequence on top gets its keys.
+    if (!active || e.ctrlKey || e.altKey || e.metaKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") return;
     // Typed characters go into the search, not to the shortcuts (X, I, Q, …).
     const space = e.key === " " && typing && query !== "";
     if (space || (e.key.length === 1 && e.key !== " " && /[\p{L}\p{N}'\-:.&!]/u.test(e.key))) {

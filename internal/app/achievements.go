@@ -132,7 +132,11 @@ func (a *achState) last(id int64) (achievements.Entry, bool) {
 	}
 	if e, ok = a.cache.Load(id); ok {
 		a.mu.Lock()
-		a.mem[id] = e
+		if cur, had := a.mem[id]; had {
+			e = cur // a read that finished meanwhile is newer than the file
+		} else {
+			a.mem[id] = e
+		}
 		a.mu.Unlock()
 	}
 	return e, ok
@@ -148,12 +152,23 @@ func (a *achState) get(ctx context.Context, id int64, fresh bool) (achievements.
 	if !a.c.Settings.Get().Achievements {
 		return achievements.List{GameID: id, Items: []achievements.Achievement{}}, nil
 	}
-	a.run.Lock()
-	defer a.run.Unlock()
 	d := a.deps()
 	stamp := achStamp(g, d)
-	if e, ok := a.last(id); ok && !fresh && e.Stamp == stamp && (!e.Net || time.Since(time.Unix(e.List.UpdatedAt, 0)) < netResultAge) {
-		return e.List, nil
+	hit := func() (achievements.List, bool) {
+		e, ok := a.last(id)
+		if ok && !fresh && e.Stamp == stamp && (!e.Net || time.Since(time.Unix(e.List.UpdatedAt, 0)) < netResultAge) {
+			return e.List, true
+		}
+		return achievements.List{}, false
+	}
+	// A cached result doesn't wait for another game's read.
+	if l, ok := hit(); ok {
+		return l, nil
+	}
+	a.run.Lock()
+	defer a.run.Unlock()
+	if l, ok := hit(); ok { // read by another call meanwhile
+		return l, nil
 	}
 	d.Offline = a.active()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
