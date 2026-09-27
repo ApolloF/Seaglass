@@ -205,6 +205,7 @@ jobs:
           if (-not (Test-Path "$old\WaterLauncher.exe")) { throw 'WaterLauncher 1.4 did not install' }
           New-Item -ItemType Directory "$env:APPDATA\WaterLauncher" -Force | Out-Null
           '{"games":[]}' | Out-File "$env:APPDATA\WaterLauncher\library.json" -Encoding ascii
+          if (-not (Test-Path $run)) { New-Item $run -Force | Out-Null } # missing on some runners
           Set-ItemProperty $run -Name WaterLauncher -Value "`"$old\WaterLauncher.exe`" --tray"
           $i = Start-Process bin/Seaglass-setup.exe -ArgumentList "/S /relaunch /tray /D=$old" -PassThru
           $i.WaitForExit()
