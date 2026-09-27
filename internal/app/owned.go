@@ -58,6 +58,9 @@ type ownedState struct {
 	mu     sync.Mutex
 	status map[string]StoreAccount // steam, gog, epic: last sync outcome
 	busy   bool
+
+	epicMu  sync.Mutex // one Epic token refresh at a time
+	epicTok owned.EpicToken
 }
 
 func newOwnedState(c *Core) *ownedState {
@@ -141,18 +144,13 @@ func (o *ownedState) sync(ctx context.Context) {
 	if o.c.Settings.Get().OwnedGOG {
 		o.run(ctx, "gog", func(context.Context) ([]library.Owned, error) { return owned.GOG(owned.GalaxyDB()) })
 	}
-	if ep, ok := loadEpic(); ok {
+	if _, ok := loadEpic(); ok {
 		o.run(ctx, "epic", func(ctx context.Context) ([]library.Owned, error) {
-			tok, err := o.client.EpicRefresh(ctx, ep.Refresh)
+			access, _, err := o.epicAccess(ctx)
 			if err != nil {
 				return nil, err
 			}
-			// Epic hands out a new refresh token each time; keep the newest.
-			ep.Refresh = tok.RefreshToken
-			if err := saveEpic(ep); err != nil {
-				logx.Printf("owned: saving Epic sign-in: %v", err)
-			}
-			return o.client.Epic(ctx, tok.AccessToken)
+			return o.client.Epic(ctx, access)
 		})
 	}
 }
@@ -285,6 +283,8 @@ func (s *AccountsService) EpicSignIn(pasted string) (Accounts, error) {
 	if err := saveEpic(epicAccount{Refresh: tok.RefreshToken, Account: tok.AccountID, Name: tok.DisplayName}); err != nil {
 		return s.Get(), err
 	}
+	s.c.owned.setEpicToken(tok)
+	s.c.ach.clear() // Epic games can show progress now
 	logx.Printf("owned epic: signed in")
 	s.c.owned.run(ctx, "epic", func(ctx context.Context) ([]library.Owned, error) { return s.c.owned.client.Epic(ctx, tok.AccessToken) })
 	s.c.emit(EventLibraryChanged, "owned")
@@ -297,8 +297,49 @@ func (s *AccountsService) EpicSignOut() (Accounts, error) {
 	if err := platform.SaveSecret(epicSecret, ""); err != nil {
 		return s.Get(), err
 	}
+	s.c.owned.setEpicToken(owned.EpicToken{})
+	s.c.ach.clear()
 	s.c.Lib.ForgetOwned("epic")
 	s.c.owned.setStatus("epic", func(a *StoreAccount) { *a = StoreAccount{} })
 	s.c.emit(EventLibraryChanged, "owned")
 	return s.Get(), nil
+}
+
+// epicAccess returns an access token for the signed-in Epic account,
+// refreshing it when it's (nearly) expired. Epic hands out a new refresh
+// token with each refresh; the newest is kept. One refresh at a time, so
+// the owned-games sync and achievements don't spend each other's token.
+func (o *ownedState) epicAccess(ctx context.Context) (access, account string, err error) {
+	o.epicMu.Lock()
+	defer o.epicMu.Unlock()
+	ep, ok := loadEpic()
+	if !ok {
+		return "", "", errors.New("not signed in to Epic")
+	}
+	if t := o.epicTok; t.AccessToken != "" && t.RefreshToken == ep.Refresh && time.Until(t.ExpiresAt) > 5*time.Minute {
+		return t.AccessToken, ep.Account, nil
+	}
+	tok, err := o.client.EpicRefresh(ctx, ep.Refresh)
+	if err != nil {
+		return "", "", err
+	}
+	if tok.ExpiresAt.IsZero() {
+		tok.ExpiresAt = time.Now().Add(time.Hour)
+	}
+	ep.Refresh = tok.RefreshToken
+	if tok.AccountID != "" {
+		ep.Account = tok.AccountID
+	}
+	if err := saveEpic(ep); err != nil {
+		logx.Printf("owned: saving Epic sign-in: %v", err)
+	}
+	o.epicTok = tok
+	return tok.AccessToken, ep.Account, nil
+}
+
+// setEpicToken keeps a fresh sign-in's token (or forgets it).
+func (o *ownedState) setEpicToken(t owned.EpicToken) {
+	o.epicMu.Lock()
+	o.epicTok = t
+	o.epicMu.Unlock()
 }

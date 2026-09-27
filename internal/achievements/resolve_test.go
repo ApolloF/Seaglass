@@ -14,11 +14,14 @@ import (
 )
 
 type fakeNet struct {
-	schema  []Def
-	player  map[string]Unlock
-	rarity  map[string]float64
-	calls   []string
-	noneFor int
+	epicDefs   []Def
+	epicRarity map[string]float64
+	epicPlayer map[string]Unlock
+	schema     []Def
+	player     map[string]Unlock
+	rarity     map[string]float64
+	calls      []string
+	noneFor    int
 }
 
 func (f *fakeNet) SteamAchievementSchema(_ context.Context, key string, app int, lang string) ([]Def, error) {
@@ -197,5 +200,66 @@ func TestStampAndCache(t *testing.T) {
 	c.Clear()
 	if _, ok := c.Load(3); ok {
 		t.Error("cleared cache still loads")
+	}
+}
+
+func (f *fakeNet) EpicAchievements(_ context.Context, sandbox, locale string) ([]Def, map[string]float64, error) {
+	f.calls = append(f.calls, "epic:"+sandbox+":"+locale)
+	if f.epicDefs == nil {
+		return nil, nil, ErrNone
+	}
+	return f.epicDefs, f.epicRarity, nil
+}
+
+func (f *fakeNet) EpicPlayerAchievements(_ context.Context, access, account, sandbox string) (map[string]Unlock, error) {
+	f.calls = append(f.calls, "epicPlayer:"+access+":"+account)
+	return f.epicPlayer, nil
+}
+
+func TestResolveEpic(t *testing.T) {
+	net := &fakeNet{
+		epicDefs:   []Def{{ID: "a1", Name: "First"}, {ID: "a2", Name: "Second", Hidden: true}},
+		epicRarity: map[string]float64{"a1": 40},
+		epicPlayer: map[string]Unlock{"a1": {Achieved: true, At: 9}},
+	}
+	d := testDeps(t, t.TempDir(), net)
+	d.EpicLocale = "de"
+	g := library.Game{ID: 6, Source: "epic", EpicApp: "ns123:item:App"}
+
+	// Not signed in: the list, and how to see progress.
+	l, _ := Resolve(context.Background(), g, d)
+	if l.Total != 2 || l.Unlocked != 0 || !strings.Contains(l.Hint, "Sign in to Epic") || l.Items[0].Percent == nil {
+		t.Fatalf("anonymous: %+v", l)
+	}
+	if net.calls[0] != "epic:ns123:de" {
+		t.Errorf("calls %v", net.calls)
+	}
+	// Signed in: progress too; the schema comes from the cache.
+	net.calls = nil
+	d.Epic = func(context.Context) (string, string, error) { return "tok", "acc", nil }
+	l, _ = Resolve(context.Background(), g, d)
+	if l.Unlocked != 1 || l.Hint != "" || strings.Join(net.calls, ",") != "epicPlayer:tok:acc" {
+		t.Errorf("signed in: %+v calls %v", l, net.calls)
+	}
+	// Epic says none.
+	g.EpicApp = "empty:x:y"
+	net.epicDefs = nil
+	if l, _ = Resolve(context.Background(), g, d); l.Total != 0 || l.Hint != "" {
+		t.Errorf("none: %+v", l)
+	}
+}
+
+func TestResolveEpicEmulator(t *testing.T) {
+	root := t.TempDir()
+	mk(t, root, map[string]string{
+		"game/nemirtingasepicemu.json":                            `{"AppId":"ns9"}`,
+		"Roaming/NemirtingasEpicEmu/Player/ns9/achievements.json": `[{"AchievementId":"a1","Progress":1}]`,
+	})
+	net := &fakeNet{epicDefs: []Def{{ID: "a1", Name: "First"}, {ID: "a2", Name: "Second"}}}
+	d := testDeps(t, root, net)
+	g := library.Game{ID: 8, Source: "folder", Unofficial: true, Emulator: "Epic emulator", Dir: filepath.Join(root, "game")}
+	l, _ := Resolve(context.Background(), g, d)
+	if l.Source != "Epic emulator" || l.Total != 2 || l.Unlocked != 1 || l.Items[0].UnlockedAt != 0 || l.Hint != "" {
+		t.Errorf("%+v", l)
 	}
 }

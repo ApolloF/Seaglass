@@ -2,6 +2,7 @@ package owned
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -76,5 +77,54 @@ func TestSteamAchievements(t *testing.T) {
 	}
 	if _, err := c.SteamAchievementSchema(ctx, "nokey", 620, "english"); err == nil {
 		t.Error("an invalid key must fail before calling Steam")
+	}
+}
+
+func TestEpicAchievements(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query     string            `json:"query"`
+			Variables map[string]string `json:"variables"`
+		}
+		if r.Method != "POST" || r.Header.Get("Content-Type") != "application/json" || json.NewDecoder(r.Body).Decode(&req) != nil {
+			t.Errorf("bad request %s %s", r.Method, r.Header.Get("Content-Type"))
+		}
+		switch {
+		case strings.Contains(req.Query, "PlayerAchievement"):
+			if r.Header.Get("Authorization") != "bearer tok" || req.Variables["epicAccountId"] != "acc" {
+				w.WriteHeader(401)
+				return
+			}
+			w.Write([]byte(`{"data":{"PlayerAchievement":{"playerAchievementGameRecordsBySandbox":{"records":[{"playerAchievements":[
+				{"playerAchievement":{"achievementName":"a1","unlocked":true,"unlockDate":"2023-11-14T22:13:20.000Z","progress":1}},
+				{"playerAchievement":{"achievementName":"a2","unlocked":false,"unlockDate":"0001-01-01T00:00:00.000Z","progress":0.5}}]}]}}}}`))
+		case req.Variables["sandboxId"] == "none":
+			w.Write([]byte(`{"data":{"Achievement":{"productAchievementsRecordBySandbox":null}}}`))
+		default:
+			if r.Header.Get("Authorization") != "" || req.Variables["locale"] != "de" {
+				t.Errorf("definitions request: auth %q locale %q", r.Header.Get("Authorization"), req.Variables["locale"])
+			}
+			w.Write([]byte(`{"data":{"Achievement":{"productAchievementsRecordBySandbox":{"achievements":[
+				{"achievement":{"name":"a1","hidden":false,"unlockedDisplayName":"Eins","lockedDisplayName":"?","unlockedDescription":"d","unlockedIconLink":"https://cdn1.epicgames.com/a1.png","lockedIconLink":"https://cdn1.epicgames.com/a1l.png","rarity":{"percent":12.5}}},
+				{"achievement":{"name":"a2","hidden":true,"unlockedDisplayName":"","lockedDisplayName":"Zwei","rarity":{"percent":0}}}]}}}}`))
+		}
+	}))
+	defer srv.Close()
+	c := NewClient()
+	c.base = map[string]string{"launcher.store.epicgames.com": srv.URL}
+	ctx := context.Background()
+	defs, rarity, err := c.EpicAchievements(ctx, "ns", EpicLocale("german"))
+	if err != nil || len(defs) != 2 || defs[0].Name != "Eins" || defs[0].IconGray == "" || defs[1].Name != "Zwei" || !defs[1].Hidden || rarity["a1"] != 12.5 {
+		t.Fatalf("defs %+v rarity %v err %v", defs, rarity, err)
+	}
+	if _, _, err := c.EpicAchievements(ctx, "none", "en-US"); !errors.Is(err, ErrNoAchievements) {
+		t.Errorf("none: %v", err)
+	}
+	u, err := c.EpicPlayerAchievements(ctx, "tok", "acc", "ns")
+	if err != nil || !u["a1"].Achieved || u["a1"].At != 1_700_000_000 || u["a2"].Achieved || u["a2"].At != 0 {
+		t.Errorf("player %+v %v", u, err)
+	}
+	if _, err := c.EpicPlayerAchievements(ctx, "old", "acc", "ns"); err == nil || !strings.Contains(err.Error(), "sign in again") {
+		t.Errorf("expired sign-in: %v", err)
 	}
 }

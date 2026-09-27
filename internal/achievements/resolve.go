@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ApolloF/Seaglass/internal/library"
@@ -18,6 +19,8 @@ type Net interface {
 	SteamAchievementSchema(ctx context.Context, key string, appID int, lang string) ([]Def, error)
 	SteamPlayerAchievements(ctx context.Context, key, steamID string, appID int) (map[string]Unlock, error)
 	SteamRarity(ctx context.Context, appID int) (map[string]float64, error)
+	EpicAchievements(ctx context.Context, sandbox, locale string) ([]Def, map[string]float64, error)
+	EpicPlayerAchievements(ctx context.Context, access, account, sandbox string) (map[string]Unlock, error)
 }
 
 // Deps is everything Resolve works with besides the game.
@@ -29,9 +32,14 @@ type Deps struct {
 	SteamKey      string   // the user's Steam Web API key ("" = none)
 	SteamID       string   // steamID64 of the account in use
 	Net           Net      // nil: nothing is asked online
-	Offline       bool     // don't go online now (a game is running)
-	Cache         *Cache
-	Icons         *Icons
+	// EpicLocale is Epic's name for Lang ("de", "en-US", …).
+	EpicLocale string
+	// Epic returns a signed-in Epic account's access token; nil when
+	// nobody is signed in.
+	Epic    func(ctx context.Context) (access, account string, err error)
+	Offline bool // don't go online now (a game is running)
+	Cache   *Cache
+	Icons   *Icons
 }
 
 func (d Deps) online() bool { return d.Net != nil && !d.Offline }
@@ -100,6 +108,8 @@ func Resolve(ctx context.Context, g library.Game, d Deps) (l *List, net bool) {
 	case g.Source == "steam":
 		net = resolveSteam(ctx, app, d, l)
 		steamIDs = true
+	case g.Source == "epic":
+		net = resolveEpic(ctx, g, d, l)
 	default:
 		l.Hint = "Seaglass can't read achievements from " + storeName(g.Source) + " yet."
 	}
@@ -155,6 +165,11 @@ func resolveEmu(ctx context.Context, g library.Game, d Deps, l *List) (net bool)
 	none := false
 	if len(defs) == 0 && eg.AppID > 0 && l.Source != "Epic emulator" {
 		defs, none, net = steamWebSchema(ctx, eg.AppID, d)
+	}
+	if len(defs) == 0 && l.Source == "Epic emulator" && eg.EpicID != "" {
+		var rarity map[string]float64
+		defs, rarity, none, net = epicSchema(ctx, eg.EpicID, d)
+		defer l.SetRarity(rarity)
 	}
 	unlocks := res.Unlocks
 	if res.Hashed {
@@ -264,4 +279,69 @@ func steamRarity(ctx context.Context, app int, d Deps) (map[string]float64, bool
 	}
 	d.Cache.putSchema("rarity-steam", id, "", schemaFile{Rarity: r, None: len(r) == 0})
 	return r, true
+}
+
+// EpicSandbox is an Epic game's sandbox: the namespace of
+// "namespace:catalogItem:appName".
+func EpicSandbox(epicApp string) string {
+	ns, _, _ := strings.Cut(epicApp, ":")
+	return ns
+}
+
+func resolveEpic(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
+	l.Source = "epic"
+	sandbox := EpicSandbox(g.EpicApp)
+	if sandbox == "" {
+		l.Hint = "Seaglass doesn't know this game's Epic id."
+		return false
+	}
+	defs, rarity, none, net := epicSchema(ctx, sandbox, d)
+	var unlocks map[string]Unlock
+	signedIn := d.Epic != nil
+	if signedIn && len(defs) > 0 && d.online() {
+		access, account, err := d.Epic(ctx)
+		if err == nil {
+			unlocks, err = d.Net.EpicPlayerAchievements(ctx, access, account, sandbox)
+			net = true
+		}
+		if err != nil {
+			l.Hint = "Epic didn't answer about your progress; try again later."
+		}
+	}
+	l.Items = Merge(defs, unlocks)
+	l.SetRarity(rarity)
+	switch {
+	case len(defs) == 0 && none:
+	case len(defs) == 0 && !d.online():
+		l.Hint = "Seaglass reads Epic achievements once the game is closed."
+	case len(defs) == 0:
+		l.Hint = "Epic didn't answer; try again later."
+	case !signedIn:
+		l.Hint = "Sign in to Epic in Settings → Accounts to see your progress."
+	}
+	return net
+}
+
+// epicSchema is an Epic game's achievements and rarity, through the cache.
+func epicSchema(ctx context.Context, sandbox string, d Deps) (defs []Def, rarity map[string]float64, none, net bool) {
+	locale := d.EpicLocale
+	if locale == "" {
+		locale = "en-US"
+	}
+	if s, ok := d.Cache.schema("epic", sandbox, locale, RarityTTL); ok {
+		return s.Defs, s.Rarity, s.None, false
+	}
+	if !d.online() {
+		return nil, nil, false, false
+	}
+	defs, rarity, err := d.Net.EpicAchievements(ctx, sandbox, locale)
+	switch {
+	case errors.Is(err, ErrNone):
+		d.Cache.putSchema("epic", sandbox, locale, schemaFile{None: true})
+		return nil, nil, true, true
+	case err != nil:
+		return nil, nil, false, true
+	}
+	d.Cache.putSchema("epic", sandbox, locale, schemaFile{Defs: defs, Rarity: rarity})
+	return defs, rarity, false, true
 }

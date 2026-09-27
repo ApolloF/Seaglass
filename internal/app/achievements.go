@@ -79,6 +79,10 @@ func (a *achState) liveDeps() achievements.Deps {
 		Net: a.net, Cache: a.cache, Icons: a.icons,
 	}
 	d.SteamAccounts = scan.SteamAccounts(d.SteamRoot)
+	d.EpicLocale = owned.EpicLocale(d.Lang)
+	if _, ok := loadEpic(); ok && a.c.owned != nil {
+		d.Epic = a.c.owned.epicAccess
+	}
 	if d.SteamKey != "" {
 		if id, err := owned.SteamID(); err == nil {
 			d.SteamID = id
@@ -90,7 +94,7 @@ func (a *achState) liveDeps() achievements.Deps {
 // stamp sums up what a game's result depends on.
 func achStamp(g library.Game, d achievements.Deps) string {
 	return achievements.Stamp(achievements.Files(g, d),
-		"v1", d.Lang, strconv.FormatBool(d.SteamKey != ""), g.Source, g.Emulator, g.EmuDir, g.Dir,
+		"v1", d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
 		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID)
 }
 
