@@ -234,6 +234,9 @@ func (c *Core) plan(g library.Game) launch.Plan {
 func (c *Core) onSession(s launch.Session) {
 	c.emit(EventSession, s)
 	if !s.Phase.Done() {
+		if c.ach != nil {
+			c.ach.sessionStarted(s.ID, s.GameID)
+		}
 		return
 	}
 	c.stateMu.Lock()
@@ -244,7 +247,9 @@ func (c *Core) onSession(s launch.Session) {
 		return
 	}
 	if s.GameID > 0 && s.StartedAt > 0 && c.ach != nil {
-		go c.ach.afterSession(s.GameID, s.Title, 3*time.Second)
+		go c.ach.afterSession(s.ID, s.GameID, s.Title, 3*time.Second)
+	} else if c.ach != nil {
+		c.ach.forget(s.ID) // the game never ran
 	}
 	if s.StartedAt > 0 {
 		logx.Printf("played %q for %s", s.Title, (time.Duration(s.Seconds) * time.Second).String())

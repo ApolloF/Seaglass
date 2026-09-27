@@ -93,3 +93,49 @@ func TestNewlyUnlocked(t *testing.T) {
 		t.Errorf("got %+v", got)
 	}
 }
+
+// Unlocks read while the game runs (the interface asks again at each
+// phase) still count as the session's: "before" is taken as it starts.
+func TestSessionBaseline(t *testing.T) {
+	c, id, unlocks := achTestCore(t)
+	a := c.ach
+	if _, err := a.get(c.ctx, id, false); err != nil {
+		t.Fatal(err)
+	}
+	a.sessionStarted(7, id)
+	a.sessionStarted(7, id) // again, later phases: kept as it was
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		a.mu.Lock()
+		b := a.baseline[7]
+		a.mu.Unlock()
+		if b.GameID == id || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := os.WriteFile(unlocks, []byte(`{"A":{"earned":true,"earned_time":1700000000},"B":{"earned":true,"earned_time":1700000100}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(2 * time.Second)
+	_ = os.Chtimes(unlocks, later, later)
+	if l, _ := a.get(c.ctx, id, false); l.Unlocked != 2 { // the interface, mid-session
+		t.Fatalf("mid-session read: %+v", l)
+	}
+	a.mu.Lock()
+	before := a.baseline[7]
+	a.mu.Unlock()
+	after, _ := a.get(c.ctx, id, true)
+	if fresh := newlyUnlocked(before, after); len(fresh) != 1 || fresh[0].ID != "B" {
+		t.Errorf("session unlocked %+v", fresh)
+	}
+	a.afterSession(7, id, "Game", 0)
+	a.sessionStarted(8, id)
+	a.forget(8)
+	a.mu.Lock()
+	n := len(a.baseline)
+	a.mu.Unlock()
+	if n != 0 {
+		t.Errorf("baselines left: %d", n)
+	}
+}

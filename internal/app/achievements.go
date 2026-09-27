@@ -50,6 +50,8 @@ type achState struct {
 	run sync.Mutex // one resolve at a time
 	mu  sync.Mutex
 	mem map[int64]achievements.Entry
+	// baseline is what each running session's game had unlocked when it started.
+	baseline map[int64]achievements.List
 }
 
 func newAchState(c *Core, client *owned.Client, mc *meta.Client) *achState {
@@ -163,14 +165,54 @@ func (a *achState) clear() {
 	a.cache.Clear()
 }
 
+// sessionStarted keeps what the game had unlocked when a session began
+// (once per session), to tell afterwards what the session added. The
+// interface may read the achievements again while the game runs, so the
+// last result at the end isn't "before" anymore. Without a result yet,
+// one is read now, from local files only (the game is starting).
+func (a *achState) sessionStarted(sessionID, gameID int64) {
+	if sessionID <= 0 || gameID <= 0 || !a.c.Settings.Get().Achievements {
+		return
+	}
+	a.mu.Lock()
+	if a.baseline == nil {
+		a.baseline = map[int64]achievements.List{}
+	}
+	if _, ok := a.baseline[sessionID]; ok {
+		a.mu.Unlock()
+		return
+	}
+	a.baseline[sessionID] = achievements.List{GameID: -1} // taken; filled in below
+	a.mu.Unlock()
+	go func() {
+		e, ok := a.last(gameID)
+		l := e.List
+		if !ok {
+			var err error
+			if l, err = a.get(a.c.ctx, gameID, false); err != nil {
+				return
+			}
+		}
+		a.mu.Lock()
+		if b, ok := a.baseline[sessionID]; ok && b.GameID == -1 {
+			a.baseline[sessionID] = l
+		}
+		a.mu.Unlock()
+	}()
+}
+
 // afterSession reads a game's achievements again once it has exited and
 // tells the interface which ones the session unlocked. Emulators write
 // their files as the game closes, so it waits a moment first.
-func (a *achState) afterSession(gameID int64, title string, wait time.Duration) {
+func (a *achState) afterSession(sessionID, gameID int64, title string, wait time.Duration) {
 	if !a.c.Settings.Get().Achievements {
 		return
 	}
-	before, had := a.last(gameID)
+	a.mu.Lock()
+	before, had := a.baseline[sessionID]
+	delete(a.baseline, sessionID)
+	a.mu.Unlock()
+	had = had && before.GameID == gameID
 	select {
 	case <-a.c.ctx.Done():
 		return
@@ -180,7 +222,7 @@ func (a *achState) afterSession(gameID int64, title string, wait time.Duration) 
 	if err != nil || !had {
 		return // without a list from before, every unlock would look new
 	}
-	if fresh := newlyUnlocked(before.List, after); len(fresh) > 0 {
+	if fresh := newlyUnlocked(before, after); len(fresh) > 0 {
 		logx.Printf("achievements: %q unlocked %d", title, len(fresh))
 		a.c.emit(EventAchievementsSession, SessionAchievements{GameID: gameID, Title: title, Unlocked: fresh})
 	}
@@ -220,4 +262,11 @@ func NewAchievementsService(c *Core) *AchievementsService { return &Achievements
 // they came from haven't changed; fresh reads them again.
 func (s *AchievementsService) Get(id int64, fresh bool) (achievements.List, error) {
 	return s.c.ach.get(s.c.ctx, id, fresh)
+}
+
+// forget drops a session's baseline (its game never ran).
+func (a *achState) forget(sessionID int64) {
+	a.mu.Lock()
+	delete(a.baseline, sessionID)
+	a.mu.Unlock()
 }
