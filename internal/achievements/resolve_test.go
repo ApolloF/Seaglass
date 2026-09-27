@@ -370,3 +370,28 @@ func TestIconsParallelAndPartial(t *testing.T) {
 		t.Error("icons after a cut-short run weren't fetched again")
 	}
 }
+
+// Games with nothing to look up get no card: an empty source, no items, no hint.
+func TestResolveNothingToShow(t *testing.T) {
+	root := t.TempDir()
+	d := testDeps(t, root, &fakeNet{schema: []Def{{ID: "A"}}})
+	d.SteamKey = "k"
+	for name, g := range map[string]library.Game{
+		"plain folder":               {ID: 1, Source: "folder", Dir: filepath.Join(root, "a")},
+		"folder matched to Steam":    {ID: 2, Source: "folder", Dir: filepath.Join(root, "b"), SteamAppID: 620},
+		"repack without an emulator": {ID: 3, Source: "installer", Unofficial: true, Repacker: "DODI", Dir: filepath.Join(root, "c"), MetaAppID: 620},
+		"Steam without an app":       {ID: 4, Source: "steam", Dir: filepath.Join(root, "d")},
+		"Epic without an id":         {ID: 5, Source: "epic", Dir: filepath.Join(root, "e")},
+		"GOG without an id":          {ID: 6, Source: "gog", Dir: filepath.Join(root, "f")},
+	} {
+		l, _ := Resolve(context.Background(), g, d)
+		if l.Source != "" || l.Total != 0 || l.Hint != "" {
+			t.Errorf("%s: %+v", name, l)
+		}
+	}
+	// An unlock file found without a detected emulator still shows.
+	mk(t, root, map[string]string{"Roaming/GSE Saves/620/achievements.json": `{"A":{"earned":true}}`})
+	if l, _ := Resolve(context.Background(), library.Game{ID: 7, Source: "folder", Dir: filepath.Join(root, "g"), SteamAppID: 620}, d); l.Source != "Goldberg" || l.Unlocked != 1 {
+		t.Errorf("unlock file without a marker: %+v", l)
+	}
+}

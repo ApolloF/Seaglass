@@ -12,6 +12,10 @@ import (
 	"github.com/ApolloF/Seaglass/internal/library"
 )
 
+// Version is part of every cached result's key: raise it when what
+// Resolve makes of the same files changes, so results are read again.
+const Version = 2
+
 // ErrNone means a store says the game has no achievements.
 var ErrNone = errors.New("no achievements")
 
@@ -171,6 +175,12 @@ const hintKey = "Add a Steam Web API key in Settings → Accounts to see names a
 func resolveEmu(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
 	eg := emuGame(g)
 	res, _, found := ReadEmu(eg, d.Env)
+	if g.Emulator == "" && !found {
+		// No emulator and no unlock file: nothing tracks achievements for
+		// this copy (a plain folder, a DRM-free game), so there's nothing
+		// to show, not even every achievement as locked.
+		return false
+	}
 	l.Source = g.Emulator
 	if found {
 		l.Source = res.Source
@@ -226,11 +236,10 @@ func unhash(defs []Def, hashed map[string]Unlock) map[string]Unlock {
 }
 
 func resolveSteam(ctx context.Context, app int, d Deps, l *List) (net bool) {
-	l.Source = "steam"
 	if app <= 0 {
-		l.Hint = "Seaglass doesn't know this game's Steam app."
-		return false
+		return false // nothing to look up: no card
 	}
+	l.Source = "steam"
 	defs, unlocks, _, _ := SteamLocal(d.SteamRoot, d.SteamAccounts, app, d.Lang)
 	none := false
 	if len(defs) == 0 {
@@ -312,12 +321,11 @@ func EpicSandbox(epicApp string) string {
 }
 
 func resolveEpic(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
-	l.Source = "epic"
 	sandbox := EpicSandbox(g.EpicApp)
 	if sandbox == "" {
-		l.Hint = "Seaglass doesn't know this game's Epic id."
-		return false
+		return false // nothing to look up: no card
 	}
+	l.Source = "epic"
 	defs, rarity, none, net := epicSchema(ctx, sandbox, d)
 	var unlocks map[string]Unlock
 	signedIn := d.Epic != nil
@@ -388,11 +396,10 @@ func GOGClientID(dir, gogID string) string {
 }
 
 func resolveGOG(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
-	l.Source = "gog"
 	if g.GogID == "" {
-		l.Hint = "Seaglass doesn't know this game's GOG id."
-		return false
+		return false // nothing to look up: no card
 	}
+	l.Source = "gog"
 	var local map[string]Unlock
 	if d.GOGUnlocks != nil {
 		local, _ = d.GOGUnlocks(g.GogID)

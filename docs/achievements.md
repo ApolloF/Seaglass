@@ -19,7 +19,7 @@ Unlock IDs match schema IDs ignoring case (CODEX writes them in a different case
 
 **Icons** are downloaded (from allowlisted hosts) or copied from the game folder, checked, re-encoded and stored content-addressed in `%LOCALAPPDATA%\Seaglass\achievements\icons`, and served at `/ach/<sha>.png`: the release CSP only allows images from Seaglass itself. They live apart from game art, whose pruning doesn't know them.
 
-**Cache.** `%LOCALAPPDATA%\Seaglass\achievements\games\<gameID>.json` (last result per game) and `…\schema\<source>-<id>-<lang>.json` (schemas from the stores for 30 days, rarity for 7). Turning achievements off or on, or showing hidden ones, clears the game results.
+**Cache.** `%LOCALAPPDATA%\Seaglass\achievements\games\<gameID>.json` (last result per game) and `…\schema\<source>-<id>-<lang>.json` (schemas from the stores for 30 days, rarity for 7). With `--dev-data` they live next to that library instead (`achievements-cache`), so a test harness never mixes its game ids with the real library's. Turning achievements off or on, or showing hidden ones, clears the game results. Results carry `achievements.Version`: raising it makes every game read again after an update that changes what the same files mean.
 
 **Language.** Steam's interface language (`HKCU\Software\Valve\Steam\Language`), English when a name has no translation. Epic gets the matching locale.
 
@@ -34,6 +34,8 @@ Unlock IDs match schema IDs ignoring case (CODEX writes them in a different case
 | Epic | Epic's store (anonymous) | Epic, when signed in to Epic in Settings |
 | GOG, or a DRM-free GOG copy | GOG's servers, when signed in to GOG in Settings | GOG Galaxy's database, else GOG's servers |
 | EA, Ubisoft, Battle.net, Xbox | not read yet | |
+
+A game with nothing to look up (no emulator and no unlock file, no Steam app, Epic or GOG id) shows no achievements card rather than an empty one.
 
 ## Steam's local files
 
