@@ -80,6 +80,13 @@ func (a *achState) liveDeps() achievements.Deps {
 	}
 	d.SteamAccounts = scan.SteamAccounts(d.SteamRoot)
 	d.EpicLocale = owned.EpicLocale(d.Lang)
+	if db := owned.GalaxyDB(); db != "" {
+		d.GalaxyDB = db
+		d.GOGUnlocks = func(id string) (map[string]achievements.Unlock, error) { return owned.GOGUnlocks(db, id) }
+	}
+	if _, ok := loadGOG(); ok && a.c.owned != nil {
+		d.GOG = a.c.owned.gogAccess
+	}
 	if _, ok := loadEpic(); ok && a.c.owned != nil {
 		d.Epic = a.c.owned.epicAccess
 	}
@@ -94,7 +101,7 @@ func (a *achState) liveDeps() achievements.Deps {
 // stamp sums up what a game's result depends on.
 func achStamp(g library.Game, d achievements.Deps) string {
 	return achievements.Stamp(achievements.Files(g, d),
-		"v1", d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
+		"v1", d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), strconv.FormatBool(d.GOG != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
 		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID)
 }
 

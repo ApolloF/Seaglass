@@ -2,6 +2,7 @@ package achievements
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strconv"
@@ -21,6 +22,7 @@ type Net interface {
 	SteamRarity(ctx context.Context, appID int) (map[string]float64, error)
 	EpicAchievements(ctx context.Context, sandbox, locale string) ([]Def, map[string]float64, error)
 	EpicPlayerAchievements(ctx context.Context, access, account, sandbox string) (map[string]Unlock, error)
+	GOGAchievements(ctx context.Context, access, game, userID string) ([]Def, map[string]Unlock, map[string]float64, error)
 }
 
 // Deps is everything Resolve works with besides the game.
@@ -36,7 +38,14 @@ type Deps struct {
 	EpicLocale string
 	// Epic returns a signed-in Epic account's access token; nil when
 	// nobody is signed in.
-	Epic    func(ctx context.Context) (access, account string, err error)
+	Epic func(ctx context.Context) (access, account string, err error)
+	// GalaxyDB is GOG Galaxy's database ("" when there's none) and
+	// GOGUnlocks reads a game's unlocks from it.
+	GalaxyDB   string
+	GOGUnlocks func(gogID string) (map[string]Unlock, error)
+	// GOG returns a signed-in GOG account's access token and user id; nil
+	// when nobody is signed in.
+	GOG     func(ctx context.Context) (access, userID string, err error)
 	Offline bool // don't go online now (a game is running)
 	Cache   *Cache
 	Icons   *Icons
@@ -50,6 +59,15 @@ func steamApp(g library.Game) int {
 		return g.SteamAppID
 	}
 	return g.MetaAppID
+}
+
+// gogGame reports whether a game's achievements are GOG's: a GOG install,
+// or a DRM-free GOG copy with no emulator.
+func gogGame(g library.Game) bool {
+	if g.Source == "gog" {
+		return !g.Unofficial
+	}
+	return g.GogID != "" && g.Emulator == "" && g.Source != "steam" && g.Source != "epic" && g.Source != "ea" && g.Source != "ubisoft" && g.Source != "battlenet" && g.Source != "xbox"
 }
 
 // emulated reports whether the game's achievements come from emulator files.
@@ -79,6 +97,9 @@ func Files(g library.Game, d Deps) []string {
 		files = append(files, EmuFiles(eg, d.Env)...)
 		files = append(files, filepath.Join(eg.emuPath(), "steam_settings", "achievements.json"))
 	}
+	if g.GogID != "" && d.GalaxyDB != "" {
+		files = append(files, d.GalaxyDB, d.GalaxyDB+"-wal")
+	}
 	if app > 0 && d.SteamRoot != "" {
 		files = append(files, SteamSchemaFile(d.SteamRoot, app))
 		for _, acc := range d.SteamAccounts {
@@ -102,6 +123,8 @@ func Resolve(ctx context.Context, g library.Game, d Deps) (l *List, net bool) {
 	app := steamApp(g)
 	steamIDs := false // the items are keyed by Steam's API names
 	switch {
+	case gogGame(g):
+		net = resolveGOG(ctx, g, d, l)
 	case emulated(g):
 		net = resolveEmu(ctx, g, d, l)
 		steamIDs = l.Source != "Epic emulator"
@@ -344,4 +367,79 @@ func epicSchema(ctx context.Context, sandbox string, d Deps) (defs []Def, rarity
 	}
 	d.Cache.putSchema("epic", sandbox, locale, schemaFile{Defs: defs, Rarity: rarity})
 	return defs, rarity, false, true
+}
+
+// GOGClientID reads a GOG game's client id from its goggame-<id>.info.
+func GOGClientID(dir, gogID string) string {
+	if dir == "" || gogID == "" || strings.ContainsAny(gogID, `\/.:`) {
+		return ""
+	}
+	b, err := readSmall(filepath.Join(dir, "goggame-"+gogID+".info"), 1<<20)
+	if err != nil {
+		return ""
+	}
+	var info struct {
+		ClientID string `json:"clientId"`
+	}
+	if json.Unmarshal([]byte(text(b)), &info) != nil {
+		return ""
+	}
+	return info.ClientID
+}
+
+func resolveGOG(ctx context.Context, g library.Game, d Deps, l *List) (net bool) {
+	l.Source = "gog"
+	if g.GogID == "" {
+		l.Hint = "Seaglass doesn't know this game's GOG id."
+		return false
+	}
+	var local map[string]Unlock
+	if d.GOGUnlocks != nil {
+		local, _ = d.GOGUnlocks(g.GogID)
+	}
+	cached, haveSchema := d.Cache.schema("gog", g.GogID, "", RarityTTL)
+	defs, rarity, unlocks := cached.Defs, cached.Rarity, local
+	// Signed in: GOG's servers have names, icons and progress. Asked when
+	// there's no schema yet, or Galaxy's database doesn't know the progress.
+	if d.GOG != nil && d.online() && (!haveSchema || local == nil) {
+		net = true
+		access, user, err := d.GOG(ctx)
+		if err == nil {
+			var remote map[string]Unlock
+			for _, game := range []string{GOGClientID(g.Dir, g.GogID), g.GogID} {
+				if game == "" {
+					continue
+				}
+				defs, remote, rarity, err = d.Net.GOGAchievements(ctx, access, game, user)
+				if err == nil || !errors.Is(err, ErrNone) {
+					break
+				}
+			}
+			switch {
+			case errors.Is(err, ErrNone):
+				d.Cache.putSchema("gog", g.GogID, "", schemaFile{None: true})
+				cached.None = true
+			case err == nil:
+				d.Cache.putSchema("gog", g.GogID, "", schemaFile{Defs: defs, Rarity: rarity})
+				if unlocks == nil {
+					unlocks = remote
+				}
+			}
+		}
+		if err != nil && !errors.Is(err, ErrNone) {
+			l.Hint = "GOG didn't answer; try again later."
+		}
+	}
+	l.Items = Merge(defs, unlocks)
+	l.SetRarity(rarity)
+	switch {
+	case l.Hint != "" || cached.None:
+	case d.GOG == nil && len(l.Items) > 0:
+		l.Hint = "Sign in to GOG in Settings → Accounts to see names and icons."
+	case d.GOG == nil:
+		l.Hint = "Sign in to GOG in Settings → Accounts to see this game's achievements."
+	case len(defs) == 0 && !d.online():
+		l.Hint = "Seaglass reads GOG achievements once the game is closed."
+	}
+	return net
 }

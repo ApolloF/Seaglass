@@ -14,6 +14,9 @@ import (
 )
 
 type fakeNet struct {
+	gogDefs    []Def
+	gogUnlocks map[string]Unlock
+	gogFor     string // the game id GOG answers for
 	epicDefs   []Def
 	epicRarity map[string]float64
 	epicPlayer map[string]Unlock
@@ -261,5 +264,60 @@ func TestResolveEpicEmulator(t *testing.T) {
 	l, _ := Resolve(context.Background(), g, d)
 	if l.Source != "Epic emulator" || l.Total != 2 || l.Unlocked != 1 || l.Items[0].UnlockedAt != 0 || l.Hint != "" {
 		t.Errorf("%+v", l)
+	}
+}
+
+func (f *fakeNet) GOGAchievements(_ context.Context, access, game, user string) ([]Def, map[string]Unlock, map[string]float64, error) {
+	f.calls = append(f.calls, "gog:"+game+":"+user)
+	if game != f.gogFor || f.gogDefs == nil {
+		return nil, nil, nil, ErrNone
+	}
+	return f.gogDefs, f.gogUnlocks, map[string]float64{"W": 7}, nil
+}
+
+func TestResolveGOG(t *testing.T) {
+	root := t.TempDir()
+	mk(t, root, map[string]string{"game/goggame-1453.info": `{"gameId":"1453","clientId":"5134"}`})
+	net := &fakeNet{gogFor: "5134", gogDefs: []Def{{ID: "W", Name: "Win"}, {ID: "L", Name: "Lose"}}, gogUnlocks: map[string]Unlock{"W": {Achieved: true, At: 3}}}
+	d := testDeps(t, root, net)
+	d.GalaxyDB = filepath.Join(root, "galaxy.db")
+	d.GOGUnlocks = func(id string) (map[string]Unlock, error) {
+		if id != "1453" {
+			t.Errorf("GOGUnlocks(%q)", id)
+		}
+		return map[string]Unlock{"W": {Achieved: true, At: 3}}, nil
+	}
+	g := library.Game{ID: 9, Source: "gog", GogID: "1453", Dir: filepath.Join(root, "game")}
+
+	// Not signed in: what Galaxy's database knows, by id.
+	l, _ := Resolve(context.Background(), g, d)
+	if l.Total != 1 || l.Unlocked != 1 || l.Items[0].Name != "W" || !strings.Contains(l.Hint, "Sign in to GOG") || len(net.calls) != 0 {
+		t.Fatalf("anonymous: %+v calls %v", l, net.calls)
+	}
+	// Signed in: names from GOG (by client id), progress from the database.
+	d.GOG = func(context.Context) (string, string, error) { return "tok", "u1", nil }
+	l, _ = Resolve(context.Background(), g, d)
+	if l.Total != 2 || l.Unlocked != 1 || l.Items[0].Name != "Win" || l.Items[0].Percent == nil || l.Hint != "" || net.calls[0] != "gog:5134:u1" {
+		t.Fatalf("signed in: %+v calls %v", l, net.calls)
+	}
+	// The schema is cached and the database has the progress: nothing asked.
+	net.calls = nil
+	if l, _ = Resolve(context.Background(), g, d); len(net.calls) != 0 || l.Total != 2 {
+		t.Errorf("cached: %+v calls %v", l, net.calls)
+	}
+	// Only the product id works: tried after the client id.
+	g2 := library.Game{ID: 10, Source: "gog", GogID: "77", Dir: filepath.Join(root, "none")}
+	net.gogFor, net.calls = "77", nil
+	d.GOGUnlocks = func(string) (map[string]Unlock, error) { return nil, nil }
+	if l, _ = Resolve(context.Background(), g2, d); l.Unlocked != 1 || strings.Join(net.calls, ",") != "gog:77:u1" {
+		t.Errorf("product id: %+v calls %v", l, net.calls)
+	}
+	// A DRM-free GOG copy from an installer goes the same way.
+	g3 := library.Game{ID: 11, Source: "installer", DRMFree: "GOG", GogID: "1453", Dir: filepath.Join(root, "game")}
+	if l, _ = Resolve(context.Background(), g3, d); l.Source != "gog" {
+		t.Errorf("DRM-free copy: %+v", l)
+	}
+	if GOGClientID(filepath.Join(root, "game"), "../x") != "" {
+		t.Error("a path in the id must not be read")
 	}
 }

@@ -128,3 +128,70 @@ func TestEpicAchievements(t *testing.T) {
 		t.Errorf("expired sign-in: %v", err)
 	}
 }
+
+func TestGOGUnlocks(t *testing.T) {
+	u, err := GOGUnlocks("testdata/galaxy-2.0.db", "1453375253")
+	if err != nil || len(u) != 3 {
+		t.Fatalf("%+v %v", u, err)
+	}
+	if !u["ACH_WIN"].Achieved || u["ACH_WIN"].At != 1_700_000_000 || u["ACH_LOSE"].Achieved || u["ACH_EPOCH"].At != 1_700_000_100 {
+		t.Errorf("%+v", u)
+	}
+	if _, err := GOGUnlocks("testdata/missing.db", "1"); err == nil {
+		t.Error("missing database: no error")
+	}
+}
+
+func TestGOGCode(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://embed.gog.com/on_login_success?origin=client&code=AbC_def-123456789012345": "AbC_def-123456789012345",
+		"  AbC_def-123456789012345XYZ  ":                       "AbC_def-123456789012345XYZ",
+		"https://embed.gog.com/on_login_success?origin=client": "",
+	} {
+		if got, _ := GOGCode(in); got != want {
+			t.Errorf("GOGCode(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestGOGAchievementsAPI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/token":
+			q := r.URL.Query()
+			if q.Get("client_id") != gogClientID || q.Get("grant_type") != "refresh_token" || q.Get("refresh_token") != "r1" {
+				w.WriteHeader(400)
+				return
+			}
+			w.Write([]byte(`{"access_token":"a2","refresh_token":"r2","user_id":"u1","expires_in":3600}`))
+		case r.URL.Path == "/clients/5134/users/u1/achievements":
+			if r.Header.Get("Authorization") != "Bearer a2" {
+				w.WriteHeader(401)
+				return
+			}
+			w.Write([]byte(`{"total_count":2,"items":[
+				{"achievement_key":"W","visible":true,"name":"Win","description":"d","image_url_unlocked":"https://images.gog-statics.com/w.png","image_url_locked":"https://images.gog-statics.com/wl.png","date_unlocked":"2023-11-14T22:13:20+0000","rarity":12.5},
+				{"achievement_key":"S","visible":false,"name":"Secret","date_unlocked":null,"rarity":1}]}`))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+	c := NewClient()
+	c.base = map[string]string{"auth.gog.com": srv.URL, "gameplay.gog.com": srv.URL}
+	ctx := context.Background()
+	tok, err := c.GOGRefresh(ctx, "r1")
+	if err != nil || tok.AccessToken != "a2" || tok.RefreshToken != "r2" || tok.UserID != "u1" {
+		t.Fatalf("refresh %+v %v", tok, err)
+	}
+	if _, err := c.GOGRefresh(ctx, "bad"); err == nil || !strings.Contains(err.Error(), "sign in again") {
+		t.Errorf("bad refresh: %v", err)
+	}
+	defs, u, rarity, err := c.GOGAchievements(ctx, "a2", "5134", "u1")
+	if err != nil || len(defs) != 2 || defs[0].Name != "Win" || defs[0].Hidden || !defs[1].Hidden || !u["W"].Achieved || u["W"].At != 1_700_000_000 || u["S"].Achieved || rarity["W"] != 12.5 {
+		t.Fatalf("defs %+v unlocks %+v rarity %v err %v", defs, u, rarity, err)
+	}
+	if _, _, _, err := c.GOGAchievements(ctx, "a2", "999", "u1"); !errors.Is(err, ErrNoAchievements) {
+		t.Errorf("unknown game: %v", err)
+	}
+}
