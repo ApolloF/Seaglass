@@ -27,6 +27,8 @@ var allowedHosts = []string{
 	"shared.cloudflare.steamstatic.com",
 	"cdn.akamai.steamstatic.com",
 	"cdn.cloudflare.steamstatic.com",
+	"cdn.steamstatic.com",
+	"cdn.fastly.steamstatic.com",
 	"steamcdn-a.akamaihd.net",
 	"api.gog.com",
 	".gog-statics.com",
@@ -35,6 +37,7 @@ var allowedHosts = []string{
 	"cdn1.epicgames.com",
 	"cdn2.unrealengine.com",
 	"store-content-ipv4.ak.epicgames.com",
+	".epicgames.com", // achievement icons come from several Epic CDN hosts
 	"www.pcgamingwiki.com",
 	"images.pcgamingwiki.com",
 	"www.steamgriddb.com",
