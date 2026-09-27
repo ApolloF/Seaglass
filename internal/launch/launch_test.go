@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // fakePC is a scripted process list: each poll shows the next frame, and
@@ -281,7 +281,7 @@ func TestUsableDirs(t *testing.T) {
 	}
 }
 
-// Quitting WaterLauncher mid-game hands over the playtime counted so far
+// Quitting Seaglass mid-game hands over the playtime counted so far
 // before Close returns, so it's saved with the library.
 func TestCloseSavesPlaytime(t *testing.T) {
 	sys := platform.Proc{PID: 10, PPID: 1, Name: "explorer.exe"}

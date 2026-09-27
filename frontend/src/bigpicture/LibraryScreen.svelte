@@ -158,7 +158,7 @@
       {#if checks}
         {checks === 1 ? "One game was" : `${checks} games were`} matched by folder name only. Open one to say whether it's the right game, pick another, or hide it if it isn't a game.
       {:else}
-        Games found in the last week. WaterLauncher finds new games on its own, from stores, installers and your game folders.
+        Games found in the last week. Seaglass finds new games on its own, from stores, installers and your game folders.
       {/if}
     </p>
   {/if}

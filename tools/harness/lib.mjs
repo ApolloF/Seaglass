@@ -1,4 +1,4 @@
-// Shared pieces of the harness: backing up WaterLauncher's data, making a
+// Shared pieces of the harness: backing up Seaglass's data, making a
 // test library, starting the real app with its dev flags, and talking to
 // it over CDP (the WebView2 pages) and the dev pipe (virtual controller).
 import { spawn, execFileSync } from "node:child_process";
@@ -9,24 +9,24 @@ import path from "node:path";
 import { chromium } from "playwright-core";
 
 export const ROOT = path.resolve(import.meta.dirname, "../..");
-export const EXE = process.env.WL_EXE || path.join(ROOT, "bin", "WaterLauncher.exe");
+export const EXE = process.env.WL_EXE || path.join(ROOT, "bin", "Seaglass.exe");
 export const OUT = process.env.WL_OUT || path.join(os.tmpdir(), "wl-harness");
 export const CDP_PORT = 9333;
-const PIPE = "\\\\.\\pipe\\waterlauncher-dev";
-const DATA = path.join(process.env.APPDATA, "WaterLauncher");
+const PIPE = "\\\\.\\pipe\\seaglass-dev";
+const DATA = path.join(process.env.APPDATA, "Seaglass");
 const BACKUP = path.join(OUT, "appdata-backup");
 const MARK = path.join(OUT, "appdata-backup.json");
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 fs.mkdirSync(OUT, { recursive: true });
 
-// ---- %APPDATA%\WaterLauncher backup ----
+// ---- %APPDATA%\Seaglass backup ----
 
-/** Copies %APPDATA%\WaterLauncher aside. A backup left by a run that
+/** Copies %APPDATA%\Seaglass aside. A backup left by a run that
  * didn't finish is restored first, never overwritten. */
 export function backupAppData() {
-  // Another run (or WaterLauncher itself) is going: its data isn't ours to touch.
-  if (isRunning()) throw new Error("WaterLauncher is already running: close it (or the other harness run) first");
+  // Another run (or Seaglass itself) is going: its data isn't ours to touch.
+  if (isRunning()) throw new Error("Seaglass is already running: close it (or the other harness run) first");
   if (fs.existsSync(MARK)) {
     console.log("an earlier run left a backup: restoring it first");
     restoreAppData();
@@ -36,7 +36,7 @@ export function backupAppData() {
   fs.writeFileSync(MARK, JSON.stringify({ from: DATA, at: new Date().toISOString(), existed: fs.existsSync(DATA) }));
 }
 
-/** Puts %APPDATA%\WaterLauncher back exactly as it was. */
+/** Puts %APPDATA%\Seaglass back exactly as it was. */
 export function restoreAppData() {
   if (!fs.existsSync(MARK)) return;
   const m = JSON.parse(fs.readFileSync(MARK, "utf8"));
@@ -146,9 +146,9 @@ export function makeDevData(name, { extra = 0, settings = {}, fake = true } = {}
 
 // ---- the app ----
 
-/** Starts WaterLauncher with its dev flags and connects to its window. */
+/** Starts Seaglass with its dev flags and connects to its window. */
 export async function startApp({ data, pad = "ps", args = [] } = {}) {
-  if (isRunning()) throw new Error("WaterLauncher is already running: close it first");
+  if (isRunning()) throw new Error("Seaglass is already running: close it first");
   const flags = [`--remote-debugging=${CDP_PORT}`, ...args];
   if (data) flags.push(`--dev-data=${data}`);
   if (pad) flags.push(`--virtual-pad=${pad}`);
@@ -173,7 +173,7 @@ export async function startApp({ data, pad = "ps", args = [] } = {}) {
 
 export function isRunning() {
   try {
-    return execFileSync("tasklist", ["/FI", "IMAGENAME eq WaterLauncher.exe", "/NH"], { encoding: "utf8" }).includes("WaterLauncher.exe");
+    return execFileSync("tasklist", ["/FI", "IMAGENAME eq Seaglass.exe", "/NH"], { encoding: "utf8" }).includes("Seaglass.exe");
   } catch {
     return false;
   }
@@ -189,7 +189,7 @@ export class App {
     return this.browser.contexts().flatMap((c) => c.pages());
   }
 
-  /** Waits for a WaterLauncher page whose URL matches. */
+  /** Waits for a Seaglass page whose URL matches. */
   async waitPage(match, timeout = 30000) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
@@ -265,7 +265,7 @@ export class App {
     return JSON.parse(await this.pad.send("mem"));
   }
 
-  /** Closes WaterLauncher and waits for it to go (once). */
+  /** Closes Seaglass and waits for it to go (once). */
   async quit() {
     if (this.quitting) return this.quitting;
     this.quitting = this.#quit();
@@ -281,7 +281,7 @@ export class App {
     try {
       await this.browser.close();
     } catch {}
-    if (isRunning()) execFileSync("taskkill", ["/IM", "WaterLauncher.exe", "/F"]);
+    if (isRunning()) execFileSync("taskkill", ["/IM", "Seaglass.exe", "/F"]);
   }
 }
 

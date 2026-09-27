@@ -42,15 +42,15 @@ func TestSigner(t *testing.T) {
 
 func TestCommandExe(t *testing.T) {
 	for in, want := range map[string]string{
-		`"C:\Program Files\WaterLauncher\WaterLauncher.exe" --tray`: `C:\Program Files\WaterLauncher\WaterLauncher.exe`,
-		`C:\WL\WaterLauncher.exe --tray`:                            `C:\WL\WaterLauncher.exe`,
+		`"C:\Program Files\Seaglass\Seaglass.exe" --tray`: `C:\Program Files\Seaglass\Seaglass.exe`,
+		`C:\WL\Seaglass.exe --tray`:                            `C:\WL\Seaglass.exe`,
 		`"unterminated`:                                             ``,
 	} {
 		if got := commandExe(in); got != want {
 			t.Errorf("commandExe(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := StartupCommand(`C:\Program Files\WL\WaterLauncher.exe`); got != `"C:\Program Files\WL\WaterLauncher.exe" --tray` {
+	if got := StartupCommand(`C:\Program Files\WL\Seaglass.exe`); got != `"C:\Program Files\WL\Seaglass.exe" --tray` {
 		t.Errorf("StartupCommand = %s", got)
 	}
 }

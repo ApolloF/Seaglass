@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/lnk"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/lnk"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // shortcut is a .lnk that starts an executable.

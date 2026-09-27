@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"github.com/ApolloF/gamekit/ludusavi"
 )
 
@@ -125,7 +125,7 @@ func (m *Manager) Refresh(ctx context.Context) (bool, error) {
 	if tag, err := os.ReadFile(m.etagFile()); err == nil && platform.IsFile(m.indexFile()) {
 		req.Header.Set("If-None-Match", strings.TrimSpace(string(tag)))
 	}
-	req.Header.Set("User-Agent", "WaterLauncher")
+	req.Header.Set("User-Agent", "Seaglass")
 	c := &http.Client{Timeout: 3 * time.Minute}
 	resp, err := c.Do(req)
 	if err != nil {

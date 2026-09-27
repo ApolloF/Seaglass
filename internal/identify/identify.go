@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ApolloF/WaterLauncher/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/scan"
 )
 
 // Index answers lookups by id, title and install folder name.

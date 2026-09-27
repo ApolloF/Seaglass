@@ -65,7 +65,7 @@
 </div>
 
 {#if loaded && list.length === 0}
-  <p class="empty">No add-ons yet. DLSS Updater adds itself: in DLSS Updater, choose <em>Settings → General → Connect to WaterLauncher</em>. For other add-ons, pick their <code>addon.json</code> with Add add-on.</p>
+  <p class="empty">No add-ons yet. DLSS Updater adds itself: in DLSS Updater, choose <em>Settings → General → Connect to Seaglass</em>. For other add-ons, pick their <code>addon.json</code> with Add add-on.</p>
 {/if}
 
 <ul class="addons">

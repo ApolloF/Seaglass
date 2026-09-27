@@ -43,7 +43,7 @@ type Host struct {
 	restarts map[string][]time.Time
 }
 
-// NewHost makes a host; version is WaterLauncher's, logf gets the add-ons'
+// NewHost makes a host; version is Seaglass's, logf gets the add-ons'
 // stderr and lifecycle lines.
 func NewHost(version string, logf func(string, ...any)) *Host {
 	return &Host{version: version, logf: logf, procs: map[string]*proc{}, restarts: map[string][]time.Time{}}
@@ -61,7 +61,7 @@ type proc struct {
 	progress map[int64]func(string)
 	dead     chan struct{}
 	idle     *time.Timer
-	stopping bool // WaterLauncher ended it (not a crash)
+	stopping bool // Seaglass ended it (not a crash)
 }
 
 type reply struct {
@@ -109,7 +109,7 @@ func (h *Host) Stop(id string) {
 	}
 }
 
-// StopAll ends every add-on (WaterLauncher is quitting).
+// StopAll ends every add-on (Seaglass is quitting).
 func (h *Host) StopAll() {
 	h.mu.Lock()
 	ps := h.procs
@@ -159,7 +159,7 @@ func (h *Host) get(ctx context.Context, m *Manifest, pinned string) (*proc, erro
 		Name     string `json:"name"`
 		Version  string `json:"version"`
 	}
-	err = p.call(ictx, "initialize", map[string]any{"protocol": Protocol, "host": map[string]string{"name": "WaterLauncher", "version": h.version}}, &init, nil)
+	err = p.call(ictx, "initialize", map[string]any{"protocol": Protocol, "host": map[string]string{"name": "Seaglass", "version": h.version}}, &init, nil)
 	if err == nil && init.Protocol != Protocol {
 		err = fmt.Errorf("%s speaks protocol %d, not %d", m.Name, init.Protocol, Protocol)
 	}

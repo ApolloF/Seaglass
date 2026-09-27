@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/settings"
-	"github.com/ApolloF/WaterLauncher/internal/update"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/settings"
+	"github.com/ApolloF/Seaglass/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -221,10 +221,10 @@ func (u *updater) check(ctx context.Context) {
 	u.set(func(s *UpdateState) { s.Status, s.Progress = UpdateReady, 1 })
 }
 
-// install puts the waiting update in place and restarts WaterLauncher.
+// install puts the waiting update in place and restarts Seaglass.
 func (u *updater) install() error {
 	if u.c.Launch.Active() {
-		return errors.New("finish playing first: installing the update restarts WaterLauncher")
+		return errors.New("finish playing first: installing the update restarts Seaglass")
 	}
 	u.mu.Lock()
 	p := u.pending
@@ -241,7 +241,7 @@ func (u *updater) install() error {
 }
 
 // applyPending starts installing p: the installer runs (and restarts
-// WaterLauncher), or the exe is swapped and started. The caller exits.
+// Seaglass), or the exe is swapped and started. The caller exits.
 func applyPending(p update.Pending, dir, exe string, tray bool) error {
 	if err := p.Check(exe); err != nil {
 		update.Clear(dir, "")
@@ -266,9 +266,9 @@ func applyPending(p update.Pending, dir, exe string, tray bool) error {
 	return err
 }
 
-// ApplyPendingUpdate installs a downloaded update as WaterLauncher starts,
+// ApplyPendingUpdate installs a downloaded update as Seaglass starts,
 // before anything else runs, when automatic updates are on. It reports
-// whether it did; WaterLauncher then exits and the new version starts. An
+// whether it did; Seaglass then exits and the new version starts. An
 // update whose install was already tried once waits for the user.
 func ApplyPendingUpdate(version string, tray bool) bool {
 	exe, err := os.Executable()
@@ -315,7 +315,7 @@ func (s *UpdateService) Check() {
 	}
 }
 
-// Install installs the downloaded update and restarts WaterLauncher.
+// Install installs the downloaded update and restarts Seaglass.
 func (s *UpdateService) Install() error { return s.c.updates.install() }
 
 // OpenReleasePage opens the newest release on GitHub.

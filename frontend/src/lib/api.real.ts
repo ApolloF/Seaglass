@@ -1,5 +1,5 @@
 import { Events, Window } from "@wailsio/runtime";
-import { AccountsService, AddonsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/WaterLauncher/internal/app";
+import { AccountsService, AddonsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
 import type { Api } from "./api";
 import type { Accounts, AddonGame, AddonView, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 

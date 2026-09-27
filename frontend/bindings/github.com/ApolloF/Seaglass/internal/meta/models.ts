@@ -23,7 +23,7 @@ export interface StoreHit {
     "name": string;
 
     /**
-     * small capsule on Steam's CDN (not fetched by WaterLauncher)
+     * small capsule on Steam's CDN (not fetched by Seaglass)
      */
     "image": string;
 }

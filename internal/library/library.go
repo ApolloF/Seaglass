@@ -1,4 +1,4 @@
-// Package library keeps WaterLauncher's game library: what scans found,
+// Package library keeps Seaglass's game library: what scans found,
 // merged with what the user set (favorites, hidden, titles, controller
 // mode, playtime). It lives in memory and is saved as one JSON file with
 // atomic writes; even thousands of games stay a few megabytes.
@@ -57,7 +57,7 @@ type Game struct {
 	Initial    bool  `json:"initial,omitempty"` // found by the very first scan, so not a "new" find
 	SeenAt     int64 `json:"seenAt"`
 	LastPlayed int64 `json:"lastPlayed,omitempty"`
-	Playtime   int64 `json:"playtime,omitempty"` // seconds, tracked by WaterLauncher
+	Playtime   int64 `json:"playtime,omitempty"` // seconds, tracked by Seaglass
 
 	// What the store recorded (Steam), refreshed by every scan. The
 	// interface shows whichever of the two is larger.

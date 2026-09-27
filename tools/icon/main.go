@@ -1,4 +1,4 @@
-// Command icon draws WaterLauncher's app icon (a water drop with a play
+// Command icon draws Seaglass's app icon (a water drop with a play
 // triangle) into build/appicon.png and build/windows/icon.ico. Every size
 // is drawn from the vector shape, so small icons stay sharp. Run from the
 // repository root:

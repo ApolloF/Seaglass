@@ -18,28 +18,28 @@ import * as launch$0 from "../launch/models.js";
  * Answer answers a question a hook asked.
  */
 export function Answer(questionID: number, option: string): $CancellablePromise<void> {
-    return $Call.ByID(411793517, questionID, option);
+    return $Call.ByID(3717002695, questionID, option);
 }
 
 /**
  * Cancel stops a launch that hasn't reached the game yet.
  */
 export function Cancel(): $CancellablePromise<void> {
-    return $Call.ByID(904310269);
+    return $Call.ByID(794141971);
 }
 
 /**
  * CloseOverlay hides the in-game overlay.
  */
 export function CloseOverlay(): $CancellablePromise<void> {
-    return $Call.ByID(4252499543);
+    return $Call.ByID(1717295753);
 }
 
 /**
  * OpenMain opens the main window (from the overlay), leaving the game running.
  */
 export function OpenMain(): $CancellablePromise<void> {
-    return $Call.ByID(4029110470);
+    return $Call.ByID(2503307204);
 }
 
 /**
@@ -47,7 +47,7 @@ export function OpenMain(): $CancellablePromise<void> {
  * until it exits.
  */
 export function Play(id: number): $CancellablePromise<void> {
-    return $Call.ByID(3382391377, id);
+    return $Call.ByID(3166904315, id);
 }
 
 /**
@@ -55,40 +55,40 @@ export function Play(id: number): $CancellablePromise<void> {
  * interface isn't opened for it; the game comes first.
  */
 export function PlayFromArgs(args: string[] | null): $CancellablePromise<boolean> {
-    return $Call.ByID(3994636312, args);
+    return $Call.ByID(970986162, args);
 }
 
 /**
  * QuitGame ends the running game's processes right away.
  */
 export function QuitGame(): $CancellablePromise<void> {
-    return $Call.ByID(494157406);
+    return $Call.ByID(2149891540);
 }
 
 /**
  * Route tells how a game would start now: direct, store or steamInput.
  */
 export function Route(id: number): $CancellablePromise<string> {
-    return $Call.ByID(150479176, id);
+    return $Call.ByID(468420342, id);
 }
 
 /**
  * Session returns the current (or last) game session.
  */
 export function Session(): $CancellablePromise<launch$0.Session> {
-    return $Call.ByID(3550337637);
+    return $Call.ByID(3158055791);
 }
 
 /**
  * SetUIMode tells the core which mode the interface shows.
  */
 export function SetUIMode(mode: string): $CancellablePromise<void> {
-    return $Call.ByID(3330897984, mode);
+    return $Call.ByID(303298758, mode);
 }
 
 /**
  * Skip skips a hook step that is running.
  */
 export function Skip(stepID: string): $CancellablePromise<void> {
-    return $Call.ByID(3747112656, stepID);
+    return $Call.ByID(3397059930, stepID);
 }

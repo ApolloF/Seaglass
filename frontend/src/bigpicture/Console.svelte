@@ -68,7 +68,7 @@
   let open = $state<Card | null>(null);
   const modes = ["", "native", "steam"] as const;
   const modeInfo = [
-    { label: "Auto", text: "WaterLauncher decides from what the game supports." },
+    { label: "Auto", text: "Seaglass decides from what the game supports." },
     { label: "Native", text: "Always starts directly. The game handles the controller itself." },
     { label: "Steam Input", text: "Always starts through Steam Input, so a DualSense acts as an Xbox controller." },
   ];

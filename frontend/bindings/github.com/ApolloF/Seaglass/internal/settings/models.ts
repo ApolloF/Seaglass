@@ -85,7 +85,7 @@ export interface Settings {
     "padWhilePlaying": string;
 
     /**
-     * follow games started outside WaterLauncher (playtime, controller)
+     * follow games started outside Seaglass (playtime, controller)
      */
     "noticeExternal": boolean;
 

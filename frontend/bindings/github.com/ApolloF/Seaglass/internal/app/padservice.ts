@@ -19,21 +19,21 @@ import * as pad$0 from "../pad/models.js";
  * "launch") when the user has haptics on.
  */
 export function Rumble(effect: string): $CancellablePromise<void> {
-    return $Call.ByID(639488354, effect);
+    return $Call.ByID(542840904, effect);
 }
 
 /**
  * SetLight tints the DualSense lightbar (#rrggbb) when the user has that on.
  */
 export function SetLight(hex: string): $CancellablePromise<void> {
-    return $Call.ByID(2435323691, hex);
+    return $Call.ByID(341387689, hex);
 }
 
 /**
  * State returns the controller in use.
  */
 export function State(): $CancellablePromise<pad$0.State> {
-    return $Call.ByID(3372721012);
+    return $Call.ByID(2180663194);
 }
 
 /**
@@ -41,5 +41,5 @@ export function State(): $CancellablePromise<pad$0.State> {
  * off, for the controller test screen.
  */
 export function TestInput(on: boolean): $CancellablePromise<void> {
-    return $Call.ByID(53051509, on);
+    return $Call.ByID(395710439, on);
 }

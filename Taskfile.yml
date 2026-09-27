@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "WaterLauncher"
+  APP_NAME: "Seaglass"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -35,7 +35,7 @@ tasks:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
   installer:
-    summary: Builds the installer, bin/WaterLauncher-setup.exe (needs NSIS; pass VERSION=v1.2.3)
+    summary: Builds the installer, bin/Seaglass-setup.exe (needs NSIS; pass VERSION=v1.2.3)
     cmds:
       - task: build
       - wails3 generate webview2bootstrapper -dir build/windows/nsis

@@ -8,7 +8,7 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="waterlauncher.exe"
+        Path="seaglass.exe"
         Arguments=""
         InstallLocation="C:\Program Files\My Company\My Product">
     </Installer>
@@ -18,17 +18,17 @@
         PublisherName="CN=My Company"
         PublisherDisplayName="My Company"
         Version="0.1.0.0"
-        PackageDescription="A WaterLauncher application">
+        PackageDescription="A Seaglass application">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.waterlauncher"
-                Description="A WaterLauncher application"
+                Id="com.example.seaglass"
+                Description="A Seaglass application"
                 DisplayName="My Product"
-                ExecutableName="waterlauncher.exe"
+                ExecutableName="seaglass.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -43,11 +43,11 @@
             <Framework>false</Framework>
             <DisplayName>My Product</DisplayName>
             <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>A WaterLauncher application</Description>
+            <Description>A Seaglass application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="waterlauncher.msix" />
+    <SaveLocation PackagePath="seaglass.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>

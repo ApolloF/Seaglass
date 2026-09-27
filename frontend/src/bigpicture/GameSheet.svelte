@@ -164,7 +164,7 @@
     {#if game.needsReview}
       <div class="check">
         <span class="q"><Icon name="warn" size={24} />Is this {title(game)}?</span>
-        <span class="why">WaterLauncher found it by its folder name and couldn't match it to a known game for sure.</span>
+        <span class="why">Seaglass found it by its folder name and couldn't match it to a known game for sure.</span>
         <span class="path">{game.dir}</span>
       </div>
     {:else if game.meta?.description}<p class="desc">{game.meta.description}</p>{/if}

@@ -31,7 +31,7 @@
       ],
     },
     { key: "sounds", title: "Navigation sounds", detail: "Soft clicks as you move.", kind: "toggle" },
-    { key: "startInBigPicture", title: "Start in big picture", detail: "Skip the desktop window when WaterLauncher starts.", kind: "toggle" },
+    { key: "startInBigPicture", title: "Start in big picture", detail: "Skip the desktop window when Seaglass starts.", kind: "toggle" },
     {
       group: "Controller",
       key: "glyphs",
@@ -48,7 +48,7 @@
     { key: "haptics", title: "Haptics", detail: "A tick as you move, a bump at the end of a row, a firmer pulse when you choose.", kind: "toggle" },
     { key: "lightbar", title: "Lightbar follows the game", detail: "Tints the DualSense to the selected game.", kind: "toggle" },
     { key: "openBigPictureOnController", title: "Open big picture when a controller connects", detail: "Switches over as soon as you pick one up.", kind: "toggle" },
-    { key: "psButton", title: "PS / Xbox button opens WaterLauncher", detail: "From other apps, and the overlay in games. Turn off Steam's guide-button shortcut to avoid both opening.", kind: "toggle" },
+    { key: "psButton", title: "PS / Xbox button opens Seaglass", detail: "From other apps, and the overlay in games. Turn off Steam's guide-button shortcut to avoid both opening.", kind: "toggle" },
     {
       key: "padWhilePlaying",
       title: "Controller while playing",
@@ -78,7 +78,7 @@
     { group: "Library and playing", key: "showOwned", title: "Show games you own that aren't installed", detail: "From the store accounts connected in desktop Settings.", kind: "toggle" },
     { key: "closeWhilePlaying", title: "Close the interface while playing", detail: "Frees its memory. It comes back when the game exits.", kind: "toggle" },
     { key: "noticeExternal", title: "Notice games started elsewhere", detail: "Games started from Steam or a shortcut count their playtime here too.", kind: "toggle" },
-    { key: "autoUpdate", title: "Keep WaterLauncher up to date", detail: "New versions download in the background and install the next time WaterLauncher starts.", kind: "toggle" },
+    { key: "autoUpdate", title: "Keep Seaglass up to date", detail: "New versions download in the background and install the next time Seaglass starts.", kind: "toggle" },
   ];
 
   // One row per library on this PC, to show or hide its games.

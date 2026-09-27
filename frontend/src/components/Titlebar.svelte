@@ -10,7 +10,7 @@
 <header class="bar" ondblclick={(e) => !(e.target as HTMLElement).closest("button") && api.window.toggleMaximise()}>
   <div class="brand">
     <Logo size={20} />
-    <span>WaterLauncher</span>
+    <span>Seaglass</span>
   </div>
   <div class="caption">
     <button type="button" aria-label="Minimize" onclick={() => api.window.minimise()}>

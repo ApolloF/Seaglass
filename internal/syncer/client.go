@@ -24,7 +24,7 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 const uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ApolloFSyncer`
@@ -317,7 +317,7 @@ func (c *Client) Status(ctx context.Context) (Status, error) {
 	var s Status
 	err := c.Call(ctx, "status", nil, &s)
 	if err == nil && s.Protocol != Protocol {
-		err = fmt.Errorf("Syncer speaks API version %d; WaterLauncher needs version %d", s.Protocol, Protocol)
+		err = fmt.Errorf("Syncer speaks API version %d; Seaglass needs version %d", s.Protocol, Protocol)
 	}
 	return s, err
 }

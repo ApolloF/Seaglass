@@ -1,4 +1,4 @@
-// Package addons runs WaterLauncher's add-ons: separate programs that talk
+// Package addons runs Seaglass's add-ons: separate programs that talk
 // JSON-RPC 2.0 over their standard input and output (docs/addon-protocol.md).
 // An add-on is off until the user enables it; its program is pinned by
 // SHA-256 and has to be approved again when it changes.
@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-// Protocol is the add-on protocol version WaterLauncher speaks.
+// Protocol is the add-on protocol version Seaglass speaks.
 const Protocol = 1
 
 // Hooks an add-on can ask for.
@@ -115,7 +115,7 @@ func (m *Manifest) check() error {
 	case m.Homepage != "" && (!strings.HasPrefix(m.Homepage, "https://") || len(m.Homepage) > 300 || strings.ContainsAny(m.Homepage, " \"<>")):
 		return errors.New("the homepage must be an https:// address")
 	case m.Protocol != Protocol:
-		return fmt.Errorf("the add-on speaks protocol %d; WaterLauncher speaks %d", m.Protocol, Protocol)
+		return fmt.Errorf("the add-on speaks protocol %d; Seaglass speaks %d", m.Protocol, Protocol)
 	case !strings.EqualFold(filepath.Ext(m.Exe), ".exe"):
 		return errors.New("the add-on's program must be an .exe")
 	case len(m.Args) > 16:

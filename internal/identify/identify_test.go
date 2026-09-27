@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/scan"
 )
 
 const sample = `---

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/addons"
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/addons"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/platform"
 	"github.com/ApolloF/gamekit/steam"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -31,7 +31,7 @@ func init() { application.RegisterEvent[AddonProgress](EventAddonProgress) }
 
 // addonState is the add-on host and the user's approvals.
 type addonState struct {
-	root  string // %LOCALAPPDATA%\WaterLauncher\addons
+	root  string // %LOCALAPPDATA%\Seaglass\addons
 	host  *addons.Host
 	trust *addons.Trust
 

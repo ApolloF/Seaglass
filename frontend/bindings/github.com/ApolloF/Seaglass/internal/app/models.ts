@@ -196,7 +196,7 @@ export interface StoreAccount {
 }
 
 /**
- * SyncerStatus is how WaterLauncher and Syncer get on, for Settings.
+ * SyncerStatus is how Seaglass and Syncer get on, for Settings.
  */
 export interface SyncerStatus {
     "installed": boolean;

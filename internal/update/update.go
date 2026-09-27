@@ -1,4 +1,4 @@
-// Package update keeps WaterLauncher up to date from its GitHub releases.
+// Package update keeps Seaglass up to date from its GitHub releases.
 //
 // It asks GitHub for the newest release (prereleases don't count), downloads
 // the installer (or, for a copy that wasn't installed, the bare exe) together
@@ -25,8 +25,15 @@ import (
 // Asset names every release carries. They stay the same across versions, so
 // github.com/…/releases/latest/download/<name> always points at the newest.
 const (
-	InstallerAsset = "WaterLauncher-setup.exe"
-	ExeAsset       = "WaterLauncher.exe"
+	InstallerAsset = "Seaglass-setup.exe"
+	ExeAsset       = "Seaglass.exe"
+)
+
+// The same files under WaterLauncher's names, which releases before the
+// rename download. Releases carry them too, so those can still update.
+const (
+	LegacyInstallerAsset = "WaterLauncher-setup.exe"
+	LegacyExeAsset       = "WaterLauncher.exe"
 )
 
 // Feed is where releases come from.
@@ -40,16 +47,16 @@ type Feed struct {
 	Keys []ed25519.PublicKey
 }
 
-// GitHub is WaterLauncher's own release feed.
+// GitHub is Seaglass's own release feed.
 var GitHub = Feed{
-	LatestURL:   "https://api.github.com/repos/ApolloF/WaterLauncher/releases/latest",
-	AssetPrefix: "https://github.com/ApolloF/WaterLauncher/releases/download/",
+	LatestURL:   "https://api.github.com/repos/ApolloF/Seaglass/releases/latest",
+	AssetPrefix: "https://github.com/ApolloF/Seaglass/releases/download/",
 	Hosts:       []string{"github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"},
 	Keys:        ReleaseKeys,
 }
 
-// ReleasesPage is where people download WaterLauncher by hand.
-const ReleasesPage = "https://github.com/ApolloF/WaterLauncher/releases/latest"
+// ReleasesPage is where people download Seaglass by hand.
+const ReleasesPage = "https://github.com/ApolloF/Seaglass/releases/latest"
 
 // Asset is one downloadable file of a release.
 type Asset struct {
@@ -59,7 +66,7 @@ type Asset struct {
 	Digest string // SHA-256 GitHub computed on upload ("sha256:<hex>"), when it did
 }
 
-// Release is a published WaterLauncher release.
+// Release is a published Seaglass release.
 type Release struct {
 	Tag       string // "v1.0.0"
 	Notes     string // markdown, shortened
@@ -125,7 +132,7 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 		return Release{}, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "WaterLauncher (+https://github.com/ApolloF/WaterLauncher)")
+	req.Header.Set("User-Agent", "Seaglass (+https://github.com/ApolloF/Seaglass)")
 	resp, err := f.client().Do(req)
 	if err != nil {
 		return Release{}, err
@@ -194,7 +201,7 @@ func Newer(a, b string) bool {
 	return false
 }
 
-// Valid reports whether v is a version WaterLauncher can compare.
+// Valid reports whether v is a version Seaglass can compare.
 func Valid(v string) bool {
 	_, ok := parse(v)
 	return ok

@@ -1,4 +1,4 @@
-// Package app wires WaterLauncher together and holds the services the
+// Package app wires Seaglass together and holds the services the
 // frontend calls.
 package app
 
@@ -11,15 +11,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/identify"
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
-	"github.com/ApolloF/WaterLauncher/internal/pad"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
-	"github.com/ApolloF/WaterLauncher/internal/settings"
+	"github.com/ApolloF/Seaglass/internal/identify"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/settings"
 	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -116,6 +116,9 @@ func (c *Core) Start() {
 	go c.updates.loop(c.ctx)
 	c.external = newExternalWatch(c)
 	c.external.set(c.Settings.Get().NoticeExternal)
+	if exe, err := os.Executable(); err == nil && platform.MoveOldStartup(exe) {
+		logx.Printf("start with Windows: WaterLauncher's entry is now Seaglass's")
+	}
 	if exe, err := os.Executable(); err == nil && platform.RepairStartup(exe) {
 		logx.Printf("start with Windows: now starts %s", exe)
 	}
@@ -160,7 +163,7 @@ func (c *Core) Stop() {
 	}
 }
 
-// quitForUpdate closes WaterLauncher so an update can take its place.
+// quitForUpdate closes Seaglass so an update can take its place.
 func (c *Core) quitForUpdate() {
 	if a := application.Get(); a != nil {
 		a.Quit()
@@ -191,7 +194,7 @@ func (c *Core) scanLoop() {
 
 // waitIdle holds background work (scans, metadata, store accounts) while
 // a game runs, so it gets the disk, network and CPU to itself. It reports
-// false when WaterLauncher is closing.
+// false when Seaglass is closing.
 func (c *Core) waitIdle(ctx context.Context) bool {
 	for c.Launch.Active() {
 		select {

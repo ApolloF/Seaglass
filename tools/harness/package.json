@@ -1,8 +1,8 @@
 {
-  "name": "waterlauncher-harness",
+  "name": "seaglass-harness",
   "private": true,
   "type": "module",
-  "description": "Drives the real WaterLauncher.exe: WebView2 over CDP, a virtual controller over the dev pipe, a fake game.",
+  "description": "Drives the real Seaglass.exe: WebView2 over CDP, a virtual controller over the dev pipe, a fake game.",
   "scripts": {
     "tour": "node tour.mjs",
     "launches": "node launches.mjs",

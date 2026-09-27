@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// allowedHosts are the only hosts WaterLauncher fetches metadata or art from.
+// allowedHosts are the only hosts Seaglass fetches metadata or art from.
 var allowedHosts = []string{
 	"store.steampowered.com",
 	"api.steampowered.com",
@@ -55,7 +55,7 @@ func allowed(u *url.URL) bool {
 	return false
 }
 
-// ErrNotAllowed means a URL points somewhere WaterLauncher doesn't fetch from.
+// ErrNotAllowed means a URL points somewhere Seaglass doesn't fetch from.
 var ErrNotAllowed = errors.New("host not allowed")
 
 // Client talks to the metadata sources.
@@ -136,7 +136,7 @@ func (c *Client) get(ctx context.Context, raw string, limit int64, header map[st
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "WaterLauncher (+https://github.com/ApolloF/WaterLauncher)")
+	req.Header.Set("User-Agent", "Seaglass (+https://github.com/ApolloF/Seaglass)")
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}

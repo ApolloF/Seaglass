@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The first start: what WaterLauncher does, where it looks for games,
+  // The first start: what Seaglass does, where it looks for games,
   // and how you'd like to play. It works with a mouse, the keyboard or a
   // controller, in either mode. Skipping it counts as seen.
   import { api } from "../lib/api";
@@ -78,7 +78,7 @@
   ] as const;
 </script>
 
-<div class="welcome" class:big={mode === "bigpicture"} bind:this={root} role="dialog" aria-label="Welcome to WaterLauncher">
+<div class="welcome" class:big={mode === "bigpicture"} bind:this={root} role="dialog" aria-label="Welcome to Seaglass">
   <div class="card">
     <ol class="dots" aria-label="Steps">
       {#each steps as name, k (name)}<li class:on={k === step} class:done={k < step}><span></span>{name}</li>{/each}
@@ -86,7 +86,7 @@
 
     {#if step === 0}
       <div class="step">
-        <h1>Welcome to WaterLauncher</h1>
+        <h1>Welcome to Seaglass</h1>
         <p>It finds the games on this PC by itself: Steam, Epic, GOG, Xbox, EA, Ubisoft and Battle.net installs, repacks and games in plain folders, and gives them art and details.</p>
         <div class="count">
           <Icon name="scan" size={28} />

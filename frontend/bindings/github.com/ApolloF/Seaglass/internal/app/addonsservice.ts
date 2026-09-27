@@ -18,14 +18,14 @@ import * as $models from "./models.js";
  * Add asks for an addon.json and adds that add-on (turned off).
  */
 export function Add(): $CancellablePromise<$models.AddonView> {
-    return $Call.ByID(1324777926);
+    return $Call.ByID(2795274992);
 }
 
 /**
  * Disable turns an add-on off.
  */
 export function Disable(id: string): $CancellablePromise<$models.AddonView> {
-    return $Call.ByID(204564997, id);
+    return $Call.ByID(881970999, id);
 }
 
 /**
@@ -33,35 +33,35 @@ export function Disable(id: string): $CancellablePromise<$models.AddonView> {
  * must match what the user was shown).
  */
 export function Enable(id: string, sha256: string): $CancellablePromise<$models.AddonView> {
-    return $Call.ByID(3537819212, id, sha256);
+    return $Call.ByID(2224608146, id, sha256);
 }
 
 /**
  * ForGame asks every enabled add-on about a game: badges, lines and actions.
  */
 export function ForGame(id: number): $CancellablePromise<$models.AddonGame[] | null> {
-    return $Call.ByID(2301730892, id);
+    return $Call.ByID(494189446, id);
 }
 
 /**
  * List returns every add-on found, working or not.
  */
 export function List(): $CancellablePromise<$models.AddonView[] | null> {
-    return $Call.ByID(2596509451);
+    return $Call.ByID(2845432501);
 }
 
 /**
  * OpenFolder shows the add-ons folder.
  */
 export function OpenFolder(): $CancellablePromise<void> {
-    return $Call.ByID(522235899);
+    return $Call.ByID(1368854989);
 }
 
 /**
  * Remove forgets an add-on. Its program stays where it is.
  */
 export function Remove(id: string): $CancellablePromise<void> {
-    return $Call.ByID(1537953519, id);
+    return $Call.ByID(2905516473, id);
 }
 
 /**
@@ -69,5 +69,5 @@ export function Remove(id: string): $CancellablePromise<void> {
  * Progress lines arrive as "addon:progress" events.
  */
 export function RunAction(id: number, addon: string, action: string): $CancellablePromise<string> {
-    return $Call.ByID(2481999878, id, addon, action);
+    return $Call.ByID(346823100, id, addon, action);
 }

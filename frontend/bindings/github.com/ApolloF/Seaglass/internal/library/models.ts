@@ -98,7 +98,7 @@ export interface Game {
     "lastPlayed"?: number;
 
     /**
-     * seconds, tracked by WaterLauncher
+     * seconds, tracked by Seaglass
      */
     "playtime"?: number;
 

@@ -59,7 +59,7 @@ export interface Api {
     state(): Promise<UpdateState>;
     /** Looks for a new version now (and downloads it). */
     check(): void;
-    /** Installs the downloaded update and restarts WaterLauncher. */
+    /** Installs the downloaded update and restarts Seaglass. */
     install(): Promise<void>;
     openReleasePage(): Promise<void>;
     onState(cb: (s: UpdateState) => void): () => void;

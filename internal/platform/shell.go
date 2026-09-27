@@ -19,7 +19,7 @@ func OpenURI(uri string) error {
 	return shellExecute("open", uri, "", "")
 }
 
-// allowedSchemes are the link types WaterLauncher itself ever builds.
+// allowedSchemes are the link types Seaglass itself ever builds.
 var allowedSchemes = []string{"steam://", "com.epicgames.launcher://", "uplay://", "goggalaxy://", "origin2://", "battlenet://", "shell:appsfolder\\"}
 
 func safeURI(uri string) bool {
@@ -33,7 +33,7 @@ func safeURI(uri string) bool {
 }
 
 // OpenWebPage opens an https page in the default browser. Only pages
-// WaterLauncher itself links to are passed here.
+// Seaglass itself links to are passed here.
 func OpenWebPage(url string) error {
 	if !strings.HasPrefix(url, "https://") || strings.ContainsAny(url, " \"<>\r\n\x00") {
 		return errors.New("refusing to open this link")
@@ -41,7 +41,7 @@ func OpenWebPage(url string) error {
 	return shellExecute("open", url, "", "")
 }
 
-// OpenFile opens a text file WaterLauncher wrote in the user's editor.
+// OpenFile opens a text file Seaglass wrote in the user's editor.
 func OpenFile(p string) error {
 	if !filepath.IsAbs(p) || !IsFile(p) || !strings.EqualFold(filepath.Ext(p), ".txt") {
 		return errors.New("refusing to open this file")
@@ -59,7 +59,7 @@ func ShowInExplorer(dir string) error {
 }
 
 // StartProcess starts exe with a raw argument string in workDir, detached
-// from WaterLauncher. It never goes through a shell. When the game asks for
+// from Seaglass. It never goes through a shell. When the game asks for
 // administrator rights, Windows shows its UAC prompt.
 func StartProcess(exe, args, workDir string) (int, error) {
 	if !filepath.IsAbs(exe) || !IsFile(exe) {

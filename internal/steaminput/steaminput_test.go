@@ -42,7 +42,7 @@ func TestAddAndFind(t *testing.T) {
 	if !ok || id != game.ID() {
 		t.Fatalf("Find = %x, %v; want %x", id, ok, game.ID())
 	}
-	if !fileHas(t, f+".waterlauncher-backup", b) {
+	if !fileHas(t, f+".seaglass-backup", b) {
 		t.Error("the original wasn't backed up")
 	}
 	// Adding again changes nothing.

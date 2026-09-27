@@ -124,7 +124,7 @@ export interface SaveFolder {
 }
 
 /** What Syncer knows about a game's saves. */
-/** How WaterLauncher and Syncer get on. */
+/** How Seaglass and Syncer get on. */
 export interface SyncerStatus {
   installed: boolean;
   version?: string;
@@ -221,7 +221,7 @@ export interface Session {
   gameId: number;
   title: string;
   phase: Phase;
-  /** "external": started outside WaterLauncher and noticed. */
+  /** "external": started outside Seaglass and noticed. */
   route: "direct" | "store" | "steamInput" | "external" | "";
   before: StepState[];
   after: StepState[];
@@ -334,7 +334,7 @@ export interface UpdateState {
   failed: boolean;
 }
 
-/** Whether WaterLauncher starts when you sign in to Windows. */
+/** Whether Seaglass starts when you sign in to Windows. */
 export interface Startup {
   on: boolean;
   /** Turned off in Task Manager's Startup apps. */
@@ -343,8 +343,8 @@ export interface Startup {
 
 export const title = (g: Game) => g.customTitle || g.title;
 
-/** Playtime in seconds: WaterLauncher's own or the store's, whichever is larger. */
+/** Playtime in seconds: Seaglass's own or the store's, whichever is larger. */
 export const played = (g: Game) => Math.max(g.playtime ?? 0, g.storePlaytime ?? 0);
 
-/** When the game was last played, by WaterLauncher or the store. */
+/** When the game was last played, by Seaglass or the store. */
 export const lastPlayed = (g: Game) => Math.max(g.lastPlayed ?? 0, g.storeLastPlayed ?? 0);

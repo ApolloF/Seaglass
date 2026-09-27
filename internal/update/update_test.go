@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 func TestNewer(t *testing.T) {
@@ -90,7 +90,7 @@ func (f *fakeGitHub) publish(tag string, files map[string][]byte, extra ...map[s
 	for _, e := range extra {
 		assets = append(assets, e)
 	}
-	f.release = map[string]any{"tag_name": tag, "body": "notes", "html_url": "https://github.com/ApolloF/WaterLauncher/releases/tag/" + tag, "assets": assets}
+	f.release = map[string]any{"tag_name": tag, "body": "notes", "html_url": "https://github.com/ApolloF/Seaglass/releases/tag/" + tag, "assets": assets}
 }
 
 func sumLine(b []byte, name string) []byte {
@@ -226,7 +226,7 @@ func TestPendingRoundTrip(t *testing.T) {
 
 func TestSwapExe(t *testing.T) {
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "WaterLauncher.exe")
+	exe := filepath.Join(dir, "Seaglass.exe")
 	next := filepath.Join(dir, "next.exe")
 	_ = os.WriteFile(exe, []byte("old"), 0o755)
 	_ = os.WriteFile(next, []byte("new"), 0o755)

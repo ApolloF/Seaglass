@@ -16,15 +16,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/identify"
-	"github.com/ApolloF/WaterLauncher/internal/meta"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/identify"
+	"github.com/ApolloF/Seaglass/internal/meta"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
 )
 
 // TestMatchAudit runs real games, named the ways stores, installers,
 // repacks and folders name them (testdata/match_audit.tsv, made by
-// gen_match_audit.py), through what WaterLauncher does to find out which
+// gen_match_audit.py), through what Seaglass does to find out which
 // game a folder is: the game database, the Steam store search, then
 // PCGamingWiki. Each case says which game it is (or that it isn't one),
 // so a wrong match counts as much as a miss:
@@ -39,7 +39,7 @@ func TestMatchAudit(t *testing.T) {
 	}
 	ix := identify.NewManager(platform.CacheDir("manifest")).Index()
 	if ix == nil {
-		t.Skip("no game database in the cache yet (run WaterLauncher once)")
+		t.Skip("no game database in the cache yet (run Seaglass once)")
 	}
 	cache := os.Getenv("WL_MATCH_CACHE")
 	if cache == "" {

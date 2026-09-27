@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // Phase is where a session is.
@@ -227,7 +227,7 @@ func (m *Manager) Launch(ctx context.Context, p Plan) error {
 	return nil
 }
 
-// Close stops following the game (WaterLauncher is quitting). It waits a
+// Close stops following the game (Seaglass is quitting). It waits a
 // moment for the playtime counted so far to be handed to Played, so it's
 // in the library before that is saved.
 func (m *Manager) Close() {
@@ -452,7 +452,7 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 		case now.Sub(began) > timeout:
 			m.update(func(s *Session) {
 				s.Phase = Ended
-				s.Note = "WaterLauncher couldn't see the game running, so no playtime was counted."
+				s.Note = "Seaglass couldn't see the game running, so no playtime was counted."
 			})
 			return -1
 		}

@@ -19,42 +19,42 @@ import * as $models from "./models.js";
  * (the code alone, or the whole text) and fetches the account's games.
  */
 export function EpicSignIn(pasted: string): $CancellablePromise<$models.Accounts> {
-    return $Call.ByID(3524560095, pasted);
+    return $Call.ByID(941722657, pasted);
 }
 
 /**
  * EpicSignOut forgets the Epic sign-in and its owned games.
  */
 export function EpicSignOut(): $CancellablePromise<$models.Accounts> {
-    return $Call.ByID(3912114916);
+    return $Call.ByID(635996578);
 }
 
 /**
  * Get reports the accounts.
  */
 export function Get(): $CancellablePromise<$models.Accounts> {
-    return $Call.ByID(1290658952);
+    return $Call.ByID(2013254302);
 }
 
 /**
  * OpenEpicSignIn opens Epic's sign-in page in the browser.
  */
 export function OpenEpicSignIn(): $CancellablePromise<void> {
-    return $Call.ByID(1099049503);
+    return $Call.ByID(3639547673);
 }
 
 /**
  * OpenSteamKeyPage opens Steam's page for creating a Web API key.
  */
 export function OpenSteamKeyPage(): $CancellablePromise<void> {
-    return $Call.ByID(2461848680);
+    return $Call.ByID(1457935754);
 }
 
 /**
  * SetGOG turns reading GOG Galaxy's library on or off.
  */
 export function SetGOG(on: boolean): $CancellablePromise<$models.Accounts> {
-    return $Call.ByID(1922250511, on);
+    return $Call.ByID(259123349, on);
 }
 
 /**
@@ -62,12 +62,12 @@ export function SetGOG(on: boolean): $CancellablePromise<$models.Accounts> {
  * Windows user) and fetches the account's games; "" disconnects Steam.
  */
 export function SetSteamKey(key: string): $CancellablePromise<$models.Accounts> {
-    return $Call.ByID(3899079451, key);
+    return $Call.ByID(1897024801, key);
 }
 
 /**
  * Sync fetches the owned games again, in the background.
  */
 export function Sync(): $CancellablePromise<void> {
-    return $Call.ByID(1509495647);
+    return $Call.ByID(2377666185);
 }

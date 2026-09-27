@@ -4,9 +4,9 @@
 
 Please report security problems privately through GitHub: **Security → Report a vulnerability** on this repository. Don't open a public issue for them.
 
-## What WaterLauncher does to stay safe
+## What Seaglass does to stay safe
 
-- **No elevation.** WaterLauncher, its installer and its updates run with your normal rights. A game that asks for administrator rights gets Windows' own prompt.
+- **No elevation.** Seaglass, its installer and its updates run with your normal rights. A game that asks for administrator rights gets Windows' own prompt.
 - **Nothing runs through a shell.** Games start with an explicit program path, working folder and arguments. Links handed to Windows are limited to store schemes (`steam://`, `com.epicgames.launcher://`, …) and `https://` pages.
 - **Network.** Metadata, art and store accounts use allowlisted hosts over HTTPS, with size and time limits. Every image is decoded and re-encoded before it's stored, so only pixels reach the interface.
 - **Updates** come only from this repository's GitHub releases (redirects are limited to GitHub's download hosts). From v1.1 each one must be listed in the release's `SHA256SUMS`, signed for that exact version with a release key kept offline, away from GitHub ([docs/RELEASING.md](docs/RELEASING.md)); a hijacked GitHub account can't ship an update. Once builds are Authenticode-signed, updates must also carry the same publisher's signature ([docs/SIGNING.md](docs/SIGNING.md)).

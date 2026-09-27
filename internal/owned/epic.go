@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/scan"
 )
 
 // Epic's public launcher client, the one open-source launchers (Legendary,
 // Heroic, Playnite) sign in with. The user signs in on epicgames.com
-// themselves; WaterLauncher only ever sees the one-time code.
+// themselves; Seaglass only ever sees the one-time code.
 const (
 	epicClientID     = "34a02cf8f4414e29b15921876da36f9a"
 	epicClientSecret = "daafbccc737745039dffe53d94fc76cf"

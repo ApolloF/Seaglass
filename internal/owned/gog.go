@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/scan"
-	"github.com/ApolloF/WaterLauncher/internal/sqlite"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/scan"
+	"github.com/ApolloF/Seaglass/internal/sqlite"
 )
 
 // GalaxyDB is GOG Galaxy's local database ("" when Galaxy isn't installed).

@@ -98,7 +98,7 @@ let settings: Settings = {
 };
 
 let startup: Startup = { on: false, disabledByUser: false };
-let updateState: UpdateState = { current: "v1.0.0", status: "idle", progress: 0, page: "https://github.com/ApolloF/WaterLauncher/releases/latest", checkedAt: 0, failed: false };
+let updateState: UpdateState = { current: "v1.0.0", status: "idle", progress: 0, page: "https://github.com/ApolloF/Seaglass/releases/latest", checkedAt: 0, failed: false };
 const updateListeners = new Set<(s: UpdateState) => void>();
 function setUpdate(p: Partial<UpdateState>) {
   updateState = { ...updateState, ...p };
@@ -322,11 +322,11 @@ export const mockApi: Api = {
     return ["C:\\Program Files (x86)\\DODI-Repacks", "D:\\Games"];
   },
   async info(): Promise<AppInfo> {
-    return { version: "mock", dataDir: "C:\\Users\\you\\AppData\\Roaming\\WaterLauncher", logFile: "waterlauncher.log", crashedLastTime: false };
+    return { version: "mock", dataDir: "C:\\Users\\you\\AppData\\Roaming\\Seaglass", logFile: "seaglass.log", crashedLastTime: false };
   },
   async openLog() {},
   async copyDiagnostics() {
-    await navigator.clipboard?.writeText("WaterLauncher diagnostics (mock)").catch(() => {});
+    await navigator.clipboard?.writeText("Seaglass diagnostics (mock)").catch(() => {});
   },
   async reportProblem() {},
   reportUIError(m) {

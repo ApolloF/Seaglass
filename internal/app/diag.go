@@ -6,7 +6,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/logx"
 )
 
 // heapDiag writes a Go heap profile and logs the runtime's memory numbers

@@ -55,7 +55,7 @@ export function dispatch(intent: Intent, repeat = false) {
 export const input = $state<{ source: "pad" | "keyboard"; pointer: boolean }>({ source: "pad", pointer: false });
 
 // Steam's desktop configuration turns a controller into a keyboard while
-// WaterLauncher reads the same controller, so one press can arrive twice:
+// Seaglass reads the same controller, so one press can arrive twice:
 // once from the controller and once as a key. The second copy is dropped.
 const TWIN_MS = 120;
 const lastSeen = new Map<Intent, { from: "pad" | "keyboard"; at: number }>();

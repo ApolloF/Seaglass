@@ -19,18 +19,18 @@
       <p class="line"><Icon name="download" size={16} stroke={2} />Downloading {u.latest} · {pct}%</p>
       <div class="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style:width="{pct}%"></i></div>
     {:else if u.status === "ready"}
-      <p class="line strong"><Icon name="sparkle" size={16} stroke={2} />WaterLauncher {u.latest} is ready to install.</p>
+      <p class="line strong"><Icon name="sparkle" size={16} stroke={2} />Seaglass {u.latest} is ready to install.</p>
       {#if u.failed}
-        <p class="note">It didn't install when WaterLauncher last started. Try again, or download it from GitHub.</p>
+        <p class="note">It didn't install when Seaglass last started. Try again, or download it from GitHub.</p>
       {:else}
-        <p class="note">It installs the next time WaterLauncher starts, or now with a quick restart.</p>
+        <p class="note">It installs the next time Seaglass starts, or now with a quick restart.</p>
       {/if}
       <div class="actions">
         <button type="button" class="btn primary" onclick={() => lib.installUpdate()}><Icon name="refresh" size={16} stroke={2} />Restart and update</button>
         <button type="button" class="btn" onclick={() => lib.run(() => api.updates.openReleasePage())}><Icon name="link" size={16} />What's new</button>
       </div>
     {:else if u.status === "available"}
-      <p class="line strong"><Icon name="sparkle" size={16} stroke={2} />WaterLauncher {u.latest} is out.</p>
+      <p class="line strong"><Icon name="sparkle" size={16} stroke={2} />Seaglass {u.latest} is out.</p>
       <p class="note">This copy can't update itself (its folder isn't writable). Download the new version from GitHub.</p>
       <div class="actions">
         <button type="button" class="btn primary" onclick={() => lib.run(() => api.updates.openReleasePage())}><Icon name="download" size={16} />Download</button>

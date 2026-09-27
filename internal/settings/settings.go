@@ -1,4 +1,4 @@
-// Package settings stores WaterLauncher's preferences in %APPDATA%\WaterLauncher\settings.json.
+// Package settings stores Seaglass's preferences in %APPDATA%\Seaglass\settings.json.
 package settings
 
 import (
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ApolloF/WaterLauncher/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // Settings are the user's preferences. New fields get their default when
@@ -41,7 +41,7 @@ type Settings struct {
 	// While playing
 	CloseWhilePlaying bool   `json:"closeWhilePlaying"` // close the interface while a game runs (frees its memory)
 	PadWhilePlaying   string `json:"padWhilePlaying"`   // listen (PS button opens the overlay), off (release the controller)
-	NoticeExternal    bool   `json:"noticeExternal"`    // follow games started outside WaterLauncher (playtime, controller)
+	NoticeExternal    bool   `json:"noticeExternal"`    // follow games started outside Seaglass (playtime, controller)
 
 	// Saves, through Syncer
 	SyncSavesBefore  bool `json:"syncSavesBefore"`  // sync a game's saves before it starts
@@ -89,7 +89,7 @@ func Open(path string) *Store {
 		v := Defaults()
 		if json.Unmarshal(b, &v) == nil {
 			// Settings saved before the welcome existed belong to someone
-			// who has used WaterLauncher already.
+			// who has used Seaglass already.
 			var keys map[string]json.RawMessage
 			if json.Unmarshal(b, &keys) == nil {
 				if _, ok := keys["welcomed"]; !ok {
@@ -102,7 +102,7 @@ func Open(path string) *Store {
 	return s
 }
 
-// DefaultPath is %APPDATA%\WaterLauncher\settings.json.
+// DefaultPath is %APPDATA%\Seaglass\settings.json.
 func DefaultPath() string { return filepath.Join(platform.AppDir(), "settings.json") }
 
 // Get returns the current settings.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Settings → Saves: how WaterLauncher and Syncer get on, and what it does
+  // Settings → Saves: how Seaglass and Syncer get on, and what it does
   // with a game's saves around playing.
   import Icon from "../components/Icon.svelte";
   import Toggle from "../components/Toggle.svelte";
@@ -79,7 +79,7 @@
         {/each}
       </div>
     </div>
-    <Toggle checked={s.backupSavesAfter} title="Back up saves after playing" detail="A backup runs as soon as the game exits, also for games started outside WaterLauncher." onchange={(v) => set({ backupSavesAfter: v })} />
+    <Toggle checked={s.backupSavesAfter} title="Back up saves after playing" detail="A backup runs as soon as the game exits, also for games started outside Seaglass." onchange={(v) => set({ backupSavesAfter: v })} />
     <Toggle checked={s.startSyncer} title="Start Syncer when it isn't running" detail="In the background, without its window. Off: games whose saves need Syncer start without syncing until you open it." onchange={(v) => set({ startSyncer: v })} />
   </div>
   <p class="hint">Which games and folders Syncer looks after, and your other PCs, are set up in Syncer.</p>

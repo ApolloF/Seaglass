@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
+	"github.com/ApolloF/Seaglass/internal/library"
 )
 
 // allowedHosts are the only hosts this package talks to.
@@ -70,7 +70,7 @@ func (c *Client) do(ctx context.Context, method, raw string, header map[string]s
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	req.Header.Set("User-Agent", "WaterLauncher")
+	req.Header.Set("User-Agent", "Seaglass")
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}

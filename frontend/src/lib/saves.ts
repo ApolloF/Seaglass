@@ -17,14 +17,14 @@ export function syncerSummary(s: SyncerStatus | null, startSyncer: boolean): Syn
   if (!s.installed)
     return {
       title: "Not installed",
-      detail: "Syncer keeps game saves in sync between your PCs and backs them up. With it, WaterLauncher brings a game's saves up to date before you play and backs them up after.",
+      detail: "Syncer keeps game saves in sync between your PCs and backs them up. With it, Seaglass brings a game's saves up to date before you play and backs them up after.",
       tone: "muted",
       action: "get",
     };
   if (s.outdated)
     return {
       title: "Needs an update",
-      detail: `Syncer ${s.version ?? ""} is installed; WaterLauncher works with 0.11 or newer.`.replace("  ", " "),
+      detail: `Syncer ${s.version ?? ""} is installed; Seaglass works with 0.11 or newer.`.replace("  ", " "),
       tone: "warn",
       action: "update",
     };
@@ -32,8 +32,8 @@ export function syncerSummary(s: SyncerStatus | null, startSyncer: boolean): Syn
     return {
       title: "Not running",
       detail: startSyncer
-        ? "WaterLauncher starts it in the background when a game needs its saves."
-        : "WaterLauncher won't start it, so games start without syncing their saves until you open Syncer.",
+        ? "Seaglass starts it in the background when a game needs its saves."
+        : "Seaglass won't start it, so games start without syncing their saves until you open Syncer.",
       tone: startSyncer ? "muted" : "warn",
       action: "start",
     };
@@ -43,7 +43,7 @@ export function syncerSummary(s: SyncerStatus | null, startSyncer: boolean): Syn
   if (s.conflicts)
     return {
       title: s.conflicts === 1 ? "A save has two versions" : `${s.conflicts} saves have two versions`,
-      detail: `${bits.join(" · ")}. Pick the version to keep in Syncer; until then WaterLauncher asks before starting that game.`,
+      detail: `${bits.join(" · ")}. Pick the version to keep in Syncer; until then Seaglass asks before starting that game.`,
       tone: "warn",
       action: "open",
     };
@@ -86,14 +86,14 @@ export function savesSummary(s: Saves | null): SavesSummary | null {
   if (!s.installed)
     return {
       text: "Syncer isn't installed",
-      detail: "Syncer keeps saves in sync between your PCs and backs them up. WaterLauncher then syncs them before you play.",
+      detail: "Syncer keeps saves in sync between your PCs and backs them up. Seaglass then syncs them before you play.",
       tone: "muted",
       action: "get",
     };
   if (s.outdated)
     return {
       text: "Syncer needs an update",
-      detail: "WaterLauncher works with Syncer 0.11 or newer: it then syncs a game's saves before you play and backs them up after.",
+      detail: "Seaglass works with Syncer 0.11 or newer: it then syncs a game's saves before you play and backs them up after.",
       tone: "warn",
       action: "get",
     };

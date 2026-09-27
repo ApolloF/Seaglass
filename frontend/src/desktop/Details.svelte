@@ -238,7 +238,7 @@
     {#if game.needsReview}
       <div class="card review">
         <div class="card-head"><Icon name="warn" size={20} /><span>Is this {title(game)}?</span></div>
-        <p>WaterLauncher found this game by its folder name and couldn't match it to a known game. Pick the right one, or keep it as it is.</p>
+        <p>Seaglass found this game by its folder name and couldn't match it to a known game. Pick the right one, or keep it as it is.</p>
         <div class="row">
           <button type="button" class="btn primary" onclick={() => (matching = true)}>Find the game…</button>
           <button type="button" class="btn" onclick={() => lib.run(() => api.confirmMatch(game.id))}>Keep as is</button>

@@ -123,7 +123,7 @@ func (c *Client) pcgwPage(ctx context.Context, title string) (*PCGW, error) {
 	return nil, errNotFound
 }
 
-// parsePCGW reads the fields WaterLauncher uses from a page's wikitext.
+// parsePCGW reads the fields Seaglass uses from a page's wikitext.
 func parsePCGW(text string) *PCGW {
 	p := &PCGW{}
 	f := map[string]string{}

@@ -172,7 +172,7 @@ func (f Feed) get(ctx context.Context, raw string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "WaterLauncher (+https://github.com/ApolloF/WaterLauncher)")
+	req.Header.Set("User-Agent", "Seaglass (+https://github.com/ApolloF/Seaglass)")
 	req.Header.Set("Accept", "application/octet-stream")
 	resp, err := f.client().Do(req)
 	if err != nil {

@@ -106,7 +106,7 @@
               checked={startup?.on ?? false}
               disabled={!startup}
               title="Start with Windows"
-              detail="WaterLauncher waits in the tray when you sign in, so the PS button opens it and your library is ready."
+              detail="Seaglass waits in the tray when you sign in, so the PS button opens it and your library is ready."
               onchange={setStartup}
             />
             {#if startup?.on && startup.disabledByUser}
@@ -117,8 +117,8 @@
             <span class="glabel">Updates</span>
             <Toggle
               checked={s.autoUpdate}
-              title="Keep WaterLauncher up to date"
-              detail="Checks GitHub twice a day, downloads new versions in the background and installs them the next time WaterLauncher starts."
+              title="Keep Seaglass up to date"
+              detail="Checks GitHub twice a day, downloads new versions in the background and installs them the next time Seaglass starts."
               onchange={(v) => set({ autoUpdate: v })}
             />
             <UpdateStatus />
@@ -160,7 +160,7 @@
           <div class="group">
             <span class="glabel">Art for games Steam doesn't know</span>
             <p class="hint">
-              Steam and GOG art needs no setup. For everything else, WaterLauncher can use SteamGridDB with your own free API key
+              Steam and GOG art needs no setup. For everything else, Seaglass can use SteamGridDB with your own free API key
               (steamgriddb.com, Preferences, API). The key is stored encrypted for your Windows account.
             </p>
             {#if hasKey}
@@ -206,8 +206,8 @@
           </div>
           <div class="group">
             <Toggle checked={s.openBigPictureOnController} title="Open big picture when a controller connects" detail="Switches over as soon as you pick one up." onchange={(v) => set({ openBigPictureOnController: v })} />
-            <Toggle checked={s.startInBigPicture} title="Start in big picture" detail="Skip the desktop window when WaterLauncher starts." onchange={(v) => set({ startInBigPicture: v })} />
-            <Toggle checked={s.psButton} title="PS / Xbox button opens WaterLauncher" detail="From other apps, and the overlay while you play. Turn off Steam's own guide-button shortcut to avoid both opening." onchange={(v) => set({ psButton: v })} />
+            <Toggle checked={s.startInBigPicture} title="Start in big picture" detail="Skip the desktop window when Seaglass starts." onchange={(v) => set({ startInBigPicture: v })} />
+            <Toggle checked={s.psButton} title="PS / Xbox button opens Seaglass" detail="From other apps, and the overlay while you play. Turn off Steam's own guide-button shortcut to avoid both opening." onchange={(v) => set({ psButton: v })} />
             <Toggle checked={s.haptics} title="Haptics while browsing" detail="Light ticks as you move between games." onchange={(v) => set({ haptics: v })} />
             <Toggle checked={s.lightbar} title="Lightbar follows the game" detail="Tints the DualSense to the selected game's colour." onchange={(v) => set({ lightbar: v })} />
             <Toggle checked={s.sounds} title="Navigation sounds" detail="Soft clicks as you move." onchange={(v) => set({ sounds: v })} />
@@ -216,8 +216,8 @@
           <div class="group">
             <span class="glabel">While playing</span>
             <Toggle checked={s.closeWhilePlaying} title="Close the interface while a game runs" detail="Frees the memory it uses (about 400 MB). It comes back when the game exits; the tray icon opens it sooner." onchange={(v) => set({ closeWhilePlaying: v })} />
-            <Toggle checked={s.noticeExternal} title="Notice games started elsewhere" detail="A game from your library started from Steam or a desktop shortcut counts its playtime here too, and WaterLauncher lets go of the controller while it runs." onchange={(v) => set({ noticeExternal: v })} />
-            <Toggle checked={s.padWhilePlaying === "listen"} title="Listen for the PS / Xbox button in games" detail="Opens the overlay. WaterLauncher only listens: it never writes to the controller or changes its mode while a game has it. Turn off to let go of the controller completely." onchange={(v) => set({ padWhilePlaying: v ? "listen" : "off" })} />
+            <Toggle checked={s.noticeExternal} title="Notice games started elsewhere" detail="A game from your library started from Steam or a desktop shortcut counts its playtime here too, and Seaglass lets go of the controller while it runs." onchange={(v) => set({ noticeExternal: v })} />
+            <Toggle checked={s.padWhilePlaying === "listen"} title="Listen for the PS / Xbox button in games" detail="Opens the overlay. Seaglass only listens: it never writes to the controller or changes its mode while a game has it. Turn off to let go of the controller completely." onchange={(v) => set({ padWhilePlaying: v ? "listen" : "off" })} />
           </div>
         {:else if tab === "saves"}
           <SyncerSettings />

@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/launch"
-	"github.com/ApolloF/WaterLauncher/internal/library"
-	"github.com/ApolloF/WaterLauncher/internal/logx"
-	"github.com/ApolloF/WaterLauncher/internal/platform"
-	"github.com/ApolloF/WaterLauncher/internal/syncer"
-	"github.com/ApolloF/WaterLauncher/internal/update"
+	"github.com/ApolloF/Seaglass/internal/launch"
+	"github.com/ApolloF/Seaglass/internal/library"
+	"github.com/ApolloF/Seaglass/internal/logx"
+	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/syncer"
+	"github.com/ApolloF/Seaglass/internal/update"
 )
 
 // syncerProject is Syncer's home page.
@@ -41,7 +41,7 @@ type Saves struct {
 	Folders   []syncer.Folder `json:"folders"`
 }
 
-// SyncerStatus is how WaterLauncher and Syncer get on, for Settings.
+// SyncerStatus is how Seaglass and Syncer get on, for Settings.
 type SyncerStatus struct {
 	Installed   bool   `json:"installed"`
 	Version     string `json:"version,omitempty"`

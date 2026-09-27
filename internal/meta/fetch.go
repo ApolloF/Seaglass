@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ApolloF/WaterLauncher/internal/library"
+	"github.com/ApolloF/Seaglass/internal/library"
 )
 
 // Version marks what Fetch gathers; metadata from an older version is

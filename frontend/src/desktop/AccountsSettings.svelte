@@ -102,7 +102,7 @@
       </div>
       {#if !acc.epic.connected}
         {#if !epicStarted}
-          <p>Sign in on epicgames.com in your browser. WaterLauncher never sees your password; it keeps only Epic's sign-in token, encrypted for your Windows account.</p>
+          <p>Sign in on epicgames.com in your browser. Seaglass never sees your password; it keeps only Epic's sign-in token, encrypted for your Windows account.</p>
           <div class="row">
             <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openEpicSignIn()).then(() => (epicStarted = true))}>Sign in with Epic…</button>
           </div>
