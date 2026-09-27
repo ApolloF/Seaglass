@@ -58,7 +58,7 @@ describe("texts", () => {
     expect(rarityText(a("A", { percent: 1.234 }))).toBe("Rare · 1.2% of players");
     expect(rarityText(a("A", { percent: 42.6 }))).toBe("43% of players");
     expect(statusText(a("A", { unlocked: true }))).toBe("Unlocked");
-    expect(statusText(a("A", { unlocked: true, unlockedAt: 1_700_000_000 }))).toMatch(/^Unlocked \d/);
+    expect(statusText(a("A", { unlocked: true, unlockedAt: 1_700_000_000 }))).toMatch(/^Unlocked .*2023$/); // "14 Nov 2023", "Nov 14, 2023": the date follows the locale
     expect(statusText(a("A", { progress: 3, max: 10 }))).toBe("3 / 10");
     expect(statusText(a("A"))).toBe("");
     expect(unlockedText(1)).toBe("1 achievement unlocked");
