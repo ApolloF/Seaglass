@@ -26,6 +26,7 @@ type Shell struct {
 	gameMode bool   // the main window was closed for a game
 	closing  bool   // Seaglass closes a window itself (not the user)
 	waitGame int    // counts closeMainWhenGameInFront calls, so only the latest acts
+	made     int    // main windows made so far
 }
 
 // NewShell makes the shell.
@@ -53,6 +54,17 @@ func (s *Shell) SetUIMode(mode string) {
 	s.mu.Lock()
 	s.uiMode = mode
 	s.mu.Unlock()
+}
+
+// startMode is where a game started now is started from: the mode the
+// main window shows, or "" when it isn't open.
+func (s *Shell) startMode() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.main == nil {
+		return ""
+	}
+	return s.uiMode
 }
 
 // OpenMain shows the main window, making it again when it was closed.
@@ -83,14 +95,48 @@ func (s *Shell) bringForward(w *application.WebviewWindow) {
 	}
 	w.Show()
 	w.Focus()
+	go takeFront(w)
+}
+
+// takeFront makes sure w ends up in front. Seaglass mostly comes back
+// from the background (a game has just closed), where Windows ignores
+// Focus: the window then shows but isn't active, and the taskbar stays on
+// top of big picture. The window may still be being made, so it waits for
+// it and tries a few times.
+func takeFront(w *application.WebviewWindow) {
+	for _, d := range []time.Duration{50, 250, 700, 1500} {
+		time.Sleep(d * time.Millisecond)
+		h := uintptr(w.NativeWindow())
+		if h == 0 {
+			continue
+		}
+		if platform.IsForeground(h) || platform.BringToFront(h) {
+			return
+		}
+	}
+	logx.Printf("couldn't bring the window to the front")
+}
+
+// markFullscreen keeps the taskbar behind w while it's full screen and in front.
+func markFullscreen(w *application.WebviewWindow, on bool) {
+	if h := uintptr(w.NativeWindow()); h != 0 {
+		if err := platform.MarkFullscreen(h, on); err != nil {
+			logx.Printf("taskbar: %v", err)
+		}
+	}
 }
 
 // newMain makes the main window; the interface starts in mode.
 func (s *Shell) newMain(mode string) *application.WebviewWindow {
+	// The first window starts the way the settings say; one made again
+	// (after a game) comes back in the mode it had.
 	url := "/"
 	if mode == "bigpicture" {
 		url = "/?mode=bigpicture"
+	} else if s.made > 0 {
+		url = "/?mode=desktop"
 	}
+	s.made++
 	start := application.WindowStateNormal
 	if mode == "bigpicture" {
 		// Full screen from the first frame, rather than a window that
@@ -110,6 +156,8 @@ func (s *Shell) newMain(mode string) *application.WebviewWindow {
 		URL:              url,
 		Windows:          application.WindowsWindow{Theme: application.SystemDefault},
 	})
+	w.OnWindowEvent(events.Windows.WindowFullscreen, func(*application.WindowEvent) { go markFullscreen(w, true) })
+	w.OnWindowEvent(events.Windows.WindowUnFullscreen, func(*application.WindowEvent) { go markFullscreen(w, false) })
 	w.RegisterHook(events.Common.WindowClosing, func(*application.WindowEvent) {
 		s.mu.Lock()
 		byUser := !s.closing
@@ -174,22 +222,31 @@ func (s *Shell) closeMainWhenGameInFront(isGame func(pid uint32) bool) {
 }
 
 // reopenForGame brings the interface back as soon as the game has gone
-// (its session ends a few seconds later), if it was closed for it.
-func (s *Shell) reopenForGame() {
+// (its session ends a few seconds later), if it was closed for it, in the
+// mode the game was started from.
+func (s *Shell) reopenForGame(from string) {
 	s.mu.Lock()
 	s.waitGame++ // a close still waiting for the game is off
 	reopen := s.gameMode
+	if reopen && from != "" {
+		s.uiMode = from
+	}
 	s.mu.Unlock()
 	if reopen {
 		s.OpenMain()
 	}
 }
 
-// gameEnded brings the interface back when it was closed for the game.
-func (s *Shell) gameEnded() {
+// gameEnded brings the interface back when it was closed for the game,
+// in the mode the game was started from. A game started from outside the
+// interface (a shortcut) leaves it closed.
+func (s *Shell) gameEnded(from string) {
 	s.CloseOverlay()
 	s.mu.Lock()
-	reopen := s.gameMode || s.main == nil
+	reopen := s.gameMode || (s.main == nil && from != "")
+	if reopen && from != "" {
+		s.uiMode = from
+	}
 	s.mu.Unlock()
 	if reopen {
 		s.OpenMain()

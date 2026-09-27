@@ -123,7 +123,7 @@ Data: `%APPDATA%\Seaglass` (`settings.json`, `library.json`, log), `%LOCALAPPDAT
   - The Steam Input route uses non-Steam shortcuts that Seaglass manages in `shortcuts.vdf`, in a "Seaglass" collection. Changes are applied while Steam is closed, or after asking to restart it. These games launch through `steam://rungameid/<shortcut>`.
 - **Game mode:** all interface windows close; the smoke test measured about 420 MB for WebView2 alone. Seaglass stays in the tray (pulled forward from v1.0, because game mode needs it). Closing the window yourself quits, except while a game runs. Pressing PS opens a borderless topmost overlay window. Nothing is ever injected into games, so anti-cheat stays happy.
   - Measured in v0.4: the Go core uses about 35 MB while a game runs with the interface closed.
-  - Passive listening restarts SDL without its HIDAPI drivers and with enhanced reports off, so nothing is written to the controller.
+  - Passive listening restarts SDL without its HIDAPI drivers, so nothing is written to the controller. Enhanced reports stay off in every mode: once on, a Bluetooth PlayStation controller keeps them until turned off, and DirectInput games get no input.
 
 ## 7. Interface
 
@@ -473,6 +473,14 @@ Steam-style achievements for every game Seaglass can read: a card in the details
 - **Scan**: `EmuDir` (where the emulator sits in the game folder) goes from the scan to `library.Game`; new markers for TENOKE (`SteamDataSer_stats.ini`), gbe_fork (`configs.user.ini`) and Razor1911 (`.1911`).
 - **Idle budget kept**: read when details open and once after a session, cached by the files' times; nothing online while a game runs.
 - **Not read yet**: VOICES38, CPY, PLAZA, FLT, Steamworks Fix, Hoodlum and DARKSiDERS (no public description of their files), and EA, Ubisoft, Battle.net and Xbox games.
+
+## 25. Tester feedback after v1.6 (2026-09-27)
+
+- **Resident Evil 4 (2023) wasn't matched**: Steam sells it as "Resident Evil 4" (the original is "Resident Evil 4 (2005)"), and the store search finds nothing for "Resident Evil 4 Remake". Matching and *Change game…* now also try the title without "Remake" (last, after the edition and aliases), and RE2/RE3/RE4 short names (`RE4R`) are written out. *Change game…* retries a search that found nothing the same way.
+- **Typing in *Change game…*** selected the whole title on every key: the effect that focuses the field also read the query. It now runs once, and results follow the title as it's typed.
+- **RUNE showed one achievement for a finished game**: the INI reader now counts IDs listed in `[SteamAchievements]` (the unlocked ones, in order) and progress at its maximum, and unlocks in older files (another crack's leftovers) still count instead of only the newest file's.
+- **Ubisoft achievements**: Uplay emulators (`upc_r2.ini`, `uplay_r*.ini`) and VOICES38 (`voices38.dll`) are detected; their `Goldberg UplayEmu Saves` files are read (see [achievements.md](achievements.md)).
+- **Launch sequence and mode**: sessions carry where they were started (`Session.From`: bigpicture, desktop, or "" for `--play` and games noticed outside Seaglass). Big picture's launch sequence plays only for its own launches (others show it only to ask something or to say a launch failed); after a game the window comes back in the mode it was started from (`?mode=desktop` too, so *start in big picture* applies only to the first window), a `--play` game leaves the interface closed, and the controller coming back after a game no longer counts as connecting one (*open big picture when a controller connects*).
 
 ## To-do (maintainer)
 

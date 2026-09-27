@@ -29,8 +29,15 @@
   const layout = $derived(lib.settings?.bigPictureLayout ?? "deck");
   const sheet = $derived(sheetId === null ? null : (lib.games.find((g) => g.id === sheetId) ?? null));
   const session = $derived(lib.session);
+  // Only games started from big picture get the launch sequence; one
+  // started elsewhere shows it only when it asks something or fails.
   const showLaunch = $derived(
-    !!session && session.id !== hiddenSession && session.phase !== "" && session.phase !== "cancelled" && (session.phase !== "ended" || session.startedAt || session.note),
+    !!session &&
+      session.id !== hiddenSession &&
+      session.phase !== "" &&
+      session.phase !== "cancelled" &&
+      (session.from === "bigpicture" || !!session.question || session.phase === "failed") &&
+      (session.phase !== "ended" || session.startedAt || session.note),
   );
   const launchGame = $derived(session ? (lib.games.find((g) => g.id === session.gameId) ?? null) : null);
   // A session that ended before this window opened (the interface was
