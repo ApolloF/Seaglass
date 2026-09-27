@@ -190,6 +190,37 @@ jobs:
           $crash = "$env:APPDATA\Seaglass\crash.log"
           if ((Test-Path $crash) -and (Get-Item $crash).Length -gt 0) { Get-Content $crash; throw 'Seaglass crashed' }
 
+      - name: Update from WaterLauncher
+        # WaterLauncher 1.4's updater runs the new installer with its own
+        # folder (/D=...\WaterLauncher): Seaglass must end up in its own
+        # folder, take over the library and "start with Windows", and leave
+        # nothing of WaterLauncher behind.
+        run: |
+          $old = "$env:LOCALAPPDATA\Programs\WaterLauncher"
+          $new = "$env:LOCALAPPDATA\Programs\Seaglass"
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          Remove-Item "$env:APPDATA\Seaglass", "$env:LOCALAPPDATA\Seaglass" -Recurse -Force -ErrorAction SilentlyContinue
+          Invoke-WebRequest https://github.com/ApolloF/WaterLauncher/releases/download/v1.4.0/WaterLauncher-setup.exe -OutFile "$env:RUNNER_TEMP\wl-setup.exe"
+          Start-Process "$env:RUNNER_TEMP\wl-setup.exe" -ArgumentList '/S' -Wait
+          if (-not (Test-Path "$old\WaterLauncher.exe")) { throw 'WaterLauncher 1.4 did not install' }
+          New-Item -ItemType Directory "$env:APPDATA\WaterLauncher" -Force | Out-Null
+          '{"games":[]}' | Out-File "$env:APPDATA\WaterLauncher\library.json" -Encoding ascii
+          Set-ItemProperty $run -Name WaterLauncher -Value "`"$old\WaterLauncher.exe`" --tray"
+          $i = Start-Process bin/Seaglass-setup.exe -ArgumentList "/S /relaunch /tray /D=$old" -PassThru
+          $i.WaitForExit()
+          for ($t = 0; $t -lt 30 -and -not (Test-Path "$env:APPDATA\Seaglass\library.json"); $t++) { Start-Sleep -Seconds 1 }
+          if (-not (Test-Path "$new\Seaglass.exe")) { throw 'Seaglass not in its own folder' }
+          if (Test-Path $old) { throw 'WaterLauncher folder left' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WaterLauncher') { throw 'WaterLauncher uninstall entry left' }
+          if ((Test-Path "$env:APPDATA\WaterLauncher") -or -not (Test-Path "$env:APPDATA\Seaglass\library.json")) { throw 'library not moved' }
+          Start-Sleep -Seconds 3
+          $r = Get-ItemProperty $run
+          if ($r.WaterLauncher -or -not $r.Seaglass) { throw "start with Windows not moved: $($r.Seaglass)" }
+          $q = Start-Process "$new\Seaglass.exe" -ArgumentList '--quit' -PassThru
+          if (-not $q.WaitForExit(15000)) { throw '--quit did not return' }
+          Start-Process "$new\uninstall.exe" -ArgumentList '/S' -Wait
+          Get-Content "$env:APPDATA\Seaglass\seaglass.log" -ErrorAction SilentlyContinue | Select-Object -Last 10
+
       - name: Checksums
         run: |
           # The same files under WaterLauncher's names: releases from before
