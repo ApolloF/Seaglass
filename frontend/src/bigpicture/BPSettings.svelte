@@ -14,9 +14,10 @@
     | { key: keyof Settings; title: string; detail: string; kind: "toggle"; group?: string }
     | { key: keyof Settings; title: string; detail: string; kind: "choice"; options: [string | number, string][]; group?: string }
     | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string }
-    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string };
+    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string }
+    | { key: `library:${string}`; source: string; title: string; detail: string; kind: "library"; group?: string };
 
-  const rows: Row[] = [
+  const fixed: Row[] = [
     {
       group: "Big picture",
       key: "bigPictureLayout",
@@ -80,6 +81,20 @@
     { key: "autoUpdate", title: "Keep WaterLauncher up to date", detail: "New versions download in the background and install the next time WaterLauncher starts.", kind: "toggle" },
   ];
 
+  // One row per library on this PC, to show or hide its games.
+  const rows = $derived.by(() => {
+    const libs: Row[] = lib.libraries.map((l, k) => ({
+      group: k === 0 ? "Libraries" : undefined,
+      key: `library:${l.id}` as const,
+      source: l.id,
+      title: `${l.label} games`,
+      detail: `${l.count} ${l.count === 1 ? "game" : "games"}${l.hidden ? ", hidden" : ""}`,
+      kind: "library" as const,
+    }));
+    const at = fixed.findIndex((r) => r.key === "showOwned");
+    return [...fixed.slice(0, at), ...libs, ...fixed.slice(at)];
+  });
+
   let i = $state(0);
   const s = $derived(lib.settings);
 
@@ -113,6 +128,8 @@
       if (syncerSum?.action === "open") lib.run(() => api.saves.openSyncer());
       else if (syncerSum?.action === "get" || syncerSum?.action === "update") lib.run(() => api.saves.getSyncer());
       else check(true);
+    } else if (row.kind === "library") {
+      lib.toggleLibrary(row.source);
     } else if (row.kind === "toggle") {
       lib.saveSettings({ ...s, [row.key]: !s[row.key] });
     } else {
@@ -143,7 +160,7 @@
   );
 
   function valueLabel(row: Row): string {
-    if (!s || row.kind === "status" || row.kind === "action") return "";
+    if (!s || row.kind === "status" || row.kind === "action" || row.kind === "library") return "";
     if (row.kind === "toggle") return s[row.key] ? "On" : "Off";
     return row.options.find((o) => String(o[0]) === String(s[row.key]))?.[1] ?? "";
   }
@@ -169,6 +186,8 @@
           <span class="text"><span class="t">{row.title}</span><span class="d">{row.detail}</span></span>
           {#if row.kind === "action"}
             <span class="act">Open</span>
+          {:else if row.kind === "library"}
+            <span class="track" class:yes={!s?.hiddenSources.includes(row.source)}><span class="knob"></span></span>
           {:else if row.kind === "toggle"}
             <span class="track" class:yes={!!s?.[row.key]}><span class="knob"></span></span>
           {:else}

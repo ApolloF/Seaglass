@@ -5,7 +5,7 @@
   import GameTile from "../components/GameTile.svelte";
   import Icon from "../components/Icon.svelte";
   import Logo from "../components/Logo.svelte";
-  import { metaLine, padSummary, recentFirst } from "../lib/bp";
+  import { metaLine, orbitOrder, padSummary } from "../lib/bp";
   import { bytes, playtime, ago } from "../lib/format";
   import { feedback, pad, useInput } from "../lib/input.svelte";
   import { lib } from "../lib/store.svelte";
@@ -33,7 +33,8 @@
   };
   let p: Props = $props();
 
-  const games = $derived(recentFirst(lib.base));
+  // Recently played games and favorites fill the middle.
+  const games = $derived(orbitOrder(lib.base));
   const cells = $derived(spiral(games.length));
 
   let i = $state(0);

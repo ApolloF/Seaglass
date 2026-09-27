@@ -28,3 +28,20 @@ func TestWelcomed(t *testing.T) {
 		t.Error("an unfinished welcome should show again")
 	}
 }
+
+// Only libraries the interface knows can be hidden, each once.
+func TestHiddenSources(t *testing.T) {
+	s := Open(filepath.Join(t.TempDir(), "settings.json"))
+	if got := s.Get().HiddenSources; got == nil || len(got) != 0 {
+		t.Fatalf("new settings hide %v", got)
+	}
+	v := s.Get()
+	v.HiddenSources = []string{"epic", "nope", "epic", "unofficial"}
+	got, err := s.Set(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.HiddenSources) != 2 || got.HiddenSources[0] != "epic" || got.HiddenSources[1] != "unofficial" {
+		t.Errorf("hidden sources = %v, want [epic unofficial]", got.HiddenSources)
+	}
+}

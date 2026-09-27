@@ -65,7 +65,22 @@ func (s *Shell) OpenMain() {
 	}
 	s.gameMode = false
 	s.mu.Unlock()
-	w.Restore()
+	s.bringForward(w)
+}
+
+// bringForward shows w in front. Wails' Restore also takes a window out of
+// full screen, so it's only used on a minimised one; big picture goes back
+// to full screen if it left it.
+func (s *Shell) bringForward(w *application.WebviewWindow) {
+	if w.IsMinimised() {
+		w.UnMinimise()
+	}
+	s.mu.Lock()
+	bp := s.uiMode == "bigpicture"
+	s.mu.Unlock()
+	if bp && !w.IsFullscreen() {
+		w.Fullscreen()
+	}
 	w.Show()
 	w.Focus()
 }
@@ -255,9 +270,7 @@ func (s *Shell) FocusMain() bool {
 	if w == nil {
 		return false
 	}
-	w.Restore()
-	w.Show()
-	w.Focus()
+	s.bringForward(w)
 	return true
 }
 

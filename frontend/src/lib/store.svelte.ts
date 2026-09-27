@@ -55,11 +55,14 @@ class LibraryStore {
   toasts = $state<Toast[]>([]);
 
   /** Games the library views show at all: installed ones (or every one when
-   * the setting says so), without hidden ones. */
+   * the setting says so), without hidden ones or ones from hidden libraries. */
   base = $derived.by(() => {
     const showAll = this.settings?.showNotInstalled ?? false;
     const showOwned = this.settings?.showOwned ?? false;
-    return this.games.filter((g) => !g.hidden && (g.installed || (showAll && !ownedOnly(g)) || (showOwned && !!g.owned)));
+    const hiddenLibs = SOURCE_GROUPS.filter((s) => this.settings?.hiddenSources?.includes(s.id));
+    return this.games.filter(
+      (g) => !g.hidden && (g.installed || (showAll && !ownedOnly(g)) || (showOwned && !!g.owned)) && !hiddenLibs.some((s) => s.match(g)),
+    );
   });
 
   visible = $derived.by(() => {
@@ -139,6 +142,24 @@ class LibraryStore {
   sources = $derived.by(() =>
     SOURCE_GROUPS.map((s) => ({ ...s, count: this.base.filter(s.match).length })).filter((s) => s.count > 0),
   );
+
+  /** Every library with games on this PC, shown or not, for Settings. */
+  libraries = $derived.by(() =>
+    SOURCE_GROUPS.map((s) => ({
+      ...s,
+      count: this.games.filter((g) => !g.hidden && g.installed && s.match(g)).length,
+      hidden: !!this.settings?.hiddenSources?.includes(s.id),
+    })).filter((s) => s.count > 0 || s.hidden),
+  );
+
+  /** Shows or hides a library's games. */
+  toggleLibrary(id: string) {
+    const s = this.settings;
+    if (!s) return;
+    const hidden = s.hiddenSources.includes(id) ? s.hiddenSources.filter((h) => h !== id) : [...s.hiddenSources, id];
+    if (this.filter.kind === "source" && this.filter.source === id) this.filter = { kind: "all" };
+    void this.saveSettings({ ...s, hiddenSources: hidden });
+  }
 
   async init() {
     api.onLibraryChanged(() => void this.refresh());

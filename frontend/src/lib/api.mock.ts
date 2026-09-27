@@ -87,6 +87,7 @@ let settings: Settings = {
   noticeExternal: true,
   showOwned: false,
   ownedGOG: false,
+  hiddenSources: [],
   syncSavesBefore: true,
   backupSavesAfter: true,
   syncWait: 60,

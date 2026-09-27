@@ -14,6 +14,23 @@ export function recentFirst(games: Game[]): Game[] {
   return games.filter((g) => g.installed).sort(byRecent);
 }
 
+const RECENT = 60 * 86400;
+
+/**
+ * Orbit's order, from the middle out: the games played lately (at most
+ * `recent`, most recent first), then favorites, then the rest of the
+ * installed games, most recently played first. The first two rings hold
+ * 19 games.
+ */
+export function orbitOrder(games: Game[], now = Date.now() / 1000, recent = 10): Game[] {
+  const installed = recentFirst(games);
+  const core = installed.filter((g) => lastPlayed(g) > 0 && now - lastPlayed(g) < RECENT).slice(0, recent);
+  const inCore = new Set(core);
+  const favs = installed.filter((g) => g.favorite && !inCore.has(g));
+  const rest = installed.filter((g) => !g.favorite && !inCore.has(g));
+  return [...core, ...favs, ...rest];
+}
+
 /** Recently played games; falls back to the whole library when nothing was played. */
 export function continuePlaying(games: Game[], n = 10): Game[] {
   const played = games.filter((g) => g.installed && lastPlayed(g) > 0).sort(byRecent);

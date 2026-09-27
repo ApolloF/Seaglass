@@ -135,6 +135,12 @@
             <Toggle checked={s.reviewUncertain} title="Let me check uncertain matches" detail="Games matched only by folder name wait in New on this PC." onchange={(v) => set({ reviewUncertain: v })} />
             <Toggle checked={s.showNotInstalled} title="Show games you uninstalled" detail="They stay listed with their playtime." onchange={(v) => set({ showNotInstalled: v })} />
           </div>
+          <div class="group">
+            <span class="glabel">Libraries</span>
+            {#each lib.libraries as l (l.id)}
+              <Toggle checked={!l.hidden} title={`${l.label} games`} detail={`${l.count} ${l.count === 1 ? "game" : "games"}. Off: they aren't shown anywhere, but still count their playtime.`} onchange={() => lib.toggleLibrary(l.id)} />
+            {/each}
+          </div>
           <AccountsSettings />
           <div class="group">
             <span class="glabel">Your game folders</span>

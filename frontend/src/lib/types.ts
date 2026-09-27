@@ -80,6 +80,8 @@ export interface Settings {
   showNotInstalled: boolean;
   showOwned: boolean;
   ownedGOG: boolean;
+  /** Libraries whose games aren't shown (ids from SOURCE_GROUPS). */
+  hiddenSources: string[];
   theme: "system" | "dark" | "light";
   bigPictureLayout: Layout;
   openBigPictureOnController: boolean;

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -22,6 +23,7 @@ type Settings struct {
 	ShowNotInstalled bool     `json:"showNotInstalled"` // list games that aren't installed (anymore)
 	ShowOwned        bool     `json:"showOwned"`        // list games connected store accounts own but aren't installed
 	OwnedGOG         bool     `json:"ownedGOG"`         // read GOG Galaxy's library for owned games
+	HiddenSources    []string `json:"hiddenSources"`    // libraries whose games aren't shown (steam, epic, …, unofficial, folder)
 
 	// Appearance
 	Theme            string `json:"theme"`            // system, dark, light (desktop mode)
@@ -54,10 +56,17 @@ type Settings struct {
 	Welcomed bool `json:"welcomed"`
 }
 
+// Sources are the libraries that can be hidden, as the interface groups
+// games: by store, then unofficial copies, standalone installs and folders.
+var Sources = map[string]bool{
+	"steam": true, "epic": true, "gog": true, "ea": true, "ubisoft": true, "battlenet": true, "xbox": true,
+	"unofficial": true, "standalone": true, "folder": true,
+}
+
 // Defaults are the settings on first start.
 func Defaults() Settings {
 	return Settings{
-		Folders: []string{}, AutoFolders: true, DetectUnofficial: true, ReviewUncertain: true,
+		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectUnofficial: true, ReviewUncertain: true,
 		Theme: "system", BigPictureLayout: "deck",
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
@@ -102,6 +111,7 @@ func (s *Store) Get() Settings {
 	defer s.mu.Unlock()
 	c := s.cur
 	c.Folders = append([]string{}, s.cur.Folders...)
+	c.HiddenSources = append([]string{}, s.cur.HiddenSources...)
 	return c
 }
 
@@ -143,6 +153,13 @@ func normalize(v Settings) Settings {
 		folders = []string{}
 	}
 	v.Folders = folders
+	hidden := []string{}
+	for _, id := range v.HiddenSources {
+		if Sources[id] && !slices.Contains(hidden, id) {
+			hidden = append(hidden, id)
+		}
+	}
+	v.HiddenSources = hidden
 	switch v.Theme {
 	case "system", "dark", "light":
 	default:
