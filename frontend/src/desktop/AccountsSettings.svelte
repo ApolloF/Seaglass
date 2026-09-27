@@ -112,7 +112,7 @@
         {#if !gogStarted}
           <p>GOG Galaxy's database has your progress but not the achievements' names or icons. Sign in on gog.com in your browser to get those; Seaglass keeps only GOG's sign-in token, encrypted for your Windows account. GOG Galaxy stays signed in as it is.</p>
           <div class="row">
-            <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openGOGSignIn()).then(() => (gogStarted = true))}>Sign in with GOG…</button>
+            <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openGOGSignIn().then(() => true)).then((ok) => { if (ok) gogStarted = true; })}>Sign in with GOG…</button>
           </div>
         {:else}
           <p>After signing in, the browser ends on a page whose address contains <code>code=</code>. Copy that whole address and paste it here.</p>
@@ -135,7 +135,7 @@
         {#if !epicStarted}
           <p>Sign in on epicgames.com in your browser. Seaglass never sees your password; it keeps only Epic's sign-in token, encrypted for your Windows account.</p>
           <div class="row">
-            <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openEpicSignIn()).then(() => (epicStarted = true))}>Sign in with Epic…</button>
+            <button type="button" class="btn" onclick={() => lib.run(() => api.accounts.openEpicSignIn().then(() => true)).then((ok) => { if (ok) epicStarted = true; })}>Sign in with Epic…</button>
           </div>
         {:else}
           <p>After signing in, the page shows a short text with an <code>authorizationCode</code>. Copy that text (or just the code) and paste it here.</p>

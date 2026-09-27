@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash/crc32"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -20,6 +24,7 @@ type fakeNet struct {
 	gogDefs    []Def
 	gogUnlocks map[string]Unlock
 	gogFor     string // the game id GOG answers for
+	gogErr     error  // GOG fails with this
 	epicDefs   []Def
 	epicRarity map[string]float64
 	epicPlayer map[string]Unlock
@@ -272,6 +277,9 @@ func TestResolveEpicEmulator(t *testing.T) {
 
 func (f *fakeNet) GOGAchievements(_ context.Context, access, game, user string) ([]Def, map[string]Unlock, map[string]float64, error) {
 	f.calls = append(f.calls, "gog:"+game+":"+user)
+	if f.gogErr != nil {
+		return nil, nil, nil, f.gogErr
+	}
 	if game != f.gogFor || f.gogDefs == nil {
 		return nil, nil, nil, ErrNone
 	}
@@ -308,6 +316,14 @@ func TestResolveGOG(t *testing.T) {
 	if l, _ = Resolve(context.Background(), g, d); len(net.calls) != 0 || l.Total != 2 {
 		t.Errorf("cached: %+v calls %v", l, net.calls)
 	}
+	// GOG fails while the database lacks the progress: the cached schema stays.
+	d.GOGUnlocks = func(string) (map[string]Unlock, error) { return nil, nil }
+	net.gogFor, net.gogErr, net.calls = "5134", errors.New("503"), nil
+	l, _ = Resolve(context.Background(), g, d)
+	if l.Total != 2 || l.Items[0].Name != "Win" || l.Hint != "GOG didn't answer; try again later." || len(net.calls) == 0 {
+		t.Errorf("failed request: %+v calls %v", l, net.calls)
+	}
+	net.gogErr = nil
 	// Only the product id works: tried after the client id.
 	g2 := library.Game{ID: 10, Source: "gog", GogID: "77", Dir: filepath.Join(root, "none")}
 	net.gogFor, net.calls = "77", nil
@@ -319,6 +335,10 @@ func TestResolveGOG(t *testing.T) {
 	g3 := library.Game{ID: 11, Source: "installer", DRMFree: "GOG", GogID: "1453", Dir: filepath.Join(root, "game")}
 	if l, _ = Resolve(context.Background(), g3, d); l.Source != "gog" {
 		t.Errorf("DRM-free copy: %+v", l)
+	}
+	// GOG now says 1453 has none: the schema cached before goes.
+	if l.Total != 0 || l.Hint != "" {
+		t.Errorf("none: %+v", l)
 	}
 	if GOGClientID(filepath.Join(root, "game"), "../x") != "" {
 		t.Error("a path in the id must not be read")
@@ -393,5 +413,73 @@ func TestResolveNothingToShow(t *testing.T) {
 	mk(t, root, map[string]string{"Roaming/GSE Saves/620/achievements.json": `{"A":{"earned":true}}`})
 	if l, _ := Resolve(context.Background(), library.Game{ID: 7, Source: "folder", Dir: filepath.Join(root, "g"), SteamAppID: 620}, d); l.Source != "Goldberg" || l.Unlocked != 1 {
 		t.Errorf("unlock file without a marker: %+v", l)
+	}
+}
+
+// Files lists what each kind of game is read from, and nothing else.
+func TestFiles(t *testing.T) {
+	root := t.TempDir()
+	d := testDeps(t, root, &fakeNet{})
+	d.GalaxyDB = filepath.Join(root, "galaxy.db")
+	dir := filepath.Join(root, "game")
+	goldberg := filepath.Join(dir, "bin", "steam_settings", "achievements.json")
+	schema := SteamSchemaFile(d.SteamRoot, 620)
+	for name, c := range map[string]struct {
+		g        library.Game
+		has, not []string
+	}{
+		"goldberg": {library.Game{Source: "folder", Unofficial: true, Emulator: "Goldberg", EmuDir: "bin", Dir: dir, SteamAppID: 620, GogID: "1453"},
+			[]string{goldberg, schema, SteamStatsFile(d.SteamRoot, "22", 620)}, []string{d.GalaxyDB}},
+		"uplay": {library.Game{Source: "folder", Unofficial: true, Emulator: "Uplay emulator", EmuDir: "bin", Dir: dir},
+			[]string{filepath.Join(dir, "bin", "achievements_schema.json")}, []string{goldberg, d.GalaxyDB}},
+		"gog": {library.Game{Source: "gog", GogID: "1453", Dir: dir},
+			[]string{d.GalaxyDB, d.GalaxyDB + "-wal"}, nil},
+		"steam": {library.Game{Source: "steam", SteamAppID: 620, GogID: "1453", Dir: dir},
+			[]string{schema}, []string{d.GalaxyDB, d.GalaxyDB + "-wal", goldberg}},
+	} {
+		files := Files(c.g, d)
+		for _, f := range c.has {
+			if !slices.Contains(files, f) {
+				t.Errorf("%s: %s missing from %v", name, f, files)
+			}
+		}
+		for _, f := range c.not {
+			if slices.Contains(files, f) {
+				t.Errorf("%s: %s in %v", name, f, files)
+			}
+		}
+	}
+}
+
+// An icon that fails for want of a connection is tried again; one that's
+// bad is given up on, and the list counts as complete.
+func TestIconsRetryAfterNetworkError(t *testing.T) {
+	dir := t.TempDir()
+	ic := fakeIcons(dir)
+	store := ic.Fetch
+	down := true
+	ic.Fetch = func(ctx context.Context, src, dir string) (string, error) {
+		if strings.HasSuffix(src, "bad.jpg") {
+			return "", &url.Error{Op: "Get", URL: src, Err: errors.New("redirect refused")}
+		}
+		if down {
+			return "", &url.Error{Op: "Get", URL: src, Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("no route to host")}}
+		}
+		return store(ctx, src, dir)
+	}
+	items := func() *List {
+		return &List{Items: []Achievement{
+			{Def: Def{ID: "a", Icon: "https://cdn.akamai.steamstatic.com/a.jpg"}},
+			{Def: Def{ID: "b", Icon: "https://cdn.akamai.steamstatic.com/bad.jpg"}},
+		}}
+	}
+	l := items()
+	if ic.Localize(context.Background(), l, false) || l.Items[0].Icon != "" {
+		t.Fatalf("offline run: %+v", l.Items)
+	}
+	down = false
+	l = items()
+	if !ic.Localize(context.Background(), l, false) || !strings.HasPrefix(l.Items[0].Icon, IconPrefix) || l.Items[1].Icon != "" {
+		t.Errorf("online again: %+v", l.Items)
 	}
 }

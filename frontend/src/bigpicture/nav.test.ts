@@ -32,4 +32,10 @@ describe("helpers", () => {
     expect(rowOffset(1, 100, 20)).toBe(0);
     expect(rowOffset(3, 100, 20)).toBe(-240);
   });
+
+  it("shows more items before the selection with a longer lead", () => {
+    // The deck's library row keeps four covers to the left.
+    expect(rowOffset(4, 200, 20, 4)).toBe(0);
+    expect(rowOffset(6, 200, 20, 4)).toBe(-440);
+  });
 });

@@ -57,3 +57,17 @@ func TestBumpVersionFile(t *testing.T) {
 		t.Error("an unchanged version reported a change")
 	}
 }
+
+func TestTrusted(t *testing.T) {
+	pub, k, _ := ed25519.GenerateKey(nil)
+	other, _, _ := ed25519.GenerateKey(nil)
+	if err := trusted(k, nil); err != nil {
+		t.Errorf("no keys yet: %v", err)
+	}
+	if err := trusted(k, []ed25519.PublicKey{other, pub}); err != nil {
+		t.Errorf("listed key: %v", err)
+	}
+	if err := trusted(k, []ed25519.PublicKey{other}); err == nil {
+		t.Error("a key missing from keys.go was trusted")
+	}
+}

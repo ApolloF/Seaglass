@@ -59,9 +59,15 @@ type virtualPad struct {
 // mode changes (SDL starts over then, and it is made again).
 func (m *Manager) PlugVirtual(kind Kind) error {
 	m.mu.Lock()
+	old := m.virtual
 	m.virtual = &virtualPad{kind: kind}
 	m.mu.Unlock()
-	return m.sdlDo(func(s *sdl) error { return m.attachVirtual(s) })
+	return m.sdlDo(func(s *sdl) error {
+		if old != nil {
+			old.release(s) // one virtual controller at a time
+		}
+		return m.attachVirtual(s)
+	})
 }
 
 // UnplugVirtual removes the virtual controller.
@@ -74,18 +80,24 @@ func (m *Manager) UnplugVirtual() error {
 		return nil
 	}
 	return m.sdlDo(func(s *sdl) error {
-		if v.joy != 0 {
-			if p, err := s.dll.FindProc("SDL_CloseJoystick"); err == nil {
-				p.Call(v.joy)
-			}
-		}
-		if v.id != 0 {
-			if p, err := s.dll.FindProc("SDL_DetachVirtualJoystick"); err == nil {
-				p.Call(uintptr(v.id))
-			}
-		}
+		v.release(s)
 		return nil
 	})
+}
+
+// release closes and detaches the virtual controller, on the SDL thread.
+func (v *virtualPad) release(s *sdl) {
+	if v.joy != 0 {
+		if p, err := s.dll.FindProc("SDL_CloseJoystick"); err == nil {
+			p.Call(v.joy)
+		}
+	}
+	if v.id != 0 {
+		if p, err := s.dll.FindProc("SDL_DetachVirtualJoystick"); err == nil {
+			p.Call(uintptr(v.id))
+		}
+	}
+	v.id, v.joy = 0, 0
 }
 
 // VirtualButton presses (down) or releases a virtual controller button.

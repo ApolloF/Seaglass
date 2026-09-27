@@ -115,7 +115,7 @@ type SavesService struct {
 
 	installing sync.Mutex // InstallSyncer runs
 	mu         sync.Mutex
-	cache map[int64]cachedSaves
+	cache      map[int64]cachedSaves
 }
 
 type cachedSaves struct {
@@ -272,7 +272,9 @@ func (c *Core) registerWithSyncer() {
 	defer cl.Close()
 	if err := cl.RegisterGames(ctx, c.syncerGames()); err != nil {
 		logx.Printf("syncer: registering games: %v", err)
+		return
 	}
+	c.registered.Store(true)
 }
 
 // savesBeforeStep brings the game's saves up to date before it starts:
@@ -301,7 +303,9 @@ func (c *Core) savesBeforeStep(g library.Game, known *bool) launch.Step {
 			if _, err := cl.Status(ctx); err != nil {
 				return err
 			}
-			_ = cl.RegisterGames(ctx, c.syncerGames())
+			if cl.RegisterGames(ctx, c.syncerGames()) == nil {
+				c.registered.Store(true)
+			}
 			gs, err := cl.GameStatus(ctx, syncerGame(g))
 			if err != nil {
 				return err

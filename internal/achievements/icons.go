@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -74,7 +76,8 @@ const iconWorkers = 6
 // storing what's missing, a few at a time. An icon that can't be had is
 // left empty (the interface draws a generic one). With offline set nothing
 // is downloaded. It reports false when ctx ended before every icon was
-// tried: the list is then worth reading again later.
+// tried, or a download failed for want of a connection: the list is then
+// worth reading again later.
 func (ic *Icons) Localize(ctx context.Context, l *List, offline bool) (complete bool) {
 	if ic == nil || l == nil {
 		return true
@@ -109,6 +112,9 @@ func (ic *Icons) Localize(ctx context.Context, l *List, offline bool) (complete 
 				name, err := ic.store(ctx, src)
 				if ctx.Err() != nil {
 					continue // cut short: not a failure of this icon
+				}
+				if err != nil && transient(src, err) {
+					continue // no connection: tried again on a later read
 				}
 				gotMu.Lock()
 				if err != nil || !reIconName.MatchString(name) {
@@ -153,6 +159,20 @@ func (ic *Icons) Localize(ctx context.Context, l *List, offline bool) (complete 
 		l.Items[i].IconGray = get(l.Items[i].IconGray)
 	}
 	return len(got) == len(todo)
+}
+
+// transient reports whether an icon failed for want of a connection (no
+// network, a timeout) rather than for being bad or missing: such a source
+// isn't marked failed, and the list is left incomplete. A *url.Error is a
+// net.Error itself, so what it wraps decides (a refused redirect isn't).
+func transient(src string, err error) bool {
+	var ue *url.Error
+	if errors.As(err, &ue) {
+		err = ue.Err
+	}
+	var ne net.Error
+	return strings.HasPrefix(src, "https://") &&
+		(errors.As(err, &ne) || errors.Is(err, context.DeadlineExceeded))
 }
 
 // store fetches (https) or reads (a local file) one icon and stores it.

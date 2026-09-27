@@ -14,6 +14,9 @@
   let logoFailed = $state(false);
   let choice = $state(0);
   let quitArmed = $state(false);
+  // One disarm timer: an older one would cut a fresh "press again" short.
+  let quitTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(quitTimer));
 
   const phase = $derived(session.phase);
   const loading = $derived(sessionLoading(session));
@@ -62,10 +65,12 @@
     if (!quitArmed) {
       quitArmed = true;
       feedback.error();
-      setTimeout(() => (quitArmed = false), 4000);
+      clearTimeout(quitTimer);
+      quitTimer = setTimeout(() => (quitArmed = false), 4000);
       return;
     }
     quitArmed = false;
+    clearTimeout(quitTimer);
     try {
       await api.launch.quitGame();
     } catch {

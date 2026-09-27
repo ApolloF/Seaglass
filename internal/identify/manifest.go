@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -92,8 +93,15 @@ func (m *Manager) Index() *Index {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.idx == nil {
-		if es, err := readIndex(m.indexFile()); err == nil {
+		es, err := readIndex(m.indexFile())
+		if err == nil {
 			m.idx = build(es)
+		} else if pe := (*fs.PathError)(nil); !errors.As(err, &pe) {
+			// A damaged cache (not a missing or locked file): drop it and
+			// its etag, so the next Refresh downloads the whole manifest
+			// rather than getting a 304.
+			_ = os.Remove(m.indexFile())
+			_ = os.Remove(m.etagFile())
 		}
 	}
 	m.usedLocked()

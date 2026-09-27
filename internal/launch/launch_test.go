@@ -20,6 +20,7 @@ type fakePC struct {
 	paths  map[uint32]string
 	clock  time.Time
 	ended  []uint32
+	fail   map[int]bool // polls whose snapshot fails
 }
 
 func (f *fakePC) procs() ([]platform.Proc, error) {
@@ -28,6 +29,9 @@ func (f *fakePC) procs() ([]platform.Proc, error) {
 	f.clock = f.clock.Add(2 * time.Second)
 	fr := f.frames[min(f.i, len(f.frames)-1)]
 	f.i++
+	if f.fail[f.i-1] {
+		return nil, errors.New("snapshot failed")
+	}
 	return fr, nil
 }
 
@@ -322,7 +326,7 @@ func TestCrashAndShown(t *testing.T) {
 	for _, tc := range []struct {
 		code uint32
 		want string
-	}{{0xC0000005, "0xC0000005"}, {0, ""}, {1, ""}} {
+	}{{0xC0000005, "0xC0000005"}, {0, ""}, {1, ""}, {0xFFFFFFFF, ""}, {0xC000013A, ""}} {
 		f := &fakePC{
 			paths: map[uint32]string{10: `C:\Windows\explorer.exe`, 100: gameDir + `\launcher.exe`, 200: gameDir + `\game.exe`},
 			frames: [][]platform.Proc{
@@ -364,5 +368,109 @@ func TestCrashHandlerLeftBehind(t *testing.T) {
 		Start: func() (uint32, string, error) { return 100, "direct", nil }})
 	if s := wait(t, r); s.Phase != Ended || s.StartedAt == 0 {
 		t.Errorf("phase %s, started %d; want ended after running", s.Phase, s.StartedAt)
+	}
+}
+
+// A failed process snapshot mid-game isn't the game closing: no gone or
+// back, and the time across it still counts.
+func TestSnapshotFails(t *testing.T) {
+	game := platform.Proc{PID: 100, PPID: 1, Name: "game.exe"}
+	f := &fakePC{
+		paths:  map[uint32]string{100: gameDir + `\game.exe`},
+		frames: [][]platform.Proc{{game}, {game}, {game}, {game}, {game}, {game}, {}},
+		fail:   map[int]bool{2: true, 3: true, 4: true},
+	}
+	m, r := newTest(f)
+	var mu sync.Mutex
+	var events []string
+	note := func(e string) func() {
+		return func() {
+			mu.Lock()
+			events = append(events, e)
+			mu.Unlock()
+		}
+	}
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{gameDir},
+		Start: func() (uint32, string, error) { return 100, "direct", nil },
+		OnRun: note("run"), OnGone: note("gone"), OnBack: note("back")})
+	s := wait(t, r)
+	mu.Lock()
+	defer mu.Unlock()
+	if got := strings.Join(events, " "); got != "run gone" {
+		t.Errorf("events %q, want %q", got, "run gone")
+	}
+	// Seen on poll 1, then 5 more polls (three of them failed) until it closes.
+	if s.Phase != Ended || s.Seconds != 10 {
+		t.Errorf("phase %s, seconds %d; want ended after 10", s.Phase, s.Seconds)
+	}
+}
+
+// Quit succeeds when some of the game's processes had already ended.
+func TestQuitSomeGone(t *testing.T) {
+	launcher := platform.Proc{PID: 100, Name: "launcher.exe"}
+	game := platform.Proc{PID: 200, PPID: 100, Name: "game.exe"}
+	f := &fakePC{frames: [][]platform.Proc{{launcher, game}},
+		paths: map[uint32]string{100: gameDir + `\launcher.exe`, 200: gameDir + `\game.exe`}}
+	m, _ := newTest(f)
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{gameDir}, Start: func() (uint32, string, error) { return 100, "direct", nil }})
+	waitFor(t, m, func(s Session) bool { return s.Phase == Running && m.IsGame(200) })
+	m.end = func(pid uint32, _ uint64) error {
+		if pid == 100 {
+			return errors.New("process ended already")
+		}
+		return nil
+	}
+	if err := m.Quit(); err != nil {
+		t.Errorf("quit = %v, want nil", err)
+	}
+	m.end = func(uint32, uint64) error { return errors.New("access denied") }
+	if err := m.Quit(); err == nil {
+		t.Error("quit that ended nothing must fail")
+	}
+	m.Close()
+}
+
+// Nothing starts once Seaglass is closing.
+func TestLaunchAfterClose(t *testing.T) {
+	f := &fakePC{frames: [][]platform.Proc{{}}, paths: map[uint32]string{}}
+	m, _ := newTest(f)
+	m.Close()
+	started := false
+	err := m.Launch(context.Background(), Plan{Start: func() (uint32, string, error) { started = true; return 1, "direct", nil }})
+	if !errors.Is(err, ErrClosed) || started {
+		t.Errorf("launch after close = %v, started %v", err, started)
+	}
+}
+
+// The started process's id, handed out again to another program after it
+// exited, doesn't make that program (or its children) the game.
+func TestRootPIDReused(t *testing.T) {
+	type img struct {
+		path    string
+		started uint64
+	}
+	images := map[uint32]img{100: {gameDir + `\launcher.exe`, 1}, 200: {`E:\Elsewhere\game.exe`, 2}}
+	tr := newTracker([]string{gameDir}, 100, 1, func(pid uint32) (string, uint64, error) {
+		if i, ok := images[pid]; ok {
+			return i.path, i.started, nil
+		}
+		return "", 0, errors.New("access denied")
+	})
+	child := platform.Proc{PID: 200, PPID: 100, Name: "game.exe"}
+	if got := tr.update([]platform.Proc{{PID: 100, Name: "launcher.exe"}, child}); len(got) != 2 {
+		t.Fatalf("with launcher: %v", got)
+	}
+	tr.update([]platform.Proc{child}) // the launcher exits
+	images[100] = img{`C:\Apps\other.exe`, 9}
+	images[300] = img{`C:\Apps\helper.exe`, 10}
+	got := tr.update([]platform.Proc{{PID: 100, Name: "other.exe"}, {PID: 300, PPID: 100, Name: "helper.exe"}, child})
+	if _, ok := got[200]; !ok || len(got) != 1 {
+		t.Errorf("after reuse: %v, want only 200", got)
+	}
+	// Reused within one poll: the cached entry is looked up again.
+	images[200] = img{`C:\Apps\tab.exe`, 11}
+	got = tr.update([]platform.Proc{{PID: 100, Name: "other.exe"}, {PID: 200, PPID: 1, Name: "tab.exe"}})
+	if len(got) != 0 {
+		t.Errorf("after 200 reused: %v, want none", got)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ApolloF/Seaglass/internal/update"
 )
 
 // cut releases a version from main, one checked step at a time; the first
@@ -15,19 +17,29 @@ import (
 //
 //	go run ./tools/release cut v1.2.0 [--pr 12] [--dry-run]
 //
-//  1. The tag is a version, its notes exist, it isn't used yet.
-//  2. The working tree is clean, on main, level with origin/main.
-//  3. With --pr: that pull request is merged and its head is in main.
-//  4. CI passed for main's head (waits while it runs).
-//  5. "Version X.Y.Z" is committed (build/windows/info.json) and pushed.
-//  6. The tag is pushed; CI builds and tests it and makes a draft release.
-//  7. publish signs the draft with the release key and makes it public.
+//  1. This PC's release key is one the updater trusts.
+//  2. The tag is a version, its notes exist, it isn't used yet.
+//  3. The working tree is clean, on main, level with origin/main.
+//  4. With --pr: that pull request is merged and its head is in main.
+//  5. CI passed for main's head (waits while it runs).
+//  6. "Version X.Y.Z" is committed (build/windows/info.json) and pushed.
+//  7. The tag is pushed; CI builds and tests it and makes a draft release.
+//  8. publish signs the draft with the release key and makes it public.
 func cut(tag string, pr string, dry bool) error {
 	num, err := versionNumber(tag)
 	if err != nil {
 		return err
 	}
 	step := func(format string, args ...any) { fmt.Printf("• "+format+"\n", args...) }
+
+	step("checking the release key")
+	k, err := load()
+	if err != nil {
+		return err
+	}
+	if err := trusted(k, update.ReleaseKeys); err != nil {
+		return err
+	}
 
 	step("checking the working tree")
 	if out, err := git("status", "--porcelain"); err != nil || out != "" {
