@@ -114,6 +114,9 @@ func TestIdentify(t *testing.T) {
 		{"roman numerals", scan.Candidate{Title: "Baldurs Gate III", Source: scan.Folder}, "Baldur's Gate 3", 1086940, 72},
 		{"similar but ambiguous", scan.Candidate{Title: "The Worm", Source: scan.Folder}, "The Worm", 0, 40},
 		{"store title, similar", scan.Candidate{Title: "Assassins Creed Black Flag Resynced", Source: scan.Epic, How: "Epic Games library"}, "Assassins Creed Black Flag Resynced", 3751950, 100},
+		{"gog id", scan.Candidate{Title: "hades", GogID: "1330167364", Source: scan.Folder}, "Hades", 1145360, 95},
+		{"gog store title kept", scan.Candidate{Title: "Hades (GOG)", GogID: "1330167364", Source: scan.GOG}, "Hades (GOG)", 1145360, 95},
+		{"store title, edition", scan.Candidate{Title: "Stardew Valley Deluxe Edition", Source: scan.Epic}, "Stardew Valley Deluxe Edition", 413150, 100},
 	} {
 		m := ix.Identify(tc.c)
 		if m.Title != tc.title || m.SteamAppID != tc.steam || m.Confidence != tc.conf {
@@ -243,5 +246,55 @@ Vortex:
 		if m.SteamAppID != tc.steam {
 			t.Errorf("%s: got %q (%d, %s), want %d", tc.dir, m.Title, m.SteamAppID, m.How, tc.steam)
 		}
+	}
+}
+
+// Two games installed to the same folder name: the folder says nothing.
+func TestSharedInstallDir(t *testing.T) {
+	es, err := Parse(strings.NewReader(`---
+Game One:
+  installDir:
+    Shared Dir: {}
+  steam:
+    id: 111
+Game Two:
+  installDir:
+    Shared Dir: {}
+  steam:
+    id: 222
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := build(es)
+	c := scan.Candidate{Title: "Qwerty", Dir: `D:\Games\Shared Dir`, Source: scan.Folder}
+	if m := ix.Identify(c); m.SteamAppID != 0 || m.Confidence != 40 {
+		t.Errorf("untrusted: got %+v", m)
+	}
+	c.TitleTrusted = true
+	if m := ix.Identify(c); m.SteamAppID != 0 || m.Confidence != 60 {
+		t.Errorf("trusted: got %+v", m)
+	}
+}
+
+// A damaged cache is dropped with its etag, so the next Refresh fetches it whole.
+func TestCorruptIndexDropped(t *testing.T) {
+	m := NewManager(t.TempDir())
+	if err := os.WriteFile(m.indexFile(), []byte("not gzip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(m.etagFile(), []byte(`"abc"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if ix := m.Index(); ix != nil {
+		t.Fatalf("index = %v", ix)
+	}
+	for _, p := range []string{m.indexFile(), m.etagFile()} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Errorf("%s still there: %v", filepath.Base(p), err)
+		}
+	}
+	if !m.Stale() {
+		t.Error("not stale after dropping the cache")
 	}
 }

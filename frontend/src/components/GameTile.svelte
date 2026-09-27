@@ -16,8 +16,9 @@
   const composed = $derived(!m?.tile && !!m?.hero && !!m?.logo);
   let logoFailed = $state(false);
   let heroFailed = $state(false);
+  const gid = $derived(game.id); // not game: it is a new object after every update
   $effect(() => {
-    game.id;
+    gid;
     logoFailed = heroFailed = false;
   });
   const large = $derived(m?.backdrop ?? m?.hero);

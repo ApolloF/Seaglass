@@ -20,6 +20,9 @@
 
   let i = $state(0);
   let quitArmed = $state(false);
+  // One disarm timer: an older one would cut a fresh "press again" short.
+  let quitTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(quitTimer));
   let closing = false;
 
   function close() {
@@ -36,7 +39,8 @@
   async function quit() {
     if (!quitArmed) {
       quitArmed = true;
-      setTimeout(() => (quitArmed = false), 4000);
+      clearTimeout(quitTimer);
+      quitTimer = setTimeout(() => (quitArmed = false), 4000);
       return;
     }
     try {
@@ -66,6 +70,7 @@
           if (j !== i) {
             i = j;
             quitArmed = false;
+            clearTimeout(quitTimer);
             feedback.move();
           }
           return;

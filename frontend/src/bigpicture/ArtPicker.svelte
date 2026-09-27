@@ -3,6 +3,7 @@
   // backdrop behind big picture), its banner (the hero) and its logo, from
   // what the stores, PCGamingWiki and SteamGridDB (with a key) have. L1 / R1
   // switch between them, the D-pad picks, ✕ uses the picture.
+  import { untrack } from "svelte";
   import { api } from "../lib/api";
   import { feedback, useInput } from "../lib/input.svelte";
   import { lib } from "../lib/store.svelte";
@@ -27,15 +28,21 @@
   const cols = $derived(kinds[kind].cols);
   const current = $derived(game.meta?.[kinds[kind].id]);
 
+  // A request keeps going when the kind changes (they take seconds) or
+  // the game object is swapped for a refreshed one; each is asked once.
+  const asked = new Set<ArtKind>();
+  let alive = true;
+  $effect(() => () => (alive = false));
   $effect(() => {
     const k = kinds[kind].id;
-    if (found[k] !== undefined) return;
-    let live = true;
-    api
-      .artChoices(game.id, k)
-      .then((c) => live && (found = { ...found, [k]: c }))
-      .catch(() => live && (found = { ...found, [k]: "error" }));
-    return () => (live = false);
+    if (asked.has(k)) return;
+    asked.add(k);
+    untrack(() =>
+      api
+        .artChoices(game.id, k)
+        .then((c) => alive && (found = { ...found, [k]: c }))
+        .catch(() => alive && (found = { ...found, [k]: "error" })),
+    );
   });
   $effect(() => {
     kinds[kind];

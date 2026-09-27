@@ -9,10 +9,18 @@
 
   let {
     games,
+    resetKey,
     selectedId,
     onselect,
     onplay,
-  }: { games: Game[]; selectedId: number | null; onselect: (id: number) => void; onplay: (id: number) => void } = $props();
+  }: {
+    games: Game[];
+    /** Names the view shown (filter, search, sort); a new one scrolls to the top. */
+    resetKey: string;
+    selectedId: number | null;
+    onselect: (id: number) => void;
+    onplay: (id: number) => void;
+  } = $props();
 
   const PAD = 28;
   const GAP_X = 18;
@@ -83,11 +91,12 @@
     ensureVisible(next);
   }
 
-  // Selecting from outside (a new filter) scrolls back to the top.
-  let lastGames: Game[] = [];
+  // A new view (filter, search or sort) scrolls back to the top; the same
+  // view's list changing (a game unstarred, a scan adding one) doesn't.
+  let lastKey = "";
   $effect(() => {
-    if (games !== lastGames && viewport && games.length !== lastGames.length) viewport.scrollTop = 0;
-    lastGames = games;
+    if (resetKey !== lastKey && viewport) viewport.scrollTop = 0;
+    lastKey = resetKey;
   });
 </script>
 

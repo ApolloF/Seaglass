@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ApolloF/Seaglass/internal/library"
 )
@@ -283,7 +284,11 @@ func firstParagraph(s string) string {
 		if i := strings.LastIndex(s[:600], ". "); i > 200 {
 			return s[:i+1]
 		}
-		return s[:600] + "…"
+		cut := 600
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		return s[:cut] + "…"
 	}
 	return s
 }

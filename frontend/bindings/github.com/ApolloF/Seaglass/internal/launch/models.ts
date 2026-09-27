@@ -86,6 +86,12 @@ export interface Session {
      * Crash is the exit code, as 0xC0000005, when the game crashed.
      */
     "crash"?: string;
+
+    /**
+     * From is where it was started: "bigpicture" or "desktop" for the
+     * interface's modes, "" from outside it (a shortcut, a game noticed).
+     */
+    "from"?: string;
 }
 
 /**

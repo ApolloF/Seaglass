@@ -106,7 +106,7 @@ func Files(g library.Game, d Deps) []string {
 		files = append(files, EmuFiles(eg, d.Env)...)
 		files = append(files, filepath.Join(eg.emuPath(), "steam_settings", "achievements.json"))
 	}
-	if g.GogID != "" && d.GalaxyDB != "" {
+	if gogGame(g) && g.GogID != "" && d.GalaxyDB != "" {
 		files = append(files, d.GalaxyDB, d.GalaxyDB+"-wal")
 	}
 	if app > 0 && d.SteamRoot != "" {
@@ -458,12 +458,15 @@ func resolveGOG(ctx context.Context, g library.Game, d Deps, l *List) (net bool)
 		net = true
 		access, user, err := d.GOG(ctx)
 		if err == nil {
+			// Fetched apart: a failed request keeps the cached schema.
+			var nd []Def
 			var remote map[string]Unlock
+			var nr map[string]float64
 			for _, game := range []string{GOGClientID(g.Dir, g.GogID), g.GogID} {
 				if game == "" {
 					continue
 				}
-				defs, remote, rarity, err = d.Net.GOGAchievements(ctx, access, game, user)
+				nd, remote, nr, err = d.Net.GOGAchievements(ctx, access, game, user)
 				if err == nil || !errors.Is(err, ErrNone) {
 					break
 				}
@@ -472,7 +475,9 @@ func resolveGOG(ctx context.Context, g library.Game, d Deps, l *List) (net bool)
 			case errors.Is(err, ErrNone):
 				d.Cache.putSchema("gog", g.GogID, "", schemaFile{None: true})
 				cached.None = true
+				defs, rarity = nil, nil
 			case err == nil:
+				defs, rarity = nd, nr
 				d.Cache.putSchema("gog", g.GogID, "", schemaFile{Defs: defs, Rarity: rarity})
 				if unlocks == nil {
 					unlocks = remote

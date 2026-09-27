@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -139,8 +140,10 @@ func (w *metaWorker) run(ctx context.Context) {
 		if errors.Is(err, meta.ErrRateLimited) {
 			logx.Printf("metadata: rate limited, pausing a minute")
 			w.mu.Lock()
-			w.queue = append([]int64{id}, w.queue...)
-			w.queued[id] = true
+			if !w.queued[id] { // queued again while it was fetched
+				w.queue = append([]int64{id}, w.queue...)
+				w.queued[id] = true
+			}
 			w.mu.Unlock()
 			select {
 			case <-ctx.Done():
@@ -215,9 +218,40 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 		}
 		return err
 	}
-	_, err = w.c.Lib.Update(id, func(g *library.Game) { g.Meta = m })
-	w.gameChanged(id)
+	var stale, artChanged bool
+	_, err = w.c.Lib.Update(id, func(x *library.Game) {
+		// The game may have changed while this ran: another game picked
+		// (SetMatch, a scan) or art chosen. Keep what it is now.
+		if stale = metaStale(g, *x); stale {
+			return
+		}
+		if artChanged = !sameArt(g.Meta, x.Meta); artChanged {
+			return
+		}
+		x.Meta = m
+	})
+	if err == nil && artChanged {
+		w.queueNow(id) // again, keeping the art chosen meanwhile
+	}
+	if err == nil && !stale && !artChanged {
+		w.gameChanged(id)
+	}
 	return err
+}
+
+// metaStale says whether a fetch for game g no longer fits the game as it
+// is now, because it's become a different game. Whatever changed it queues
+// a new fetch.
+func metaStale(g, now library.Game) bool {
+	return now.SteamAppID != g.SteamAppID || now.GogID != g.GogID || g.Meta != nil && now.Meta == nil
+}
+
+// sameArt says whether the art the user may have chosen is unchanged.
+func sameArt(a, b *library.Meta) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Cover == b.Cover && a.Hero == b.Hero && a.Backdrop == b.Backdrop && a.Logo == b.Logo && slices.Equal(a.ArtOverrides, b.ArtOverrides)
 }
 
 // searchStore looks a title up on the Steam store: as it is, then without

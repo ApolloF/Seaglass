@@ -1,6 +1,7 @@
 <script lang="ts">
   // Orbit layout: games as bubbles in a honeycomb that glides and magnifies
   // around the selected one. Only bubbles near the focus are rendered.
+  import { untrack } from "svelte";
   import GameArt from "../components/GameArt.svelte";
   import GameTile from "../components/GameTile.svelte";
   import Icon from "../components/Icon.svelte";
@@ -41,6 +42,18 @@
   let open = $state(false);
   let zoom = $state(1);
   const g = $derived(games[i] ?? null);
+  // The order changes (a game just played moves to the middle): the cursor
+  // stays on the game, not on the cell. Re-find runs before the id is
+  // recorded again, so it still sees the old one.
+  let selId: number | null = null;
+  $effect(() => {
+    const list = games;
+    const k = selId === null ? -1 : list.findIndex((x) => x.id === selId);
+    if (k >= 0) untrack(() => k !== i && (i = k));
+  });
+  $effect(() => {
+    selId = g?.id ?? null;
+  });
   $effect(() => p.onfocus(g));
   $effect(() => {
     if (i >= games.length) i = Math.max(0, games.length - 1);

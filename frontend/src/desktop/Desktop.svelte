@@ -35,6 +35,7 @@
   let renaming = $state(false);
   let newName = $state("");
   async function renameCollection() {
+    if (!renaming) return; // Escape or Enter already ended it; the input's blur follows
     const f = lib.filter;
     if (f.kind !== "collection") return;
     const name = newName.trim();
@@ -138,7 +139,7 @@
           {#if lib.filter.kind === "favorites"}<p>Use the star on a game to add it here.</p>{/if}
         </div>
       {:else}
-        <CoverGrid games={lib.visible} selectedId={lib.selected?.id ?? null} onselect={(id) => (lib.selectedId = id)} onplay={play} />
+        <CoverGrid games={lib.visible} resetKey={`${JSON.stringify(lib.filter)}|${lib.query}|${lib.sort}`} selectedId={lib.selected?.id ?? null} onselect={(id) => (lib.selectedId = id)} onplay={play} />
       {/if}
     </main>
 

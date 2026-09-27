@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
 )
@@ -350,5 +351,18 @@ func TestDownloadUsesGitHubDigest(t *testing.T) {
 	}
 	if _, _, err := feed.Download(ctx, rel, "Syncer-setup.exe", t.TempDir(), nil); err == nil {
 		t.Error("a file that doesn't match its digest was accepted")
+	}
+}
+
+func TestLongNotesStayValidUTF8(t *testing.T) {
+	f, feed := newFake(t)
+	f.publish("v2.0.0", nil)
+	f.release["body"] = strings.Repeat("a", maxNotes-1) + "—more"
+	rel, err := feed.Latest(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !utf8.ValidString(rel.Notes) || !strings.HasSuffix(rel.Notes, "a…") {
+		t.Errorf("notes end in %q", rel.Notes[len(rel.Notes)-8:])
 	}
 }
