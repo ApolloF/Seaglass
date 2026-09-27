@@ -116,7 +116,7 @@
             <Toggle
               checked={s.autoUpdate}
               title="Keep Seaglass up to date"
-              detail="Checks GitHub twice a day, downloads new versions in the background and installs them the next time Seaglass starts."
+              detail="Checks GitHub when Seaglass starts, downloads new versions in the background and installs them the next time it starts, or while it waits in the tray."
               onchange={(v) => set({ autoUpdate: v })}
             />
             <UpdateStatus />

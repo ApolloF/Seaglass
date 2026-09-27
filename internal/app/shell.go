@@ -45,6 +45,13 @@ func (s *Shell) Start() {
 // StartHidden shows only the tray icon (a game starts from the command line).
 func (s *Shell) StartHidden() { s.startTray() }
 
+// Hidden reports whether Seaglass shows no window, only its tray icon.
+func (s *Shell) Hidden() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.main == nil && s.overlay == nil
+}
+
 // SetUIMode records which mode the interface is in, so it comes back the
 // same way after a game.
 func (s *Shell) SetUIMode(mode string) {
