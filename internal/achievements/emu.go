@@ -119,34 +119,58 @@ func Unknown(emulator string) bool { return unknownEmus[emulator] }
 // Files lists every candidate path looked at, for cache keys.
 func ReadEmu(g EmuGame, env Env) (res EmuResult, files []string, ok bool) {
 	var best time.Time
-	for _, src := range emuSources {
+	for _, c := range emuCandidates(g, env) {
+		files = append(files, c.path)
+		fi, err := os.Stat(c.path)
+		if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxFile {
+			continue
+		}
+		if ok && !fi.ModTime().After(best) {
+			continue
+		}
+		b, err := readSmall(c.path, maxFile)
+		if err != nil {
+			continue
+		}
+		u, err := safeParse(c.src.parse, b)
+		if err != nil {
+			continue
+		}
+		res, best, ok = EmuResult{Source: c.src.name, File: c.path, Unlocks: u, Hashed: c.src.hashed}, fi.ModTime(), true
+	}
+	return res, files, ok
+}
+
+type emuCandidate struct {
+	src  *emuSource
+	path string
+}
+
+// emuCandidates lists every place the game's unlock file could be.
+func emuCandidates(g EmuGame, env Env) []emuCandidate {
+	var out []emuCandidate
+	for i := range emuSources {
+		src := &emuSources[i]
 		paths := src.paths
 		if src.name == "Goldberg" {
 			paths = append(append([]string(nil), paths...), localSaves(g)...)
 		}
 		for _, tmpl := range paths {
 			for _, p := range expand(tmpl, g, env) {
-				files = append(files, p)
-				fi, err := os.Stat(p)
-				if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxFile {
-					continue
-				}
-				if ok && !fi.ModTime().After(best) {
-					continue
-				}
-				b, err := readSmall(p, maxFile)
-				if err != nil {
-					continue
-				}
-				u, err := safeParse(src.parse, b)
-				if err != nil {
-					continue
-				}
-				res, best, ok = EmuResult{Source: src.name, File: p, Unlocks: u, Hashed: src.hashed}, fi.ModTime(), true
+				out = append(out, emuCandidate{src, p})
 			}
 		}
 	}
-	return res, files, ok
+	return out
+}
+
+// EmuFiles lists every file the game's emulator unlocks could be in.
+func EmuFiles(g EmuGame, env Env) []string {
+	var out []string
+	for _, c := range emuCandidates(g, env) {
+		out = append(out, c.path)
+	}
+	return out
 }
 
 // safeParse runs a parser; a panic on a hostile file is a parse error.

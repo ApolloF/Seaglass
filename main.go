@@ -5,10 +5,12 @@ package main
 import (
 	"embed"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/ApolloF/Seaglass/internal/achievements"
 	"github.com/ApolloF/Seaglass/internal/app"
 	"github.com/ApolloF/Seaglass/internal/logx"
 	"github.com/ApolloF/Seaglass/internal/meta"
@@ -106,8 +108,12 @@ func main() {
 			application.NewService(app.NewUpdateService(core)),
 		},
 		Assets: application.AssetOptions{
-			Handler:    application.AssetFileServerFS(assets),
-			Middleware: meta.ArtHandler(platform.CacheDir("art")),
+			Handler: application.AssetFileServerFS(assets),
+			Middleware: func(next http.Handler) http.Handler {
+				art := meta.ArtHandler(platform.CacheDir("art"))
+				icons := meta.ImageHandler(achievements.IconPrefix, platform.CacheDir("achievements", "icons"))
+				return art(icons(next))
+			},
 		},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: uniqueID,
