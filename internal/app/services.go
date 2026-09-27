@@ -307,6 +307,9 @@ func (s *SettingsService) Save(v settings.Settings) (settings.Settings, error) {
 	if saved.NoticeExternal != old.NoticeExternal && s.c.external != nil {
 		s.c.external.set(saved.NoticeExternal)
 	}
+	if saved.Achievements != old.Achievements || saved.ShowHiddenAchievements != old.ShowHiddenAchievements {
+		s.c.ach.clear()
+	}
 	if saved.AutoUpdate && !old.AutoUpdate {
 		NewUpdateService(s.c).Check()
 	}

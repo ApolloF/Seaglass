@@ -22,6 +22,7 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "accounts:changed": app$0.Accounts;
+            "achievements:session": app$0.SessionAchievements;
             "games:updated": library$0.Game[] | null;
             "launch:session": launch$0.Session;
             "library:changed": string;

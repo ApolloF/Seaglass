@@ -12,7 +12,7 @@ Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxb
 - Add-ons through hooks, starting with DLSS Updater.
 - Pretty, responsive, secure and light: the interface unloads while you play.
 
-Not in v1: downloading games or cracks (Seaglass only manages what's installed), emulators and ROMs, achievements, macOS or Linux, importing from Playnite.
+Not in v1: downloading games or cracks (Seaglass only manages what's installed), emulators and ROMs, macOS or Linux, importing from Playnite. Achievements came in v1.6 (section 24, [achievements.md](achievements.md)).
 
 ## 2. Decisions
 
@@ -162,8 +162,8 @@ Follow-ups in Syncer, after its `feature/steam-autocloud-copies` work lands: use
 
 - **WebView:** strict CSP with no remote scripts. Navigation away from the app is blocked, devtools and the context menu are off in release, only bound services are exposed, and every value from the UI is validated in Go (paths must resolve inside known roots).
 - **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executable ever downloaded is Seaglass's own update from GitHub Releases, checked against its SHA-256.
-- **Secrets:** the SteamGridDB key, Steam Web API key and Epic token are stored with DPAPI and never logged.
-- **Parsers:** VDF, ini, JSON, lnk and ACF files are treated as untrusted, with size limits and fuzz tests.
+- **Secrets:** the SteamGridDB key, Steam Web API key, Epic token and GOG token are stored with DPAPI and never logged.
+- **Parsers:** VDF, ini, JSON, lnk and ACF files, and emulators' achievement files, are treated as untrusted, with size limits and fuzz tests.
 - **Privileges:** Seaglass never elevates itself. The Syncer pipe is current-user only. Add-ons are covered in section 9.
 
 ## 11. Performance budget (this laptop: Ryzen 7 7840HS, 16 GB)
@@ -464,6 +464,15 @@ WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the li
 
 1. The installer finds WaterLauncher's uninstall entry, installs into a Seaglass folder next to WaterLauncher's, and removes the old program, shortcuts and uninstall entry (keeps a desktop shortcut if there was one).
 2. Seaglass moves `%APPDATA%\WaterLauncher` and `%LOCALAPPDATA%\WaterLauncher` into its own folders on first start (merging, never deleting, not while WaterLauncher runs), and turns the old *start with Windows* entry into its own.
+
+## 24. v1.6: achievements (2026-09-27)
+
+Steam-style achievements for every game Seaglass can read: a card in the details (count, progress, the latest unlocks), the full list (unlocked first, rarity, dates, hidden ones masked), a big picture screen, and "N achievements unlocked" after playing. Details in [achievements.md](achievements.md).
+
+- **Sources**: Steam (its local stats cache, else the Web API with the user's key), Epic (GraphQL; progress with the Epic sign-in), GOG (Galaxy's database; names and icons with a new GOG sign-in), and 15 emulator and crack formats for unofficial copies, named by `steam_settings`, Steam's cached schema or the Web API. Rarity from Steam's global stats (no key), Epic and GOG.
+- **Scan**: `EmuDir` (where the emulator sits in the game folder) goes from the scan to `library.Game`; new markers for TENOKE (`SteamDataSer_stats.ini`), gbe_fork (`configs.user.ini`) and Razor1911 (`.1911`).
+- **Idle budget kept**: read when details open and once after a session, cached by the files' times; nothing online while a game runs.
+- **Not read yet**: VOICES38, CPY, PLAZA, FLT, Steamworks Fix, Hoodlum and DARKSiDERS (no public description of their files), and EA, Ubisoft, Battle.net and Xbox games.
 
 ## To-do (maintainer)
 

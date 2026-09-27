@@ -10,6 +10,10 @@
   import { savesSummary } from "../lib/saves";
   import { sessionActive, storeName, type Saves } from "../lib/types";
   import MatchDialog from "./MatchDialog.svelte";
+  import AchievementsDialog from "./AchievementsDialog.svelte";
+  import AchievementIcon from "../components/AchievementIcon.svelte";
+  import { achievementsSummary, recentUnlocks } from "../lib/achievements";
+  import type { Achievements } from "../lib/types";
 
   let { game }: { game: Game } = $props();
 
@@ -74,6 +78,40 @@
       live = false;
       clearTimeout(t);
     };
+  });
+
+  // Achievements: fetched like saves. After a session the backend reads
+  // them again itself (and tells, when some were unlocked); a result from
+  // unchanged files is reused, so asking again is cheap.
+  let ach = $state<Achievements | null>(null);
+  let achOpen = $state(false);
+  let achFor = -1; // the game ach belongs to: a re-read of the same game keeps showing the old list
+  const achOn = $derived(lib.settings?.achievements ?? true);
+  const achInfo = $derived(achievementsSummary(ach));
+  const achRecent = $derived(ach ? recentUnlocks(ach.items) : []);
+  $effect(() => {
+    const id = game.id;
+    const show = achOn && (game.installed || !!game.owned);
+    lib.session?.phase;
+    lib.achSession; // the backend read them again after a session
+    if (id !== achFor) ach = null;
+    achFor = id;
+    if (!show) return;
+    let live = true;
+    const t = setTimeout(() => {
+      api.achievements
+        .get(id, false)
+        .then((a) => live && (ach = a))
+        .catch(() => {});
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  });
+  $effect(() => {
+    game.id;
+    achOpen = false;
   });
 
   let installingSyncer = $state(false);
@@ -299,6 +337,32 @@
       </div>
     {/if}
 
+    {#if achOn && (game.installed || game.owned) && !(ach && ach.total === 0 && !ach.source)}
+      <div class="card ach" class:warn={achInfo?.tone === "warn"}>
+        <div class="card-head">
+          <Icon name="trophy" size={22} stroke={1.8} />
+          <span class="grow">Achievements</span>
+          {#if ach && ach.total > 0}
+            <button type="button" class="btn small" onclick={() => (achOpen = true)}>Show all</button>
+          {/if}
+        </div>
+        {#if achInfo}
+          <strong class="saves-line">{achInfo.text}</strong>
+          {#if ach && ach.total > 0}
+            <div class="ach-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={achInfo.pct} aria-label="Achievements unlocked"><span style:width="{achInfo.pct}%"></span></div>
+          {/if}
+          {#if achRecent.length}
+            <div class="ach-recent">
+              {#each achRecent as a (a.id)}<span title={a.name}><AchievementIcon {a} size={40} /></span>{/each}
+            </div>
+          {/if}
+          {#if achInfo.detail}<p>{achInfo.detail}</p>{/if}
+        {:else}
+          <p>Reading achievements…</p>
+        {/if}
+      </div>
+    {/if}
+
     <dl class="about">
       <dt>Found</dt>
       <dd>{game.how}</dd>
@@ -320,6 +384,10 @@
 
 {#if matching}
   <MatchDialog {game} onclose={() => (matching = false)} />
+{/if}
+
+{#if achOpen && ach}
+  <AchievementsDialog {game} list={ach} onclose={() => (achOpen = false)} />
 {/if}
 
 <style>
@@ -630,6 +698,25 @@
   }
   .card.saves.warn .saves-line {
     color: var(--warn);
+  }
+  .card.ach.warn .saves-line {
+    color: var(--warn);
+  }
+  .ach-bar {
+    height: 6px;
+    border-radius: 99px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .ach-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+  }
+  .ach-recent {
+    display: flex;
+    gap: 6px;
   }
   .btn.small {
     height: 30px;

@@ -26,6 +26,11 @@ export interface Game {
     "sourceLabel": string;
     "unofficial": boolean;
     "emulator"?: string;
+
+    /**
+     * where the emulator sits, relative to Dir
+     */
+    "emuDir"?: string;
     "repacker"?: string;
     "drmFree"?: string;
     "installed": boolean;

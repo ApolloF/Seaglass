@@ -49,6 +49,10 @@ type Settings struct {
 	SyncWait         int  `json:"syncWait"`         // seconds to wait for a sync before playing
 	StartSyncer      bool `json:"startSyncer"`      // start Syncer (without its window) when it isn't running
 
+	// Achievements
+	Achievements           bool `json:"achievements"`           // show achievements (read from stores and emulator files)
+	ShowHiddenAchievements bool `json:"showHiddenAchievements"` // show hidden achievements before they're unlocked (spoilers)
+
 	// Updates
 	AutoUpdate bool `json:"autoUpdate"` // check GitHub for new versions and install them on the next start
 
@@ -71,7 +75,7 @@ func Defaults() Settings {
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
 		SyncSavesBefore: true, BackupSavesAfter: true, SyncWait: 60, StartSyncer: true,
-		AutoUpdate: true,
+		AutoUpdate: true, Achievements: true,
 	}
 }
 

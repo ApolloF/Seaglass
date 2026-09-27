@@ -115,3 +115,11 @@ func BenchmarkEnrichRepeat(b *testing.B) {
 		}
 	})
 }
+
+func TestTellingAchievementMarkers(t *testing.T) {
+	for _, n := range []string{"user_stats.ini", ".1911", "configs.user.ini"} {
+		if !telling(n) {
+			t.Errorf("%s isn't in the fingerprint", n)
+		}
+	}
+}

@@ -42,6 +42,9 @@ type Accounts struct {
 	Steam StoreAccount `json:"steam"`
 	GOG   StoreAccount `json:"gog"`
 	Epic  StoreAccount `json:"epic"`
+	// GOGSignIn is the GOG account signed in for achievements (GOG
+	// Galaxy's library, above, needs no sign-in).
+	GOGSignIn StoreAccount `json:"gogSignIn"`
 }
 
 type epicAccount struct {
@@ -58,6 +61,12 @@ type ownedState struct {
 	mu     sync.Mutex
 	status map[string]StoreAccount // steam, gog, epic: last sync outcome
 	busy   bool
+
+	epicMu  sync.Mutex // one Epic token refresh at a time
+	epicTok owned.EpicToken
+	gogMu   sync.Mutex // one GOG token refresh at a time
+	gogTok  owned.GOGToken
+	gogExp  time.Time
 }
 
 func newOwnedState(c *Core) *ownedState {
@@ -91,6 +100,10 @@ func (o *ownedState) accounts() Accounts {
 	a.GOG.Available = owned.GalaxyDB() != ""
 	a.GOG.Connected = o.c.Settings.Get().OwnedGOG && a.GOG.Available
 	ep, ok := loadEpic()
+	a.GOGSignIn.Available = true
+	if _, ok := loadGOG(); ok {
+		a.GOGSignIn.Connected = true
+	}
 	a.Epic.Connected, a.Epic.Available = ok, true
 	if ok {
 		a.Epic.Name = ep.Name
@@ -141,18 +154,13 @@ func (o *ownedState) sync(ctx context.Context) {
 	if o.c.Settings.Get().OwnedGOG {
 		o.run(ctx, "gog", func(context.Context) ([]library.Owned, error) { return owned.GOG(owned.GalaxyDB()) })
 	}
-	if ep, ok := loadEpic(); ok {
+	if _, ok := loadEpic(); ok {
 		o.run(ctx, "epic", func(ctx context.Context) ([]library.Owned, error) {
-			tok, err := o.client.EpicRefresh(ctx, ep.Refresh)
+			access, _, err := o.epicAccess(ctx)
 			if err != nil {
 				return nil, err
 			}
-			// Epic hands out a new refresh token each time; keep the newest.
-			ep.Refresh = tok.RefreshToken
-			if err := saveEpic(ep); err != nil {
-				logx.Printf("owned: saving Epic sign-in: %v", err)
-			}
-			return o.client.Epic(ctx, tok.AccessToken)
+			return o.client.Epic(ctx, access)
 		})
 	}
 }
@@ -285,6 +293,8 @@ func (s *AccountsService) EpicSignIn(pasted string) (Accounts, error) {
 	if err := saveEpic(epicAccount{Refresh: tok.RefreshToken, Account: tok.AccountID, Name: tok.DisplayName}); err != nil {
 		return s.Get(), err
 	}
+	s.c.owned.setEpicToken(tok)
+	s.c.ach.clear() // Epic games can show progress now
 	logx.Printf("owned epic: signed in")
 	s.c.owned.run(ctx, "epic", func(ctx context.Context) ([]library.Owned, error) { return s.c.owned.client.Epic(ctx, tok.AccessToken) })
 	s.c.emit(EventLibraryChanged, "owned")
@@ -297,8 +307,145 @@ func (s *AccountsService) EpicSignOut() (Accounts, error) {
 	if err := platform.SaveSecret(epicSecret, ""); err != nil {
 		return s.Get(), err
 	}
+	s.c.owned.setEpicToken(owned.EpicToken{})
+	s.c.ach.clear()
 	s.c.Lib.ForgetOwned("epic")
 	s.c.owned.setStatus("epic", func(a *StoreAccount) { *a = StoreAccount{} })
 	s.c.emit(EventLibraryChanged, "owned")
 	return s.Get(), nil
+}
+
+// epicAccess returns an access token for the signed-in Epic account,
+// refreshing it when it's (nearly) expired. Epic hands out a new refresh
+// token with each refresh; the newest is kept. One refresh at a time, so
+// the owned-games sync and achievements don't spend each other's token.
+func (o *ownedState) epicAccess(ctx context.Context) (access, account string, err error) {
+	o.epicMu.Lock()
+	defer o.epicMu.Unlock()
+	ep, ok := loadEpic()
+	if !ok {
+		return "", "", errors.New("not signed in to Epic")
+	}
+	if t := o.epicTok; t.AccessToken != "" && t.RefreshToken == ep.Refresh && time.Until(t.ExpiresAt) > 5*time.Minute {
+		return t.AccessToken, ep.Account, nil
+	}
+	tok, err := o.client.EpicRefresh(ctx, ep.Refresh)
+	if err != nil {
+		return "", "", err
+	}
+	if tok.ExpiresAt.IsZero() {
+		tok.ExpiresAt = time.Now().Add(time.Hour)
+	}
+	ep.Refresh = tok.RefreshToken
+	if tok.AccountID != "" {
+		ep.Account = tok.AccountID
+	}
+	if err := saveEpic(ep); err != nil {
+		logx.Printf("owned: saving Epic sign-in: %v", err)
+	}
+	o.epicTok = tok
+	return tok.AccessToken, ep.Account, nil
+}
+
+// setEpicToken keeps a fresh sign-in's token (or forgets it).
+func (o *ownedState) setEpicToken(t owned.EpicToken) {
+	o.epicMu.Lock()
+	o.epicTok = t
+	o.epicMu.Unlock()
+}
+
+// ---- GOG sign-in (achievements) ----
+
+const gogSecret = "gog-account"
+
+type gogAccount struct {
+	Refresh string `json:"refresh"`
+	User    string `json:"user"`
+}
+
+func loadGOG() (gogAccount, bool) {
+	var a gogAccount
+	s := platform.LoadSecret(gogSecret)
+	if s == "" || json.Unmarshal([]byte(s), &a) != nil || a.Refresh == "" || a.User == "" {
+		return a, false
+	}
+	return a, true
+}
+
+func saveGOG(a gogAccount) error {
+	b, err := json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	return platform.SaveSecret(gogSecret, string(b))
+}
+
+// gogAccess returns an access token and user id for the signed-in GOG
+// account, refreshing it when it's (nearly) expired; the newest refresh
+// token is kept.
+func (o *ownedState) gogAccess(ctx context.Context) (access, user string, err error) {
+	o.gogMu.Lock()
+	defer o.gogMu.Unlock()
+	a, ok := loadGOG()
+	if !ok {
+		return "", "", errors.New("not signed in to GOG")
+	}
+	if o.gogTok.AccessToken != "" && o.gogTok.RefreshToken == a.Refresh && time.Until(o.gogExp) > 5*time.Minute {
+		return o.gogTok.AccessToken, a.User, nil
+	}
+	tok, err := o.client.GOGRefresh(ctx, a.Refresh)
+	if err != nil {
+		return "", "", err
+	}
+	a.Refresh, a.User = tok.RefreshToken, tok.UserID
+	if err := saveGOG(a); err != nil {
+		logx.Printf("owned: saving GOG sign-in: %v", err)
+	}
+	o.gogTok, o.gogExp = tok, time.Now().Add(time.Duration(max(tok.ExpiresIn, 60))*time.Second)
+	return tok.AccessToken, a.User, nil
+}
+
+// OpenGOGSignIn opens GOG's sign-in page in the browser.
+func (s *AccountsService) OpenGOGSignIn() error { return platform.OpenWebPage(owned.GOGLoginURL) }
+
+// GOGSignIn finishes the GOG sign-in with the address the browser ended on
+// (or the code in it). It's used for achievements only.
+func (s *AccountsService) GOGSignIn(pasted string) (Accounts, error) {
+	code, ok := owned.GOGCode(pasted)
+	if !ok {
+		return s.Get(), errors.New("paste the address the GOG page ended on after signing in (it has code= in it)")
+	}
+	ctx, cancel := context.WithTimeout(s.c.ctx, time.Minute)
+	defer cancel()
+	tok, err := s.c.owned.client.GOGSignIn(ctx, code)
+	if err != nil {
+		return s.Get(), err
+	}
+	if err := saveGOG(gogAccount{Refresh: tok.RefreshToken, User: tok.UserID}); err != nil {
+		return s.Get(), err
+	}
+	o := s.c.owned
+	o.gogMu.Lock()
+	o.gogTok, o.gogExp = tok, time.Now().Add(time.Duration(max(tok.ExpiresIn, 60))*time.Second)
+	o.gogMu.Unlock()
+	s.c.ach.clear()
+	logx.Printf("gog: signed in for achievements")
+	a := s.Get()
+	s.c.emit(EventAccounts, a)
+	return a, nil
+}
+
+// GOGSignOut forgets the GOG sign-in.
+func (s *AccountsService) GOGSignOut() (Accounts, error) {
+	if err := platform.SaveSecret(gogSecret, ""); err != nil {
+		return s.Get(), err
+	}
+	o := s.c.owned
+	o.gogMu.Lock()
+	o.gogTok, o.gogExp = owned.GOGToken{}, time.Time{}
+	o.gogMu.Unlock()
+	s.c.ach.clear()
+	a := s.Get()
+	s.c.emit(EventAccounts, a)
+	return a, nil
 }

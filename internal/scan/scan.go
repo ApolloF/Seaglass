@@ -115,7 +115,7 @@ func Run(ctx context.Context, o Options) Result {
 func enrich(c *Candidate, scs []shortcut, o Options) {
 	if o.DetectUnofficial && c.Source != Xbox {
 		em := detectEmulationCached(c.Dir, o.Signed)
-		c.Emulator, c.EmuMarker, c.PadHint = em.Emulator, em.Marker, em.PadHint
+		c.Emulator, c.EmuMarker, c.EmuDir, c.PadHint = em.Emulator, em.Marker, em.EmuDir, em.PadHint
 		if em.AppID > 0 && c.SteamAppID == 0 {
 			c.SteamAppID, c.AppIDFrom = em.AppID, em.AppIDFrom
 		}

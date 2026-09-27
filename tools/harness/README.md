@@ -21,6 +21,7 @@ node smoke.mjs
 | `launches.mjs [--from=bigpicture\|desktop] [--only=Direct,Crash]` | plays each fake game (direct, launcher handover, slow start, crash) and records the session, the windows and the controller mode over time |
 | `drive.mjs [name] [--bp] [--extra=N] [--layout=orbit]` | keeps the app running behind `127.0.0.1:9444` for exploring by hand: `/pad?b=down`, `/key?k=ArrowDown`, `/snap?name=x`, `/eval` (POST), `/state`, `/mem`, `/quit` |
 | `perf.mjs [--games=500,2000] [--only=orbit] [--trace] [--frames]` | holds a direction for 5 s per scenario at 4K and reads a trace: frames presented and dropped, frames with holes, main-thread time, memory; `--trace` keeps the full trace (`tracesum.py` sums it), `--frames` records a screencast |
+| `achievements.mjs` | a fake Goldberg copy of Portal: the details card, icons, hidden ones, Steam's rarity, the note after playing, and the full list and big picture screen at every size |
 | `refresh.mjs` | runs the app once on the real library so its metadata is current, and keeps a copy for the test data |
 
 Contact sheets need Python with Pillow (`sheet.py`).

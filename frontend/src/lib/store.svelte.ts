@@ -1,5 +1,6 @@
 import { api } from "./api";
-import type { AppInfo, Game, MetaState, ScanState, Session, Settings, UpdateState } from "./types";
+import type { Achievement, AppInfo, Game, MetaState, ScanState, Session, SessionAchievements, Settings, UpdateState } from "./types";
+import { unlockedText } from "./achievements";
 import { lastPlayed, ownedOnly, played, title } from "./types";
 
 export type FilterKind = "all" | "installed" | "notinstalled" | "favorites" | "recent" | "found" | "hidden";
@@ -14,6 +15,8 @@ export interface Toast {
   id: number;
   text: string;
   tone: "info" | "error";
+  /** Achievement icons to show with it. */
+  icons?: Achievement[];
 }
 
 // Source groups shown in the sidebar, in this order.
@@ -47,6 +50,8 @@ class LibraryStore {
   /** The game being launched or played (or the last one). */
   session = $state<Session | null>(null);
   update = $state<UpdateState | null>(null);
+  /** The achievements the last play session unlocked (views read theirs again). */
+  achSession = $state<SessionAchievements | null>(null);
 
   filter = $state<Filter>({ kind: "all" });
   sort = $state<Sort>("title");
@@ -168,6 +173,10 @@ class LibraryStore {
     api.onMetaState((s) => (this.meta = s));
     api.launch.onSession((s) => (this.session = s));
     api.updates.onState((s) => (this.update = s));
+    api.achievements.onSession((s) => {
+      this.achSession = s;
+      if (s.unlocked.length) this.toast(`${s.title}: ${unlockedText(s.unlocked.length)}`, "info", s.unlocked.slice(0, 5));
+    });
     const [games, settings, scan, info, meta, session, update] = await Promise.all([
       api.games(),
       api.settings(),
@@ -247,10 +256,10 @@ class LibraryStore {
   }
 
   private nextToast = 1;
-  toast(text: string, tone: Toast["tone"] = "info") {
-    const t = { id: this.nextToast++, text, tone };
+  toast(text: string, tone: Toast["tone"] = "info", icons?: Achievement[]) {
+    const t = { id: this.nextToast++, text, tone, icons };
     this.toasts = [...this.toasts, t];
-    setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== t.id)), tone === "error" ? 7000 : 3500);
+    setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== t.id)), tone === "error" || icons?.length ? 7000 : 3500);
   }
 }
 

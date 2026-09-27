@@ -5,6 +5,7 @@
 package owned
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,7 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/ApolloF/Seaglass/internal/library"
@@ -24,6 +25,9 @@ var allowedHosts = map[string]bool{
 	"account-public-service-prod03.ol.epicgames.com": true,
 	"library-service.live.use1a.on.epicgames.com":    true,
 	"catalog-public-service-prod06.ol.epicgames.com": true,
+	"launcher.store.epicgames.com":                   true, // achievements (GraphQL)
+	"auth.gog.com":                                   true,
+	"gameplay.gog.com":                               true,
 }
 
 const maxResponse = 32 << 20
@@ -32,6 +36,9 @@ const maxResponse = 32 << 20
 type Client struct {
 	http *http.Client
 	base map[string]string // host → replacement base URL, for tests
+
+	steamMu   sync.Mutex
+	steamNext time.Time // after Steam said "too many requests", wait until then
 }
 
 // NewClient makes a client that only reaches the allowlisted hosts.
@@ -50,6 +57,15 @@ func NewClient() *Client {
 }
 
 func (c *Client) do(ctx context.Context, method, raw string, header map[string]string, form url.Values, out any) error {
+	if form == nil {
+		return c.send(ctx, method, raw, header, "", nil, out)
+	}
+	return c.send(ctx, method, raw, header, "application/x-www-form-urlencoded", []byte(form.Encode()), out)
+}
+
+// send makes a request with an optional body of type ctype and reads a
+// JSON answer into out.
+func (c *Client) send(ctx context.Context, method, raw string, header map[string]string, ctype string, payload []byte, out any) error {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return err
@@ -60,15 +76,15 @@ func (c *Client) do(ctx context.Context, method, raw string, header map[string]s
 		return errors.New("host not allowed")
 	}
 	var body io.Reader
-	if form != nil {
-		body = strings.NewReader(form.Encode())
+	if payload != nil {
+		body = bytes.NewReader(payload)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, raw, body)
 	if err != nil {
 		return err
 	}
-	if form != nil {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if ctype != "" {
+		req.Header.Set("Content-Type", ctype)
 	}
 	req.Header.Set("User-Agent", "Seaglass")
 	for k, v := range header {

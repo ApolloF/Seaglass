@@ -27,6 +27,7 @@ type Game struct {
 	SourceLabel string `json:"sourceLabel"` // "Steam", "Unofficial · RUNE", "Repack · DODI", …
 	Unofficial  bool   `json:"unofficial"`
 	Emulator    string `json:"emulator,omitempty"`
+	EmuDir      string `json:"emuDir,omitempty"` // where the emulator sits, relative to Dir
 	Repacker    string `json:"repacker,omitempty"`
 	DRMFree     string `json:"drmFree,omitempty"`
 
@@ -111,6 +112,7 @@ type Found struct {
 	Source, SourceLabel         string
 	Unofficial                  bool
 	Emulator, Repacker, DRMFree string
+	EmuDir                      string
 	Dir, Exe, Args, WorkDir     string
 	LaunchURI                   string
 	SizeBytes                   int64
@@ -270,6 +272,7 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		}
 		g.Source, g.SourceLabel = f.Source, f.SourceLabel
 		g.Unofficial, g.Emulator, g.Repacker, g.DRMFree = f.Unofficial, f.Emulator, f.Repacker, f.DRMFree
+		g.EmuDir = f.EmuDir
 		g.Installed, g.Dir, g.LaunchURI, g.SizeBytes = true, f.Dir, f.LaunchURI, f.SizeBytes
 		if !g.UserExe {
 			g.Exe, g.Args, g.WorkDir = f.Exe, f.Args, f.WorkDir

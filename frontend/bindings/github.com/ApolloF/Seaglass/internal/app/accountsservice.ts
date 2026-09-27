@@ -30,6 +30,21 @@ export function EpicSignOut(): $CancellablePromise<$models.Accounts> {
 }
 
 /**
+ * GOGSignIn finishes the GOG sign-in with the address the browser ended on
+ * (or the code in it). It's used for achievements only.
+ */
+export function GOGSignIn(pasted: string): $CancellablePromise<$models.Accounts> {
+    return $Call.ByID(247900059, pasted);
+}
+
+/**
+ * GOGSignOut forgets the GOG sign-in.
+ */
+export function GOGSignOut(): $CancellablePromise<$models.Accounts> {
+    return $Call.ByID(1382374472);
+}
+
+/**
  * Get reports the accounts.
  */
 export function Get(): $CancellablePromise<$models.Accounts> {
@@ -41,6 +56,13 @@ export function Get(): $CancellablePromise<$models.Accounts> {
  */
 export function OpenEpicSignIn(): $CancellablePromise<void> {
     return $Call.ByID(3639547673);
+}
+
+/**
+ * OpenGOGSignIn opens GOG's sign-in page in the browser.
+ */
+export function OpenGOGSignIn(): $CancellablePromise<void> {
+    return $Call.ByID(1673596867);
 }
 
 /**

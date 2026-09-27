@@ -111,6 +111,17 @@ export interface Settings {
     "startSyncer": boolean;
 
     /**
+     * Achievements
+     * show achievements (read from stores and emulator files)
+     */
+    "achievements": boolean;
+
+    /**
+     * show hidden achievements before they're unlocked (spoilers)
+     */
+    "showHiddenAchievements": boolean;
+
+    /**
      * Updates
      * check GitHub for new versions and install them on the next start
      */

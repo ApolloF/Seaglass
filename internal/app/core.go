@@ -61,6 +61,7 @@ type Core struct {
 	owned    *ownedState
 	updates  *updater
 	external *externalWatch
+	ach      *achState
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
@@ -95,6 +96,7 @@ func NewCore(version string) (*Core, error) {
 	c.Launch = launch.NewManager(c.onSession)
 	c.owned = newOwnedState(c)
 	c.updates = newUpdater(c)
+	c.ach = newAchState(c, c.owned.client, c.meta.client)
 	return c, nil
 }
 
@@ -238,7 +240,7 @@ func (c *Core) scanNow() {
 func toFound(g scan.Candidate, m identify.Match, cfg settings.Settings) library.Found {
 	f := library.Found{
 		Key: platform.Key(g.Dir), Title: m.Title, SortTitle: scan.SortTitle(m.Title),
-		Source: string(g.Source), Emulator: g.Emulator, Repacker: g.Repacker, DRMFree: g.DRMFree,
+		Source: string(g.Source), Emulator: g.Emulator, EmuDir: g.EmuDir, Repacker: g.Repacker, DRMFree: g.DRMFree,
 		Unofficial: g.Unofficial(), Dir: g.Dir, Exe: g.Exe, Args: g.Args, WorkDir: g.WorkDir,
 		LaunchURI: g.LaunchURI, SizeBytes: g.SizeBytes, SteamAppID: m.SteamAppID, GogID: m.GogID,
 		EpicApp: g.EpicApp, How: g.How, MatchHow: m.How, Confidence: m.Confidence,

@@ -1,7 +1,7 @@
 import { Events, Window } from "@wailsio/runtime";
-import { AccountsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
+import { AccountsService, AchievementsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
 import type { Api } from "./api";
-import type { Accounts, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 
 // The generated bindings return the Go structs; their JSON matches ./types.
 const g = (p: Promise<unknown>) => p as Promise<Game>;
@@ -63,6 +63,11 @@ export const realApi: Api = {
     syncer: (start) => SavesService.Syncer(start) as Promise<unknown> as Promise<SyncerStatus>,
   },
 
+  achievements: {
+    get: (id, fresh = false) => AchievementsService.Get(id, fresh) as Promise<unknown> as Promise<Achievements>,
+    onSession: (cb) => Events.On("achievements:session", (e) => cb(e.data as unknown as SessionAchievements)),
+  },
+
   accounts: {
     get: () => AccountsService.Get() as Promise<unknown> as Promise<Accounts>,
     sync: () => void AccountsService.Sync(),
@@ -72,6 +77,9 @@ export const realApi: Api = {
     openEpicSignIn: () => AccountsService.OpenEpicSignIn(),
     epicSignIn: (p) => AccountsService.EpicSignIn(p) as Promise<unknown> as Promise<Accounts>,
     epicSignOut: () => AccountsService.EpicSignOut() as Promise<unknown> as Promise<Accounts>,
+    openGOGSignIn: () => AccountsService.OpenGOGSignIn(),
+    gogSignIn: (p) => AccountsService.GOGSignIn(p) as Promise<unknown> as Promise<Accounts>,
+    gogSignOut: () => AccountsService.GOGSignOut() as Promise<unknown> as Promise<Accounts>,
     onChange: (cb) => Events.On("accounts:changed", (e) => cb(e.data as unknown as Accounts)),
   },
 

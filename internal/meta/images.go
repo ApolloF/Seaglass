@@ -86,6 +86,11 @@ func (c *Client) loadImage(ctx context.Context, src string) (image.Image, error)
 	if err != nil {
 		return nil, err
 	}
+	return decodeChecked(b)
+}
+
+// decodeChecked decodes image data within the size limits.
+func decodeChecked(b []byte) (image.Image, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil {
 		return nil, fmt.Errorf("not an image: %w", err)
@@ -97,11 +102,43 @@ func (c *Client) loadImage(ctx context.Context, src string) (image.Image, error)
 	return img, err
 }
 
+// StoreImage checks image data (a local file, say), re-encodes it at the
+// kind's size and stores it in dir, returning the stored file's name.
+func StoreImage(dir string, data []byte, kind Kind) (string, error) {
+	if len(data) > maxImageBytes {
+		return "", errors.New("image too large")
+	}
+	img, err := decodeChecked(data)
+	if err != nil {
+		return "", err
+	}
+	return encodeAndStore(dir, fit(img, maxWidth[kind]), kind)
+}
+
+// FetchImage downloads an image from an allowlisted host and stores it
+// like StoreImage.
+func (c *Client) FetchImage(ctx context.Context, src, dir string, kind Kind) (string, error) {
+	b, err := c.get(ctx, src, maxImageBytes, nil)
+	if err != nil {
+		return "", err
+	}
+	return StoreImage(dir, b, kind)
+}
+
 // keepImage re-encodes an image at the kind's size and stores it.
 func (c *Client) keepImage(img image.Image, kind Kind) (string, image.Image, error) {
 	img = fit(img, maxWidth[kind])
-	var err error
+	name, err := encodeAndStore(c.artDir, img, kind)
+	if err != nil {
+		return "", nil, err
+	}
+	return artPrefix + name, img, nil
+}
 
+// encodeAndStore encodes an image (PNG for logos and icons, else JPEG) and
+// stores it in dir under its content hash, returning the file name.
+func encodeAndStore(dir string, img image.Image, kind Kind) (string, error) {
+	var err error
 	var out bytes.Buffer
 	ext := "jpg"
 	if kind == Logo || kind == Icon {
@@ -111,24 +148,24 @@ func (c *Client) keepImage(img image.Image, kind Kind) (string, image.Image, err
 		err = jpeg.Encode(&out, flatten(img), &jpeg.Options{Quality: 88})
 	}
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	sum := sha256.Sum256(out.Bytes())
 	name := hex.EncodeToString(sum[:20]) + "." + ext
-	p := filepath.Join(c.artDir, name)
+	p := filepath.Join(dir, name)
 	if _, err := os.Stat(p); err != nil {
-		if err := os.MkdirAll(c.artDir, 0o755); err != nil {
-			return "", nil, err
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", err
 		}
 		tmp := p + ".tmp"
 		if err := os.WriteFile(tmp, out.Bytes(), 0o644); err != nil {
-			return "", nil, err
+			return "", err
 		}
 		if err := os.Rename(tmp, p); err != nil {
-			return "", nil, err
+			return "", err
 		}
 	}
-	return artPrefix + name, img, nil
+	return name, nil
 }
 
 // fit scales img down to at most maxW pixels wide.
@@ -348,13 +385,19 @@ func hsvToRGB(h, s, v float64) (float64, float64, float64) {
 // ArtHandler serves stored art under /art/ to the interface, and passes
 // every other request on.
 func ArtHandler(artDir string) func(http.Handler) http.Handler {
+	return ImageHandler(artPrefix, artDir)
+}
+
+// ImageHandler serves the images stored in dir (content-addressed, as
+// StoreImage names them) under prefix, and passes every other request on.
+func ImageHandler(prefix, dir string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !strings.HasPrefix(r.URL.Path, artPrefix) {
+			if !strings.HasPrefix(r.URL.Path, prefix) {
 				next.ServeHTTP(w, r)
 				return
 			}
-			name := strings.TrimPrefix(r.URL.Path, artPrefix)
+			name := strings.TrimPrefix(r.URL.Path, prefix)
 			if !reArtName.MatchString(name) {
 				http.NotFound(w, r)
 				return
@@ -366,7 +409,7 @@ func ArtHandler(artDir string) func(http.Handler) http.Handler {
 			} else {
 				w.Header().Set("Content-Type", "image/jpeg")
 			}
-			http.ServeFile(w, r, filepath.Join(artDir, name))
+			http.ServeFile(w, r, filepath.Join(dir, name))
 		})
 	}
 }

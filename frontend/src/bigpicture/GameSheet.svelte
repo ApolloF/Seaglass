@@ -10,8 +10,9 @@
   import { feedback, useInput } from "../lib/input.svelte";
   import { lib } from "../lib/store.svelte";
   import { savesSummary } from "../lib/saves";
-  import { storeName, title, type Game, type Saves, type StoreHit } from "../lib/types";
+  import { storeName, title, type Achievements, type Game, type Saves, type StoreHit } from "../lib/types";
   import ArtPicker from "./ArtPicker.svelte";
+  import AchievementsScreen from "./AchievementsScreen.svelte";
   import CollectionPicker from "./CollectionPicker.svelte";
   import Hints from "./Hints.svelte";
 
@@ -32,6 +33,19 @@
     return () => (live = false);
   });
 
+  let ach = $state<Achievements | null>(null);
+  let achFor = -1;
+  $effect(() => {
+    const id = game.id;
+    const on = lib.settings?.achievements ?? true;
+    lib.achSession;
+    let live = true;
+    if (id !== achFor) ach = null;
+    achFor = id;
+    if (on && (game.installed || game.owned)) api.achievements.get(id).then((a) => live && (ach = a)).catch(() => {});
+    return () => (live = false);
+  });
+
   type Button = { id: string; label: string; icon: IconName };
   const buttons = $derived<Button[]>(
     game.needsReview
@@ -47,6 +61,7 @@
           { id: "pad", label: `Controller: ${modeLabel[game.padMode ?? ""]}`, icon: "pad" },
           { id: "art", label: "Art", icon: "image" },
           { id: "coll", label: game.collections?.length ? `Collections · ${game.collections.length}` : "Collections", icon: "layers" },
+          ...(ach && ach.total > 0 ? [{ id: "ach", label: `Achievements · ${ach.unlocked}/${ach.total}`, icon: "trophy" as IconName }] : []),
         ],
   );
   $effect(() => {
@@ -83,6 +98,7 @@
 
   let choosingArt = $state(false);
   let choosingColl = $state(false);
+  let showingAch = $state(false);
 
   function press(id: string) {
     feedback.confirm();
@@ -92,6 +108,10 @@
     }
     if (id === "coll") {
       choosingColl = true;
+      return;
+    }
+    if (id === "ach") {
+      showingAch = true;
       return;
     }
     if (id === "play" && game.installed) onplay();
@@ -192,6 +212,9 @@
     </div>
   {/if}
 
+  {#if showingAch && ach}
+    <AchievementsScreen {game} list={ach} onclose={() => ((showingAch = false), feedback.move())} />
+  {/if}
   {#if choosingColl}
     <CollectionPicker {game} onclose={() => ((choosingColl = false), feedback.move())} />
   {/if}
