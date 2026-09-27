@@ -54,7 +54,7 @@ type Settings struct {
 	ShowHiddenAchievements bool `json:"showHiddenAchievements"` // show hidden achievements before they're unlocked (spoilers)
 
 	// Updates
-	AutoUpdate bool `json:"autoUpdate"` // check GitHub for new versions and install them on the next start
+	AutoUpdate bool `json:"autoUpdate"` // check GitHub for new versions and install them on the next start or while idle in the tray
 
 	// Welcomed: the first-start welcome was seen (or skipped).
 	Welcomed bool `json:"welcomed"`

@@ -23,7 +23,7 @@
       {#if u.failed}
         <p class="note">It didn't install when Seaglass last started. Try again, or download it from GitHub.</p>
       {:else}
-        <p class="note">It installs the next time Seaglass starts, or now with a quick restart.</p>
+        <p class="note">It installs the next time Seaglass starts (or while it waits in the tray), or now with a quick restart.</p>
       {/if}
       <div class="actions">
         <button type="button" class="btn primary" onclick={() => lib.installUpdate()}><Icon name="refresh" size={16} stroke={2} />Restart and update</button>
