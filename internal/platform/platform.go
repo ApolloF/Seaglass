@@ -17,6 +17,7 @@ var (
 	ProgramData     = known(windows.FOLDERID_ProgramData)
 	Public          = known(windows.FOLDERID_Public)
 	Profile         = known(windows.FOLDERID_Profile)
+	Documents       = known(windows.FOLDERID_Documents)
 	Desktop         = known(windows.FOLDERID_Desktop)
 	PublicDesktop   = known(windows.FOLDERID_PublicDesktop)
 	StartMenu       = known(windows.FOLDERID_StartMenu)
