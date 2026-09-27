@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -57,7 +58,7 @@ type achState struct {
 func newAchState(c *Core, client *owned.Client, mc *meta.Client) *achState {
 	a := &achState{
 		c:     c,
-		cache: &achievements.Cache{Dir: platform.CacheDir("achievements")},
+		cache: &achievements.Cache{Dir: achCacheDir()},
 		net:   client,
 		mem:   map[int64]achievements.Entry{},
 	}
@@ -71,6 +72,15 @@ func newAchState(c *Core, client *owned.Client, mc *meta.Client) *achState {
 	a.deps = a.liveDeps
 	a.active = func() bool { return c.Launch != nil && c.Launch.Active() }
 	return a
+}
+
+// achCacheDir holds results per game id, so it goes with the library: a
+// test harness's data (--dev-data) keeps its own, apart from the real one.
+func achCacheDir() string {
+	if platform.AppDirOverridden() {
+		return filepath.Join(platform.AppDir(), "achievements-cache")
+	}
+	return platform.CacheDir("achievements")
 }
 
 // liveDeps is this PC's Steam, the user's key and account, and the stores.
@@ -103,7 +113,7 @@ func (a *achState) liveDeps() achievements.Deps {
 // stamp sums up what a game's result depends on.
 func achStamp(g library.Game, d achievements.Deps) string {
 	return achievements.Stamp(achievements.Files(g, d),
-		"v1", d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), strconv.FormatBool(d.GOG != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
+		strconv.Itoa(achievements.Version), d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), strconv.FormatBool(d.GOG != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
 		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID)
 }
 

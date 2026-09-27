@@ -49,6 +49,10 @@ var appDirOverride string
 // harness's own data). Call it before anything is opened.
 func UseAppDir(dir string) { appDirOverride = filepath.Clean(dir) }
 
+// AppDirOverridden reports whether UseAppDir moved the data elsewhere (a
+// test harness's own data): caches tied to that library belong with it.
+func AppDirOverridden() bool { return appDirOverride != "" }
+
 // CacheDir is a folder under %LOCALAPPDATA%\Seaglass, created on demand.
 func CacheDir(sub ...string) string {
 	base := filepath.Join(Local, "Seaglass")
