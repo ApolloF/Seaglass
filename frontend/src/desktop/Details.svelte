@@ -77,6 +77,14 @@
     };
   });
 
+  let installingSyncer = $state(false);
+  async function installSyncer() {
+    installingSyncer = true;
+    await lib.run(() => api.saves.installSyncer());
+    installingSyncer = false;
+    saves = (await api.saves.get(game.id, true).catch(() => null)) ?? saves;
+  }
+
   function startRename() {
     menuOpen = false;
     draft = title(game);
@@ -276,7 +284,9 @@
           <Icon name="cloudCheck" size={22} stroke={1.8} />
           <span class="grow">Saves</span>
           {#if savesInfo?.action === "get"}
-            <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.getSyncer())}>{saves?.outdated ? "Update Syncer" : "Get Syncer"}</button>
+            <button type="button" class="btn small" disabled={installingSyncer} onclick={installSyncer}
+              >{installingSyncer ? "Installing…" : saves?.outdated ? "Update Syncer" : "Install Syncer"}</button
+            >
           {:else if savesInfo?.action === "open"}
             <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.openSyncer())}>Open Syncer</button>
           {/if}

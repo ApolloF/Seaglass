@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -14,10 +15,21 @@ import (
 	"github.com/ApolloF/WaterLauncher/internal/logx"
 	"github.com/ApolloF/WaterLauncher/internal/platform"
 	"github.com/ApolloF/WaterLauncher/internal/syncer"
+	"github.com/ApolloF/WaterLauncher/internal/update"
 )
 
-// syncerPage is where Syncer can be downloaded.
-const syncerPage = "https://github.com/ApolloF/syncer/releases/latest"
+// syncerProject is Syncer's home page.
+const syncerProject = "https://github.com/ApolloF/syncer"
+
+// syncerFeed is Syncer's releases, and syncerInstaller the per-user
+// installer every release carries.
+var syncerFeed = update.Feed{
+	LatestURL:   "https://api.github.com/repos/ApolloF/syncer/releases/latest",
+	AssetPrefix: syncerProject + "/releases/download/",
+	Hosts:       update.GitHub.Hosts,
+}
+
+const syncerInstaller = "Syncer-amd64-installer.exe"
 
 // Saves is what Syncer knows about a game's saves, for the interface.
 type Saves struct {
@@ -101,7 +113,8 @@ func (s *SavesService) Syncer(start bool) SyncerStatus {
 type SavesService struct {
 	c *Core
 
-	mu    sync.Mutex
+	installing sync.Mutex // InstallSyncer runs
+	mu         sync.Mutex
 	cache map[int64]cachedSaves
 }
 
@@ -185,8 +198,44 @@ func (s *SavesService) OpenSyncer() error {
 	return cmd.Process.Release()
 }
 
-// GetSyncer opens Syncer's download page.
-func (s *SavesService) GetSyncer() error { return platform.OpenWebPage(syncerPage) }
+// SyncerProject opens Syncer's home page.
+func (s *SavesService) SyncerProject() error { return platform.OpenWebPage(syncerProject) }
+
+// InstallSyncer installs Syncer, or updates it, from its latest release:
+// the installer is checked against the SHA-256 GitHub published for it
+// and runs silently, for this Windows account only (no administrator).
+func (s *SavesService) InstallSyncer() error {
+	if !s.installing.TryLock() {
+		return errors.New("Syncer is being installed already")
+	}
+	defer s.installing.Unlock()
+	ctx, cancel := context.WithTimeout(s.c.ctx, 10*time.Minute)
+	defer cancel()
+	rel, err := syncerFeed.Latest(ctx)
+	if err != nil {
+		return fmt.Errorf("couldn't find Syncer's latest release: %w", err)
+	}
+	dir := platform.CacheDir("syncer")
+	file, _, err := syncerFeed.Download(ctx, rel, syncerInstaller, dir, nil)
+	if err != nil {
+		return fmt.Errorf("couldn't download Syncer: %w", err)
+	}
+	defer os.Remove(file)
+	logx.Printf("installing Syncer %s", rel.Tag)
+	cmd := exec.CommandContext(ctx, file, "/S")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Syncer's installer failed: %w", err)
+	}
+	if _, ok := syncer.Find(); !ok {
+		return errors.New("Syncer's installer finished, but Syncer isn't there")
+	}
+	s.mu.Lock()
+	clear(s.cache)
+	s.mu.Unlock()
+	logx.Printf("installed Syncer %s", rel.Tag)
+	return nil
+}
 
 // syncerGame describes a game to Syncer.
 func syncerGame(g library.Game) syncer.Game {

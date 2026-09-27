@@ -58,7 +58,8 @@ export const realApi: Api = {
   saves: {
     get: (id, fresh = false) => SavesService.Saves(id, fresh) as Promise<unknown> as Promise<Saves>,
     openSyncer: () => SavesService.OpenSyncer(),
-    getSyncer: () => SavesService.GetSyncer(),
+    installSyncer: () => SavesService.InstallSyncer(),
+    syncerProject: () => SavesService.SyncerProject(),
     syncer: (start) => SavesService.Syncer(start) as Promise<unknown> as Promise<SyncerStatus>,
   },
 

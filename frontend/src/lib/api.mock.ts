@@ -396,7 +396,10 @@ export const mockApi: Api = {
       return mockSaves(games.find((g) => g.id === id));
     },
     async openSyncer() {},
-    async getSyncer() {},
+    async installSyncer() {
+      await new Promise((r) => setTimeout(r, 1500));
+    },
+    async syncerProject() {},
     async syncer(start) {
       await wait(start ? 900 : 200);
       // ?syncer=missing|old|off shows the other states.

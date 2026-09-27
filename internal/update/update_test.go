@@ -321,3 +321,34 @@ func TestSignedRelease(t *testing.T) {
 		t.Error("a file not matching the signed list was accepted")
 	}
 }
+
+// Releases without checksum files (like Syncer's) are checked against the
+// SHA-256 GitHub computed on upload.
+func TestDownloadUsesGitHubDigest(t *testing.T) {
+	f, feed := newFake(t)
+	ctx := context.Background()
+	body := []byte("MZ pretend Syncer installer")
+	h := sha256.Sum256(body)
+	f.files["Syncer-setup.exe"] = body
+	f.publish("v0.12.0", nil, map[string]any{
+		"name": "Syncer-setup.exe", "size": len(body), "digest": "sha256:" + hex.EncodeToString(h[:]),
+		"browser_download_url": f.srv.URL + "/download/Syncer-setup.exe",
+	})
+	rel, err := feed.Latest(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := feed.Download(ctx, rel, "Syncer-setup.exe", t.TempDir(), nil); err != nil {
+		t.Fatalf("download with a digest: %v", err)
+	}
+	f.publish("v0.12.1", nil, map[string]any{
+		"name": "Syncer-setup.exe", "size": len(body), "digest": "sha256:" + strings.Repeat("0", 64),
+		"browser_download_url": f.srv.URL + "/download/Syncer-setup.exe",
+	})
+	if rel, err = feed.Latest(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := feed.Download(ctx, rel, "Syncer-setup.exe", t.TempDir(), nil); err == nil {
+		t.Error("a file that doesn't match its digest was accepted")
+	}
+}

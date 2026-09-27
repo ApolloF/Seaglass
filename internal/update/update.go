@@ -53,9 +53,10 @@ const ReleasesPage = "https://github.com/ApolloF/WaterLauncher/releases/latest"
 
 // Asset is one downloadable file of a release.
 type Asset struct {
-	Name string
-	URL  string
-	Size int64
+	Name   string
+	URL    string
+	Size   int64
+	Digest string // SHA-256 GitHub computed on upload ("sha256:<hex>"), when it did
 }
 
 // Release is a published WaterLauncher release.
@@ -144,9 +145,10 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 		Prerelease bool      `json:"prerelease"`
 		Published  time.Time `json:"published_at"`
 		Assets     []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-			Size int64  `json:"size"`
+			Name   string `json:"name"`
+			URL    string `json:"browser_download_url"`
+			Size   int64  `json:"size"`
+			Digest string `json:"digest"`
 		} `json:"assets"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&r); err != nil {
@@ -167,7 +169,7 @@ func (f Feed) Latest(ctx context.Context) (Release, error) {
 	}
 	for _, a := range r.Assets {
 		if f.inRelease(a.URL) {
-			rel.assets[a.Name] = Asset{Name: a.Name, URL: a.URL, Size: a.Size}
+			rel.assets[a.Name] = Asset{Name: a.Name, URL: a.URL, Size: a.Size, Digest: a.Digest}
 		}
 	}
 	return rel, nil

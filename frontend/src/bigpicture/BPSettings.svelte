@@ -114,6 +114,14 @@
     check(false);
   });
   const syncerSum = $derived(syncerSummary(syncer, s?.startSyncer ?? true));
+  let installing = $state(false);
+  async function install() {
+    if (installing) return;
+    installing = true;
+    await lib.run(() => api.saves.installSyncer());
+    installing = false;
+    check(false);
+  }
 
   function change(dir: 1 | -1) {
     if (!s) return;
@@ -126,7 +134,7 @@
     if (row.kind === "status") {
       // ✕ on Syncer: start it (or look again), or open it to sort things out.
       if (syncerSum?.action === "open") lib.run(() => api.saves.openSyncer());
-      else if (syncerSum?.action === "get" || syncerSum?.action === "update") lib.run(() => api.saves.getSyncer());
+      else if (syncerSum?.action === "get" || syncerSum?.action === "update") install();
       else check(true);
     } else if (row.kind === "library") {
       lib.toggleLibrary(row.source);
@@ -179,7 +187,7 @@
           >
           {#if syncerSum}
             <span class="act"
-              >{syncerSum.action === "open" ? "Open Syncer" : syncerSum.action === "get" ? "Get Syncer" : syncerSum.action === "update" ? "Update" : syncerSum.action === "start" ? "Start" : "Check again"}</span
+              >{syncerSum.action === "open" ? "Open Syncer" : installing ? "Installing…" : syncerSum.action === "get" ? "Install Syncer" : syncerSum.action === "update" ? "Update" : syncerSum.action === "start" ? "Start" : "Check again"}</span
             >
           {/if}
         {:else}

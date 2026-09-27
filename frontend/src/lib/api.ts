@@ -69,7 +69,10 @@ export interface Api {
     /** Syncer's view of a game's saves; fresh skips the short cache. */
     get(id: number, fresh?: boolean): Promise<Saves>;
     openSyncer(): Promise<void>;
-    getSyncer(): Promise<void>;
+    /** Downloads Syncer's latest release and installs it (or updates it). */
+    installSyncer(): Promise<void>;
+    /** Opens Syncer's home page. */
+    syncerProject(): Promise<void>;
     /** Syncer's state; start starts it (without its window) when it isn't running. */
     syncer(start: boolean): Promise<SyncerStatus>;
   };

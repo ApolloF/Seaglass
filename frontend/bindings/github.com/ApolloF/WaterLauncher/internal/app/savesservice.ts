@@ -15,10 +15,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
- * GetSyncer opens Syncer's download page.
+ * InstallSyncer installs Syncer, or updates it, from its latest release:
+ * the installer is checked against the SHA-256 GitHub published for it
+ * and runs silently, for this Windows account only (no administrator).
  */
-export function GetSyncer(): $CancellablePromise<void> {
-    return $Call.ByID(1796367496);
+export function InstallSyncer(): $CancellablePromise<void> {
+    return $Call.ByID(1958658271);
 }
 
 /**
@@ -44,4 +46,11 @@ export function Saves(id: number, fresh: boolean): $CancellablePromise<$models.S
  */
 export function Syncer(start: boolean): $CancellablePromise<$models.SyncerStatus> {
     return $Call.ByID(820300844, start);
+}
+
+/**
+ * SyncerProject opens Syncer's home page.
+ */
+export function SyncerProject(): $CancellablePromise<void> {
+    return $Call.ByID(2688308865);
 }
