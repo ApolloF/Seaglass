@@ -145,8 +145,8 @@ func (a *achState) get(ctx context.Context, id int64, fresh bool) (achievements.
 	defer cancel()
 	l, usedNet := achievements.Resolve(ctx, g, d)
 	e := achievements.Entry{Stamp: stamp, Net: usedNet, List: *l}
-	if d.Offline {
-		e.Stamp = "" // read again once the game is closed and the stores can be asked
+	if d.Offline || l.Partial {
+		e.Stamp = "" // read again: once the game is closed and the stores can be asked, or to finish the icons
 	}
 	a.mu.Lock()
 	a.mem[id] = e

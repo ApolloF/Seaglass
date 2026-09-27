@@ -3,6 +3,7 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -66,55 +67,105 @@ func isFile(p string) bool {
 	return err == nil && fi.Mode().IsRegular()
 }
 
+// iconWorkers is how many icons are fetched at once.
+const iconWorkers = 6
+
 // Localize replaces the list's icon sources with stored /ach/ URLs,
-// storing what's missing. An icon that can't be had is left empty (the
-// interface draws a generic one). With offline set nothing is downloaded.
-func (ic *Icons) Localize(ctx context.Context, l *List, offline bool) {
+// storing what's missing, a few at a time. An icon that can't be had is
+// left empty (the interface draws a generic one). With offline set nothing
+// is downloaded. It reports false when ctx ended before every icon was
+// tried: the list is then worth reading again later.
+func (ic *Icons) Localize(ctx context.Context, l *List, offline bool) (complete bool) {
 	if ic == nil || l == nil {
-		return
+		return true
 	}
 	ic.mu.Lock()
-	defer ic.mu.Unlock()
 	ic.load()
+	var todo []string
+	queued := map[string]bool{}
+	for _, it := range l.Items {
+		for _, src := range []string{it.Icon, it.IconGray} {
+			if src == "" || strings.HasPrefix(src, IconPrefix) || queued[src] || ic.fails[src] || ic.local(src) != "" {
+				continue
+			}
+			if strings.HasPrefix(src, "https://") && (offline || ic.Fetch == nil) {
+				continue
+			}
+			queued[src] = true
+			todo = append(todo, src)
+		}
+	}
+	ic.mu.Unlock()
+
+	got := make(map[string]string, len(todo))
+	var gotMu sync.Mutex
+	jobs := make(chan string)
+	var wg sync.WaitGroup
+	for w := 0; w < min(iconWorkers, len(todo)); w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for src := range jobs {
+				name, err := ic.store(ctx, src)
+				if ctx.Err() != nil {
+					continue // cut short: not a failure of this icon
+				}
+				gotMu.Lock()
+				if err != nil || !reIconName.MatchString(name) {
+					got[src] = ""
+				} else {
+					got[src] = name
+				}
+				gotMu.Unlock()
+			}
+		}()
+	}
+	for _, src := range todo {
+		if ctx.Err() != nil {
+			break
+		}
+		jobs <- src
+	}
+	close(jobs)
+	wg.Wait()
+
+	ic.mu.Lock()
+	defer ic.mu.Unlock()
 	changed := false
+	for src, name := range got {
+		if name == "" {
+			ic.fails[src] = true
+		} else {
+			ic.index[src], changed = name, true
+		}
+	}
+	if changed {
+		ic.save()
+	}
 	get := func(src string) string {
 		if src == "" || strings.HasPrefix(src, IconPrefix) {
 			return src
 		}
-		if u := ic.local(src); u != "" {
-			return u
-		}
-		if ic.fails[src] || ctx.Err() != nil {
-			return ""
-		}
-		var name string
-		var err error
-		switch {
-		case strings.HasPrefix(src, "https://"):
-			if offline || ic.Fetch == nil {
-				return ""
-			}
-			name, err = ic.Fetch(ctx, src, ic.Dir)
-		case filepath.IsAbs(src) && ic.Store != nil:
-			var b []byte
-			if b, err = readSmall(src, maxFile); err == nil {
-				name, err = ic.Store(ic.Dir, b)
-			}
-		default:
-			return ""
-		}
-		if err != nil || !reIconName.MatchString(name) {
-			ic.fails[src] = true
-			return ""
-		}
-		ic.index[src], changed = name, true
-		return IconPrefix + name
+		return ic.local(src)
 	}
 	for i := range l.Items {
 		l.Items[i].Icon = get(l.Items[i].Icon)
 		l.Items[i].IconGray = get(l.Items[i].IconGray)
 	}
-	if changed {
-		ic.save()
+	return len(got) == len(todo)
+}
+
+// store fetches (https) or reads (a local file) one icon and stores it.
+func (ic *Icons) store(ctx context.Context, src string) (string, error) {
+	if strings.HasPrefix(src, "https://") {
+		return ic.Fetch(ctx, src, ic.Dir)
 	}
+	if !filepath.IsAbs(src) || ic.Store == nil {
+		return "", errors.New("not an icon source")
+	}
+	b, err := readSmall(src, maxFile)
+	if err != nil {
+		return "", err
+	}
+	return ic.Store(ic.Dir, b)
 }

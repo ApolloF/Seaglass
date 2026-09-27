@@ -47,6 +47,8 @@ type List struct {
 	Items     []Achievement `json:"items"`
 	UpdatedAt int64         `json:"updatedAt"`
 	Hint      string        `json:"hint,omitempty"` // what's missing, and how to get it
+	// Partial: time ran out before every icon was stored; read it again later.
+	Partial bool `json:"-"`
 }
 
 // Merge combines a schema with unlocks. Unlock IDs match schema IDs

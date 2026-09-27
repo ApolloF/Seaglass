@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"hash/crc32"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ApolloF/Seaglass/internal/library"
 )
@@ -319,5 +322,51 @@ func TestResolveGOG(t *testing.T) {
 	}
 	if GOGClientID(filepath.Join(root, "game"), "../x") != "" {
 		t.Error("a path in the id must not be read")
+	}
+}
+
+func TestIconsParallelAndPartial(t *testing.T) {
+	dir := t.TempDir()
+	ic := fakeIcons(dir)
+	var inFlight, most atomic.Int32
+	store := ic.Fetch
+	ic.Fetch = func(ctx context.Context, src, dir string) (string, error) {
+		n := inFlight.Add(1)
+		defer inFlight.Add(-1)
+		for m := most.Load(); n > m && !most.CompareAndSwap(m, n); m = most.Load() {
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+		}
+		return store(ctx, src, dir)
+	}
+	items := func(n int) *List {
+		l := &List{}
+		for i := 0; i < n; i++ {
+			l.Items = append(l.Items, Achievement{Def: Def{ID: fmt.Sprint(i), Icon: fmt.Sprintf("https://cdn.akamai.steamstatic.com/%d.jpg", i)}})
+		}
+		return l
+	}
+	l := items(30)
+	if !ic.Localize(context.Background(), l, false) || most.Load() < 2 || most.Load() > iconWorkers {
+		t.Fatalf("complete run: in flight at most %d", most.Load())
+	}
+	for _, a := range l.Items {
+		if !strings.HasPrefix(a.Icon, IconPrefix) {
+			t.Fatalf("icon %q not stored", a.Icon)
+		}
+	}
+	// Out of time: partial, and the icons it didn't get aren't marked failed.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	l2 := items(200)
+	if ic.Localize(ctx, l2, false) {
+		t.Fatal("a run cut short reports complete")
+	}
+	l3 := items(200)
+	if !ic.Localize(context.Background(), l3, false) || !strings.HasPrefix(l3.Items[199].Icon, IconPrefix) {
+		t.Error("icons after a cut-short run weren't fetched again")
 	}
 }

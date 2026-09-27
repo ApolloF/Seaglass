@@ -142,7 +142,7 @@ func Resolve(ctx context.Context, g library.Game, d Deps) (l *List, net bool) {
 			net = net || n
 		}
 	}
-	d.Icons.Localize(ctx, l, !d.online())
+	l.Partial = !d.Icons.Localize(ctx, l, !d.online())
 	l.Count()
 	l.UpdatedAt = time.Now().Unix()
 	return l, net
