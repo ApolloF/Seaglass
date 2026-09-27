@@ -22,9 +22,8 @@ const (
 
 // SignedMessage is what a release signature covers: the tag as well as the
 // hashes, so an old release can't be passed off under a newer tag.
-// It keeps the old name: releases of WaterLauncher check this exact text.
 func SignedMessage(tag string, sums []byte) []byte {
-	return append([]byte("WaterLauncher release "+tag+"\n"), sums...)
+	return append([]byte("Seaglass release "+tag+"\n"), sums...)
 }
 
 // FormatSums writes name → hash as sha256sum does, sorted by name.

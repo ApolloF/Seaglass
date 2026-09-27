@@ -57,9 +57,8 @@ func originRepo() string {
 	return "ApolloF/Seaglass"
 }
 
-// The files a release signs, besides the signature files themselves. The
-// legacy names are the same files, for WaterLauncher releases to update.
-var signed = []string{update.InstallerAsset, update.ExeAsset, update.LegacyInstallerAsset, update.LegacyExeAsset}
+// The files a release signs, besides the signature files themselves.
+var signed = []string{update.InstallerAsset, update.ExeAsset}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -116,12 +115,7 @@ func usage() {
 }
 
 func keyPath() string {
-	p := filepath.Join(platform.Roaming, "Seaglass-release", "release-key.dpapi")
-	// Kept where it was before the rename, until it's moved.
-	if old := filepath.Join(platform.Roaming, "WaterLauncher-release", "release-key.dpapi"); !platform.IsFile(p) && platform.IsFile(old) {
-		return old
-	}
-	return p
+	return filepath.Join(platform.Roaming, "Seaglass-release", "release-key.dpapi")
 }
 
 func load() (ed25519.PrivateKey, error) {

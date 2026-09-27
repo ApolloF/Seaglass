@@ -29,13 +29,6 @@ const (
 	ExeAsset       = "Seaglass.exe"
 )
 
-// The same files under WaterLauncher's names, which releases before the
-// rename download. Releases carry them too, so those can still update.
-const (
-	LegacyInstallerAsset = "WaterLauncher-setup.exe"
-	LegacyExeAsset       = "WaterLauncher.exe"
-)
-
 // Feed is where releases come from.
 type Feed struct {
 	LatestURL   string   // GitHub's "latest release" API endpoint

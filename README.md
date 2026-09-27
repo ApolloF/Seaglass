@@ -4,7 +4,7 @@
 
 <p align="center">A Windows game launcher that finds every game on your PC on its own, store installs and unofficial copies alike, and plays great with a DualSense.</p>
 
-<p align="center"><sub>Formerly WaterLauncher. Installs of WaterLauncher update to Seaglass on their own and keep their library and settings.</sub></p>
+<p align="center"><sub>Formerly WaterLauncher. WaterLauncher doesn't update to Seaglass on its own: install Seaglass over it, and it keeps your library and settings.</sub></p>
 
 ---
 

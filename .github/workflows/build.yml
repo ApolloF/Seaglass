@@ -191,10 +191,10 @@ jobs:
           if ((Test-Path $crash) -and (Get-Item $crash).Length -gt 0) { Get-Content $crash; throw 'Seaglass crashed' }
 
       - name: Update from WaterLauncher
-        # WaterLauncher 1.4's updater runs the new installer with its own
-        # folder (/D=...\WaterLauncher): Seaglass must end up in its own
-        # folder, take over the library and "start with Windows", and leave
-        # nothing of WaterLauncher behind.
+        # Installing Seaglass over WaterLauncher 1.4 (here given its folder,
+        # /D=...\WaterLauncher): Seaglass must end up in its own folder, take
+        # over the library and "start with Windows", and leave nothing of
+        # WaterLauncher behind.
         run: |
           $old = "$env:LOCALAPPDATA\Programs\WaterLauncher"
           $new = "$env:LOCALAPPDATA\Programs\Seaglass"
@@ -223,11 +223,7 @@ jobs:
 
       - name: Checksums
         run: |
-          # The same files under WaterLauncher's names: releases from before
-          # the rename download those.
-          Copy-Item bin/Seaglass.exe bin/WaterLauncher.exe
-          Copy-Item bin/Seaglass-setup.exe bin/WaterLauncher-setup.exe
-          foreach ($f in 'Seaglass.exe', 'Seaglass-setup.exe', 'WaterLauncher.exe', 'WaterLauncher-setup.exe') {
+          foreach ($f in 'Seaglass.exe', 'Seaglass-setup.exe') {
             $h = (Get-FileHash "bin/$f" -Algorithm SHA256).Hash.ToLower()
             "$h  $f" | Out-File "bin/$f.sha256" -Encoding ascii
           }
@@ -265,7 +261,3 @@ jobs:
             bin/Seaglass-setup.exe.sha256
             bin/Seaglass.exe
             bin/Seaglass.exe.sha256
-            bin/WaterLauncher-setup.exe
-            bin/WaterLauncher-setup.exe.sha256
-            bin/WaterLauncher.exe
-            bin/WaterLauncher.exe.sha256

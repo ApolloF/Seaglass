@@ -460,15 +460,13 @@ WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the li
 - *Install Syncer* / *Update Syncer* downloads Syncer's latest `Syncer-amd64-installer.exe` from its releases, checks it against the SHA-256 GitHub computed on upload (`digest`), and runs it silently (per user). *About Syncer* links to the project.
 - The add-on host and DLSS Updater's add-on moved to the `feature/dlss-addon` branch, with [ideas](https://github.com/ApolloF/Seaglass/blob/feature/dlss-addon/docs/dlss-addon.md) for integrating it better.
 
-**Carrying WaterLauncher over.** 1.4 only downloads from `github.com/ApolloF/WaterLauncher/releases/download/`, doesn't follow the API's redirect for a renamed repository (api.github.com isn't an allowed redirect host), downloads `WaterLauncher-setup.exe` / `WaterLauncher.exe`, and checks a signature over "WaterLauncher release <tag>". So:
+**Carrying WaterLauncher over.** WaterLauncher's release key was lost, so 1.4 can't update to Seaglass (it only trusts that key, and only downloads from `ApolloF/WaterLauncher`). Seaglass has a new release key (2026-09-27) and signs "Seaglass release <tag>". Installing Seaglass over WaterLauncher still carries it over:
 
-1. v1.5.0 is published while the repository is still called WaterLauncher, with the files also under their old names (CI copies them; the release tool signs all four). The signed text keeps the old name.
-2. The installer, started by 1.4's updater with `/D=…\Programs\WaterLauncher`, installs into `…\Programs\Seaglass` instead, removes the old program, shortcuts and uninstall entry, and keeps a desktop shortcut if there was one.
-3. Seaglass moves `%APPDATA%\WaterLauncher` and `%LOCALAPPDATA%\WaterLauncher` to Seaglass's folders on first start (or keeps using them if they can't be moved), and turns the old *start with Windows* entry into its own.
-4. The repository is renamed only after that. WaterLauncher installs that haven't updated by then have to install Seaglass by hand.
+1. The installer finds WaterLauncher's uninstall entry, installs into a Seaglass folder next to WaterLauncher's, and removes the old program, shortcuts and uninstall entry (keeps a desktop shortcut if there was one).
+2. Seaglass moves `%APPDATA%\WaterLauncher` and `%LOCALAPPDATA%\WaterLauncher` into its own folders on first start (merging, never deleting, not while WaterLauncher runs), and turns the old *start with Windows* entry into its own.
 
 ## To-do (maintainer)
 
-- [ ] **Back up the release key** before the next release: `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
+- [ ] **Back up the release key** (made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).
 - [ ] **Apply to SignPath Foundation** (signpath.org) for Authenticode signing. Once approved: the project, signing policy and the `binaries` and `installer` artifact configurations in SignPath, then the `SIGNPATH_API_TOKEN` secret and `SIGNPATH_*` variables on GitHub ([SIGNING.md](SIGNING.md)). Until then releases carry the release-key signature but no Authenticode signature, so SmartScreen warns on first run.
 - [ ] Turn on GitHub's private vulnerability reporting (Settings → Security), which [SECURITY.md](../SECURITY.md) points to.
