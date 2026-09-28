@@ -14,7 +14,7 @@ import (
 
 // Version is part of every cached result's key: raise it when what
 // Resolve makes of the same files changes, so results are read again.
-const Version = 3
+const Version = 4
 
 // ErrNone means a store says the game has no achievements.
 var ErrNone = errors.New("no achievements")
@@ -256,11 +256,23 @@ func resolveUplay(ctx context.Context, g library.Game, d Deps, l *List) (net boo
 		unlocks = matchByNumber(defs, unlocks)
 	}
 	l.Items = Merge(defs, unlocks)
+	c := readUplayConfig(eg, d.Env)
 	switch {
+	case !found && !c.achOn && uplayINIPath(eg, c) != "":
+		// Off in the ini, so whatever else is saved isn't this game's.
+		l.Hint = "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1."
+		if g.Emulator == "VOICES38" {
+			l.Hint = "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1, and VOICES38's own loader may not save them at all."
+		}
+		l.Fix = FixUplayINI
 	case !found && seen > 0:
 		l.Hint = "Seaglass found several Ubisoft games' achievements in Goldberg UplayEmu Saves and can't tell which are this game's."
-	case !found && g.Emulator == "VOICES38":
-		l.Hint = "No achievement file found. VOICES38's own loader doesn't seem to save achievements; Goldberg Uplay builds with Achievements = 1 in their ini do."
+	case !found && c.achOn && g.LastPlayed > c.iniAt:
+		// Turned on, played since, and still nothing saved: this loader
+		// doesn't save them (VOICES38's own seems not to). Nothing to show.
+		l.Source, l.Items = "", []Achievement{}
+	case !found && c.achOn:
+		l.Hint = "Achievements are turned on in " + filepath.Base(c.ini) + ". Play the game and they'll show up here; if it still saves none, this card goes away."
 	case !found:
 		l.Hint = "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1."
 	case len(defs) == 0 && none:

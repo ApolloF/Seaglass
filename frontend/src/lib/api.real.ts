@@ -72,6 +72,7 @@ export const realApi: Api = {
 
   achievements: {
     get: (id, fresh = false) => AchievementsService.Get(id, fresh) as Promise<unknown> as Promise<Achievements>,
+    enableUplay: (id) => AchievementsService.EnableUplay(id) as Promise<unknown> as Promise<Achievements>,
     onSession: (cb) => Events.On("achievements:session", (e) => cb(e.data as unknown as SessionAchievements)),
   },
 

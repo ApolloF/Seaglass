@@ -15,6 +15,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as achievements$0 from "../achievements/models.js";
 
 /**
+ * EnableUplay turns achievements on for a game on a Uplay emulator
+ * (Achievements = 1 in its ini) and reads them again.
+ */
+export function EnableUplay(id: number): $CancellablePromise<achievements$0.List> {
+    return $Call.ByID(150721818, id);
+}
+
+/**
  * Get returns a game's achievements. Results are reused while the files
  * they came from haven't changed; fresh reads them again.
  */

@@ -37,6 +37,8 @@ type uplayConfig struct {
 	prefix string   // AchKeyPrefix: what achievement keys start with
 	bases  []string // folders holding a folder per app id
 	achDir string   // AchSavePath: where achievements.json is kept, when set
+	achOn  bool     // Achievements = 1: the emulator saves achievements
+	iniAt  int64    // when the ini was last changed (unix seconds)
 }
 
 func readUplayConfig(g EmuGame, env Env) uplayConfig {
@@ -50,6 +52,9 @@ func readUplayConfig(g EmuGame, env Env) uplayConfig {
 			continue
 		}
 		c.ini = p
+		if fi, err := os.Stat(p); err == nil {
+			c.iniAt = fi.ModTime().Unix()
+		}
 		for _, s := range parseINI(b) {
 			if s.name == "" || strings.EqualFold(s.name, "settings") {
 				for k, v := range s.kv {
@@ -63,6 +68,9 @@ func readUplayConfig(g EmuGame, env Env) uplayConfig {
 		c.gameID = id
 	}
 	c.prefix = kv["achkeyprefix"]
+	if n, err := strconv.Atoi(kv["achievements"]); err == nil && n > 0 {
+		c.achOn = true
+	}
 	// A path from the ini: relative ones are next to the DLL.
 	local := func(v string) string {
 		if v == "" {
