@@ -28,7 +28,7 @@
     ubisoft: "oklch(0.7 0.14 250)",
     battlenet: "oklch(0.72 0.13 230)",
     xbox: "oklch(0.72 0.17 145)",
-    unofficial: "oklch(0.78 0.14 60)",
+    external: "oklch(0.78 0.14 60)",
     standalone: "oklch(0.72 0.05 200)",
     folder: "oklch(0.7 0.02 240)",
   };

@@ -18,9 +18,9 @@ export interface Settings {
     "autoFolders": boolean;
 
     /**
-     * recognise Steam emulators, cracks and repacks
+     * recognise games on Steam API emulators and from repacks
      */
-    "detectUnofficial": boolean;
+    "detectExternal": boolean;
 
     /**
      * keep low-confidence matches in New on this PC for a check
@@ -43,7 +43,7 @@ export interface Settings {
     "ownedGOG": boolean;
 
     /**
-     * libraries whose games aren't shown (steam, epic, …, unofficial, folder)
+     * libraries whose games aren't shown (steam, epic, …, external, folder)
      */
     "hiddenSources": string[] | null;
 

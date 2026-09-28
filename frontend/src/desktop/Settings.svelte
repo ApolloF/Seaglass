@@ -129,7 +129,7 @@
                 {#each autoFolders as f (f)}<li><Icon name="folder" size={16} /><span>{f}</span></li>{/each}
               </ul>
             {/if}
-            <Toggle checked={s.detectUnofficial} title="Recognise unofficial copies" detail="Steam emulators, cracks and repacks, matched to the right game by their Steam AppID." onchange={(v) => set({ detectUnofficial: v })} />
+            <Toggle checked={s.detectExternal} title="Recognise external copies" detail="Games from outside a store launcher, such as ones set up with a Steam API emulator or a repack installer, matched to the right game by their Steam AppID." onchange={(v) => set({ detectExternal: v })} />
             <Toggle checked={s.reviewUncertain} title="Let me check uncertain matches" detail="Games matched only by folder name wait in New on this PC." onchange={(v) => set({ reviewUncertain: v })} />
             <Toggle checked={s.showNotInstalled} title="Show games you uninstalled" detail="They stay listed with their playtime." onchange={(v) => set({ showNotInstalled: v })} />
           </div>
@@ -141,7 +141,7 @@
           </div>
           <div class="group">
             <span class="glabel">Achievements</span>
-            <Toggle checked={s.achievements} title="Show achievements" detail="Read from Steam, Epic and GOG, and from the files Steam emulators keep for unofficial copies. After you play, Seaglass says what you unlocked." onchange={(v) => set({ achievements: v })} />
+            <Toggle checked={s.achievements} title="Show achievements" detail="Read from Steam, Epic and GOG, and from the files Steam emulators keep for external copies. After you play, Seaglass says what you unlocked." onchange={(v) => set({ achievements: v })} />
             {#if s.achievements}
               <Toggle checked={s.showHiddenAchievements} title="Show hidden achievements" detail="Names and descriptions of hidden achievements you haven't unlocked yet. They can give away the story." onchange={(v) => set({ showHiddenAchievements: v })} />
             {/if}

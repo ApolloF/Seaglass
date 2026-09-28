@@ -226,7 +226,7 @@ func (c *Core) scanNow() {
 	defer c.scanMu.Unlock()
 	c.setState(func(s *ScanState) { s.Running, s.Error = true, "" })
 	cfg := c.Settings.Get()
-	res := scan.Run(c.ctx, scan.Options{Folders: cfg.Folders, AutoFolders: cfg.AutoFolders, DetectUnofficial: cfg.DetectUnofficial})
+	res := scan.Run(c.ctx, scan.Options{Folders: cfg.Folders, AutoFolders: cfg.AutoFolders, DetectExternal: cfg.DetectExternal})
 	if c.ctx.Err() != nil {
 		return
 	}
@@ -255,7 +255,7 @@ func toFound(g scan.Candidate, m identify.Match, cfg settings.Settings) library.
 	f := library.Found{
 		Key: platform.Key(g.Dir), Title: m.Title, SortTitle: scan.SortTitle(m.Title),
 		Source: string(g.Source), Emulator: g.Emulator, EmuDir: g.EmuDir, Repacker: g.Repacker, DRMFree: g.DRMFree,
-		Unofficial: g.Unofficial(), Dir: g.Dir, Exe: g.Exe, Args: g.Args, WorkDir: g.WorkDir,
+		External: g.External(), Dir: g.Dir, Exe: g.Exe, Args: g.Args, WorkDir: g.WorkDir,
 		LaunchURI: g.LaunchURI, SizeBytes: g.SizeBytes, SteamAppID: m.SteamAppID, GogID: m.GogID,
 		EpicApp: g.EpicApp, How: g.How, MatchHow: m.How, Confidence: m.Confidence,
 		StorePlaytime: g.StorePlaytime, StoreLastPlayed: g.StoreLastPlayed, PadHint: g.PadHint,
@@ -277,7 +277,7 @@ func sourceLabel(g scan.Candidate) string {
 	case g.Source.Store():
 		return storeLabels[g.Source]
 	case g.Emulator != "":
-		return "Unofficial · " + g.Emulator
+		return "External · " + g.Emulator
 	case g.Repacker != "":
 		return "Repack · " + g.Repacker
 	case g.DRMFree != "":

@@ -31,7 +31,7 @@ export interface Game {
   sortTitle: string;
   source: string;
   sourceLabel: string;
-  unofficial: boolean;
+  external: boolean;
   emulator?: string;
   emuDir?: string;
   repacker?: string;
@@ -76,7 +76,7 @@ export type Layout = "deck" | "console" | "orbit";
 export interface Settings {
   folders: string[];
   autoFolders: boolean;
-  detectUnofficial: boolean;
+  detectExternal: boolean;
   reviewUncertain: boolean;
   showNotInstalled: boolean;
   showOwned: boolean;

@@ -117,7 +117,7 @@ export function makeDevData(name, { extra = 0, settings = {}, fake = true } = {}
     for (const f of fakes) {
       games.push({
         id: id++, key: f.dir.toLowerCase(), title: f.title, sortTitle: f.title.toLowerCase(), source: "folder",
-        sourceLabel: "Folder", unofficial: false, installed: true, dir: f.dir, exe: f.exe, workDir: f.dir,
+        sourceLabel: "Folder", external: false, installed: true, dir: f.dir, exe: f.exe, workDir: f.dir,
         how: "Game folder (test)", matchHow: "Test game", confidence: 100, needsReview: false,
         addedAt: now - 5 * 86400, initial: true, seenAt: now, padMode: "native",
       });
@@ -129,7 +129,7 @@ export function makeDevData(name, { extra = 0, settings = {}, fake = true } = {}
     const m = art.length ? { ...art[k % art.length], description: `Made-up game number ${k + 1}.` } : undefined;
     games.push({
       id: id++, key: `c:\\test\\made-up ${k}`, title: t, sortTitle: t.toLowerCase(), source: ["steam", "epic", "gog", "folder"][k % 4],
-      sourceLabel: ["Steam", "Epic", "GOG", "Folder"][k % 4], unofficial: false, installed: true, dir: `C:\\Test\\Made-up ${k}`,
+      sourceLabel: ["Steam", "Epic", "GOG", "Folder"][k % 4], external: false, installed: true, dir: `C:\\Test\\Made-up ${k}`,
       how: "Made up (test)", matchHow: "Made up", confidence: 100, needsReview: false, addedAt: now - (k + 30) * 86400,
       initial: true, seenAt: now, playtime: (k % 5) * 3600, lastPlayed: k % 3 ? now - (k + 2) * 86400 : undefined,
       favorite: k % 17 === 0, sizeBytes: (k % 9) * 7e9, padMode: "native", meta: m,

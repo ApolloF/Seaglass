@@ -392,7 +392,7 @@ func (c *Client) BackupNow(ctx context.Context, wait bool, timeout time.Duration
 func (c *Client) Open(ctx context.Context) error { return c.Call(ctx, "open", nil, nil) }
 
 // RegisterGames tells Syncer which games this PC has, so it can match
-// saves to games with unusual folder names (repacks, unofficial copies).
+// saves to games with unusual folder names (repacks, external copies).
 func (c *Client) RegisterGames(ctx context.Context, games []Game) error {
 	return c.Call(ctx, "registerGames", map[string]any{"games": games}, nil)
 }

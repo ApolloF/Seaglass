@@ -344,7 +344,7 @@ func (c *Core) saveSettings(v settings.Settings) (settings.Settings, error) {
 		NewUpdateService(c).Check()
 	}
 	if !sameStrings(old.Folders, saved.Folders) || old.AutoFolders != saved.AutoFolders ||
-		old.DetectUnofficial != saved.DetectUnofficial || old.ReviewUncertain != saved.ReviewUncertain {
+		old.DetectExternal != saved.DetectExternal || old.ReviewUncertain != saved.ReviewUncertain {
 		c.RequestScan()
 	}
 	return saved, nil

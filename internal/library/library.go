@@ -26,8 +26,8 @@ type Game struct {
 	SortTitle   string `json:"sortTitle"`
 
 	Source      string `json:"source"`      // steam, epic, gog, ea, ubisoft, battlenet, xbox, installer, shortcut, folder
-	SourceLabel string `json:"sourceLabel"` // "Steam", "Unofficial · RUNE", "Repack · DODI", …
-	Unofficial  bool   `json:"unofficial"`
+	SourceLabel string `json:"sourceLabel"` // "Steam", "External · RUNE", "Repack · DODI", …
+	External    bool   `json:"external"`
 	Emulator    string `json:"emulator,omitempty"`
 	EmuDir      string `json:"emuDir,omitempty"` // where the emulator sits, relative to Dir
 	Repacker    string `json:"repacker,omitempty"`
@@ -112,7 +112,7 @@ func (g *Game) DisplayTitle() string {
 type Found struct {
 	Key, Title, SortTitle       string
 	Source, SourceLabel         string
-	Unofficial                  bool
+	External                    bool
 	Emulator, Repacker, DRMFree string
 	EmuDir                      string
 	Dir, Exe, Args, WorkDir     string
@@ -168,6 +168,7 @@ func Open(path string) (*Store, error) {
 		if berr != nil || json.Unmarshal(bak, &d) != nil {
 			return s, nil
 		}
+		b = bak
 	} else {
 		// This file is good: it's the one to fall back to next time.
 		// Written before Open returns (a goroutine could outlive the store),
@@ -189,7 +190,34 @@ func Open(path string) (*Store, error) {
 	if d.NextID > s.next {
 		s.next = d.NextID
 	}
+	if d.Version < 2 {
+		s.migrateExternal(b)
+	}
 	return s, nil
+}
+
+// migrateExternal carries over what libraries saved before v1.9 called
+// unofficial: the flag, and the label a scan would give now.
+func (s *Store) migrateExternal(b []byte) {
+	var old struct {
+		Games []struct {
+			ID         int64 `json:"id"`
+			Unofficial bool  `json:"unofficial"`
+		} `json:"games"`
+	}
+	if json.Unmarshal(b, &old) != nil {
+		return
+	}
+	for _, o := range old.Games {
+		if g := s.games[o.ID]; g != nil && o.Unofficial {
+			g.External = true
+		}
+	}
+	for _, g := range s.games {
+		if rest, ok := strings.CutPrefix(g.SourceLabel, "Unofficial · "); ok {
+			g.SourceLabel = "External · " + rest
+		}
+	}
 }
 
 // Games returns copies of all games, sorted by title.
@@ -292,7 +320,7 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 			g.SortTitle = strings.ToLower(g.CustomTitle)
 		}
 		g.Source, g.SourceLabel = f.Source, f.SourceLabel
-		g.Unofficial, g.Emulator, g.Repacker, g.DRMFree = f.Unofficial, f.Emulator, f.Repacker, f.DRMFree
+		g.External, g.Emulator, g.Repacker, g.DRMFree = f.External, f.Emulator, f.Repacker, f.DRMFree
 		g.EmuDir = f.EmuDir
 		g.Installed, g.Dir, g.LaunchURI, g.SizeBytes = true, f.Dir, f.LaunchURI, f.SizeBytes
 		if !g.UserExe {
@@ -349,7 +377,7 @@ func (s *Store) Flush() error {
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
 	s.mu.RLock()
-	d := fileData{Version: 1, NextID: s.next}
+	d := fileData{Version: 2, NextID: s.next}
 	for _, g := range s.games {
 		c := copyGame(g)
 		d.Games = append(d.Games, &c)

@@ -1,6 +1,7 @@
 // Package scan finds installed games on this PC: store installs, installer
 // entries (repacks), shortcuts and plain game folders, and recognises
-// unofficial copies (Steam emulators, cracks) and the Steam app they are.
+// external copies (games running on a Steam API emulator) and the Steam app
+// they are.
 package scan
 
 // Source is where a game was found.
@@ -54,10 +55,10 @@ type Candidate struct {
 	Emulator  string // "RUNE", "CODEX", "Goldberg", … ; "" when none was found
 	EmuMarker string // the file that gave it away
 	EmuDir    string // folder (relative to Dir) where the marker or steam_settings was found
-	AppIDFrom string // file the Steam AppID was read from (unofficial copies)
+	AppIDFrom string // file the Steam AppID was read from (external copies)
 	DRMFree   string // "GOG" when a GOG game info file was found outside a GOG install
 	PadHint   string // "libScePad" or "SDL": the game handles a DualSense itself
 }
 
-// Unofficial reports whether the copy runs on an emulator or was installed by a repacker.
-func (c *Candidate) Unofficial() bool { return c.Emulator != "" || c.Repacker != "" }
+// External reports whether the copy runs on an emulator or was installed by a repacker.
+func (c *Candidate) External() bool { return c.Emulator != "" || c.Repacker != "" }

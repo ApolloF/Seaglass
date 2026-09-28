@@ -82,7 +82,7 @@ func TestResolveGoldberg(t *testing.T) {
 	})
 	net := &fakeNet{rarity: map[string]float64{"ACH_A": 50}}
 	d := testDeps(t, root, net)
-	g := library.Game{ID: 7, Source: "folder", Unofficial: true, Emulator: "Goldberg", EmuDir: "bin", Dir: filepath.Join(root, "game"), SteamAppID: 620}
+	g := library.Game{ID: 7, Source: "folder", External: true, Emulator: "Goldberg", EmuDir: "bin", Dir: filepath.Join(root, "game"), SteamAppID: 620}
 	l, usedNet := Resolve(context.Background(), g, d)
 	if l.Source != "Goldberg" || l.Total != 2 || l.Unlocked != 1 || l.Hint != "" {
 		t.Fatalf("list %+v", l)
@@ -106,7 +106,7 @@ func TestResolveNoSchemaHint(t *testing.T) {
 	root := t.TempDir()
 	mk(t, root, map[string]string{"Public/Documents/Steam/CODEX/620/achievements.ini": "[ACH_A]\nAchieved=1\n"})
 	d := testDeps(t, root, nil)
-	g := library.Game{ID: 1, Source: "installer", Unofficial: true, Emulator: "CODEX", Dir: filepath.Join(root, "game"), SteamAppID: 620}
+	g := library.Game{ID: 1, Source: "installer", External: true, Emulator: "CODEX", Dir: filepath.Join(root, "game"), SteamAppID: 620}
 	l, _ := Resolve(context.Background(), g, d)
 	if l.Total != 1 || l.Items[0].Name != "ACH_A" || l.Hint != hintKey {
 		t.Errorf("%+v", l)
@@ -121,7 +121,7 @@ func TestResolveSSEWithWebSchema(t *testing.T) {
 	net := &fakeNet{schema: []Def{{ID: "ACH_A", Name: "A", Icon: "https://cdn.akamai.steamstatic.com/a.jpg"}, {ID: "ACH_B", Name: "B"}}}
 	d := testDeps(t, root, net)
 	d.SteamKey = "k"
-	g := library.Game{ID: 2, Source: "folder", Unofficial: true, Emulator: "SmartSteamEmu", Dir: filepath.Join(root, "game"), SteamAppID: 620}
+	g := library.Game{ID: 2, Source: "folder", External: true, Emulator: "SmartSteamEmu", Dir: filepath.Join(root, "game"), SteamAppID: 620}
 	l, _ := Resolve(context.Background(), g, d)
 	if l.Total != 2 || l.Unlocked != 1 || !l.Items[1].Unlocked || l.Items[1].UnlockedAt != 1_700_000_000 {
 		t.Errorf("%+v", l)
@@ -141,7 +141,7 @@ func TestResolveSSEWithWebSchema(t *testing.T) {
 func TestResolveUnknownEmulator(t *testing.T) {
 	root := t.TempDir()
 	d := testDeps(t, root, nil)
-	g := library.Game{ID: 3, Source: "folder", Unofficial: true, Emulator: "PLAZA", Dir: filepath.Join(root, "game"), SteamAppID: 620}
+	g := library.Game{ID: 3, Source: "folder", External: true, Emulator: "PLAZA", Dir: filepath.Join(root, "game"), SteamAppID: 620}
 	if l, _ := Resolve(context.Background(), g, d); !strings.Contains(l.Hint, "PLAZA") {
 		t.Errorf("hint %q", l.Hint)
 	}
@@ -268,7 +268,7 @@ func TestResolveEpicEmulator(t *testing.T) {
 	})
 	net := &fakeNet{epicDefs: []Def{{ID: "a1", Name: "First"}, {ID: "a2", Name: "Second"}}}
 	d := testDeps(t, root, net)
-	g := library.Game{ID: 8, Source: "folder", Unofficial: true, Emulator: "Epic emulator", Dir: filepath.Join(root, "game")}
+	g := library.Game{ID: 8, Source: "folder", External: true, Emulator: "Epic emulator", Dir: filepath.Join(root, "game")}
 	l, _ := Resolve(context.Background(), g, d)
 	if l.Source != "Epic emulator" || l.Total != 2 || l.Unlocked != 1 || l.Items[0].UnlockedAt != 0 || l.Hint != "" {
 		t.Errorf("%+v", l)
@@ -399,7 +399,7 @@ func TestResolveNothingToShow(t *testing.T) {
 	for name, g := range map[string]library.Game{
 		"plain folder":               {ID: 1, Source: "folder", Dir: filepath.Join(root, "a")},
 		"folder matched to Steam":    {ID: 2, Source: "folder", Dir: filepath.Join(root, "b"), SteamAppID: 620},
-		"repack without an emulator": {ID: 3, Source: "installer", Unofficial: true, Repacker: "DODI", Dir: filepath.Join(root, "c"), MetaAppID: 620},
+		"repack without an emulator": {ID: 3, Source: "installer", External: true, Repacker: "DODI", Dir: filepath.Join(root, "c"), MetaAppID: 620},
 		"Steam without an app":       {ID: 4, Source: "steam", Dir: filepath.Join(root, "d")},
 		"Epic without an id":         {ID: 5, Source: "epic", Dir: filepath.Join(root, "e")},
 		"GOG without an id":          {ID: 6, Source: "gog", Dir: filepath.Join(root, "f")},
@@ -428,9 +428,9 @@ func TestFiles(t *testing.T) {
 		g        library.Game
 		has, not []string
 	}{
-		"goldberg": {library.Game{Source: "folder", Unofficial: true, Emulator: "Goldberg", EmuDir: "bin", Dir: dir, SteamAppID: 620, GogID: "1453"},
+		"goldberg": {library.Game{Source: "folder", External: true, Emulator: "Goldberg", EmuDir: "bin", Dir: dir, SteamAppID: 620, GogID: "1453"},
 			[]string{goldberg, schema, SteamStatsFile(d.SteamRoot, "22", 620)}, []string{d.GalaxyDB}},
-		"uplay": {library.Game{Source: "folder", Unofficial: true, Emulator: "Uplay emulator", EmuDir: "bin", Dir: dir},
+		"uplay": {library.Game{Source: "folder", External: true, Emulator: "Uplay emulator", EmuDir: "bin", Dir: dir},
 			[]string{filepath.Join(dir, "bin", "achievements_schema.json")}, []string{goldberg, d.GalaxyDB}},
 		"gog": {library.Game{Source: "gog", GogID: "1453", Dir: dir},
 			[]string{d.GalaxyDB, d.GalaxyDB + "-wal"}, nil},

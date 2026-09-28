@@ -1,4 +1,4 @@
-// Achievements end to end in the real app: a fake unofficial copy with a
+// Achievements end to end in the real app: a fake external copy with a
 // Goldberg-style emulator (Portal, Steam app 400, so Steam's global rarity
 // is real), its schema and an icon in steam_settings, and its unlock file
 // in %APPDATA%\GSE Saves. Opens its details, plays it, unlocks two more
@@ -62,7 +62,7 @@ try {
       version: 1, nextId: 2,
       games: [{
         id: 1, key: game.toLowerCase(), title: "Fake Goldberg", sortTitle: "fake goldberg", source: "folder",
-        sourceLabel: "Unofficial · Goldberg", unofficial: true, emulator: "Goldberg", emuDir: ".", steamAppId: APP,
+        sourceLabel: "External · Goldberg", external: true, emulator: "Goldberg", emuDir: ".", steamAppId: APP,
         installed: true, dir: game, exe: path.join(game, "FakeGame.exe"), workDir: game, how: "Game folder (test)",
         matchHow: "Test game", confidence: 100, needsReview: false, addedAt: now - 86400, initial: true, seenAt: now, padMode: "native",
       }],

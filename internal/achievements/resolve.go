@@ -72,7 +72,7 @@ func steamApp(g library.Game) int {
 // or a DRM-free GOG copy with no emulator.
 func gogGame(g library.Game) bool {
 	if g.Source == "gog" {
-		return !g.Unofficial
+		return !g.External
 	}
 	return g.GogID != "" && g.Emulator == "" && g.Source != "steam" && g.Source != "epic" && g.Source != "ea" && g.Source != "ubisoft" && g.Source != "battlenet" && g.Source != "xbox"
 }
@@ -81,7 +81,7 @@ func gogGame(g library.Game) bool {
 func emulated(g library.Game) bool {
 	switch g.Source {
 	case "steam", "epic", "gog":
-		return g.Unofficial
+		return g.External
 	}
 	return g.Source != "ea" && g.Source != "ubisoft" && g.Source != "battlenet" && g.Source != "xbox"
 }
@@ -120,7 +120,7 @@ func Files(g library.Game, d Deps) []string {
 
 // Resolve reads a game's achievements from the best source it has:
 //
-//   - an unofficial copy (or a game from no store): its emulator's unlock
+//   - an external copy (or a game from no store): its emulator's unlock
 //     files, named by steam_settings, Steam's cached schema or, with a
 //     key, Steam's Web API;
 //   - a Steam game: Steam's own cache, else the Web API (with a key).

@@ -1,5 +1,5 @@
 // Seaglass is a Windows game launcher that finds every game on the PC
-// on its own, store installs and unofficial copies alike.
+// on its own, store installs and external copies alike.
 package main
 
 import (

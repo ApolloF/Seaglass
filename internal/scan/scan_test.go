@@ -204,11 +204,11 @@ func TestDetectUnsignedDLL(t *testing.T) {
 	}
 }
 
-func TestUnlockerIsNotUnofficial(t *testing.T) {
+func TestUnlockerIsNotExternal(t *testing.T) {
 	root := t.TempDir()
 	mk(t, root, map[string]string{"Game.exe": "x", "steam_api64.dll": "x", "cream_api.ini": "[config]"})
 	if e := DetectEmulation(root, func(string) bool { return false }); e.Emulator != "" {
-		t.Errorf("DLC unlocker marked unofficial: %+v", e)
+		t.Errorf("DLC unlocker marked external: %+v", e)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestRealScan(t *testing.T) {
 	if os.Getenv("WL_REAL_SCAN") == "" {
 		t.Skip("set WL_REAL_SCAN=1 to scan this PC")
 	}
-	r := Run(context.Background(), Options{AutoFolders: true, DetectUnofficial: true})
+	r := Run(context.Background(), Options{AutoFolders: true, DetectExternal: true})
 	t.Logf("%d games in %v", len(r.Games), r.Took)
 	for _, g := range r.Games {
 		t.Logf("%-28s %-9s app=%-8d emu=%-14s repack=%-6s exe=%s uri=%s\n    how=%s dir=%s", g.Title, g.Source, g.SteamAppID, g.Emulator, g.Repacker, g.Exe, g.LaunchURI, g.How, g.Dir)

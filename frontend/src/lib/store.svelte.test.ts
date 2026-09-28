@@ -10,7 +10,7 @@ let id = 0;
 const g = (name: string, p: Partial<Game> = {}): Game =>
   ({
     id: ++id, key: "k" + id, title: name, sortTitle: name.toLowerCase(), source: "folder", sourceLabel: "Folder",
-    unofficial: false, installed: true, needsReview: false, addedAt: 0, initial: true, ...p,
+    external: false, installed: true, needsReview: false, addedAt: 0, initial: true, ...p,
   }) as unknown as Game;
 
 const settings = (p: Partial<Settings> = {}) => ({ showNotInstalled: false, showOwned: false, hiddenSources: [], ...p }) as unknown as Settings;

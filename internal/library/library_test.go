@@ -298,14 +298,37 @@ func TestApplyScanEmuDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := Found{Key: `c:\games\x`, Title: "X", Source: "folder", Dir: `C:\Games\X`, Emulator: "Goldberg", EmuDir: "bin", Unofficial: true}
+	f := Found{Key: `c:\games\x`, Title: "X", Source: "folder", Dir: `C:\Games\X`, Emulator: "Goldberg", EmuDir: "bin", External: true}
 	s.ApplyScan([]Found{f}, time.Now())
 	if g := s.Games()[0]; g.EmuDir != "bin" {
 		t.Fatalf("EmuDir = %q", g.EmuDir)
 	}
-	f.Emulator, f.EmuDir, f.Unofficial = "", "", false
+	f.Emulator, f.EmuDir, f.External = "", "", false
 	s.ApplyScan([]Found{f}, time.Now())
 	if g := s.Games()[0]; g.EmuDir != "" {
 		t.Fatalf("EmuDir kept after the emulator went: %q", g.EmuDir)
+	}
+}
+
+// Libraries from before v1.9 called external copies unofficial.
+func TestLegacyUnofficial(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	old := `{"version":1,"nextId":3,"games":[
+		{"id":1,"key":"c:\\a","title":"A","source":"folder","sourceLabel":"Unofficial · RUNE","unofficial":true,"emulator":"RUNE"},
+		{"id":2,"key":"c:\\b","title":"B","source":"steam","sourceLabel":"Steam"}]}`
+	if err := os.WriteFile(path, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := s.Get(1)
+	b, _ := s.Get(2)
+	if !a.External || a.SourceLabel != "External · RUNE" {
+		t.Errorf("a: external %v, label %q", a.External, a.SourceLabel)
+	}
+	if b.External || b.SourceLabel != "Steam" {
+		t.Errorf("b: external %v, label %q", b.External, b.SourceLabel)
 	}
 }

@@ -18,12 +18,12 @@ type Settings struct {
 	// Library
 	Folders          []string `json:"folders"`          // extra folders whose subfolders are games
 	AutoFolders      bool     `json:"autoFolders"`      // also look in common game folders on every drive
-	DetectUnofficial bool     `json:"detectUnofficial"` // recognise Steam emulators, cracks and repacks
+	DetectExternal   bool     `json:"detectExternal"`   // recognise games on Steam API emulators and from repacks
 	ReviewUncertain  bool     `json:"reviewUncertain"`  // keep low-confidence matches in New on this PC for a check
 	ShowNotInstalled bool     `json:"showNotInstalled"` // list games that aren't installed (anymore)
 	ShowOwned        bool     `json:"showOwned"`        // list games connected store accounts own but aren't installed
 	OwnedGOG         bool     `json:"ownedGOG"`         // read GOG Galaxy's library for owned games
-	HiddenSources    []string `json:"hiddenSources"`    // libraries whose games aren't shown (steam, epic, …, unofficial, folder)
+	HiddenSources    []string `json:"hiddenSources"`    // libraries whose games aren't shown (steam, epic, …, external, folder)
 
 	// Appearance
 	Theme            string `json:"theme"`            // system, dark, light (desktop mode)
@@ -64,16 +64,16 @@ type Settings struct {
 }
 
 // Sources are the libraries that can be hidden, as the interface groups
-// games: by store, then unofficial copies, standalone installs and folders.
+// games: by store, then external copies, standalone installs and folders.
 var Sources = map[string]bool{
 	"steam": true, "epic": true, "gog": true, "ea": true, "ubisoft": true, "battlenet": true, "xbox": true,
-	"unofficial": true, "standalone": true, "folder": true,
+	"external": true, "standalone": true, "folder": true,
 }
 
 // Defaults are the settings on first start.
 func Defaults() Settings {
 	return Settings{
-		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectUnofficial: true, ReviewUncertain: true,
+		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectExternal: true, ReviewUncertain: true,
 		Theme: "system", BigPictureLayout: "deck",
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
@@ -88,7 +88,7 @@ func Defaults() Settings {
 // starts in big picture (a TV, not a desk), whether it asks who's playing
 // (a PC several people share), and the welcome.
 type Portable struct {
-	DetectUnofficial       bool     `json:"detectUnofficial"`
+	DetectExternal         bool     `json:"detectExternal"`
 	ReviewUncertain        bool     `json:"reviewUncertain"`
 	ShowNotInstalled       bool     `json:"showNotInstalled"`
 	ShowOwned              bool     `json:"showOwned"`
@@ -114,7 +114,7 @@ type Portable struct {
 // Portable returns the settings that go with a person.
 func (v Settings) Portable() Portable {
 	return Portable{
-		DetectUnofficial: v.DetectUnofficial, ReviewUncertain: v.ReviewUncertain, ShowNotInstalled: v.ShowNotInstalled,
+		DetectExternal: v.DetectExternal, ReviewUncertain: v.ReviewUncertain, ShowNotInstalled: v.ShowNotInstalled,
 		ShowOwned: v.ShowOwned, HiddenSources: append([]string{}, v.HiddenSources...), Theme: v.Theme,
 		BigPictureLayout: v.BigPictureLayout, Sounds: v.Sounds, Haptics: v.Haptics, Lightbar: v.Lightbar,
 		PSButton: v.PSButton, Glyphs: v.Glyphs, CloseWhilePlaying: v.CloseWhilePlaying, PadWhilePlaying: v.PadWhilePlaying,
@@ -132,7 +132,11 @@ func (v Settings) WithPortable(b []byte) (Settings, error) {
 	if err := json.Unmarshal(b, &p); err != nil {
 		return v, err
 	}
-	v.DetectUnofficial, v.ReviewUncertain, v.ShowNotInstalled = p.DetectUnofficial, p.ReviewUncertain, p.ShowNotInstalled
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(b, &keys) == nil {
+		legacyExternal(&p.DetectExternal, keys)
+	}
+	v.DetectExternal, v.ReviewUncertain, v.ShowNotInstalled = p.DetectExternal, p.ReviewUncertain, p.ShowNotInstalled
 	v.ShowOwned, v.HiddenSources, v.Theme = p.ShowOwned, p.HiddenSources, p.Theme
 	v.BigPictureLayout, v.Sounds, v.Haptics, v.Lightbar = p.BigPictureLayout, p.Sounds, p.Haptics, p.Lightbar
 	v.PSButton, v.Glyphs, v.CloseWhilePlaying, v.PadWhilePlaying = p.PSButton, p.Glyphs, p.CloseWhilePlaying, p.PadWhilePlaying
@@ -162,6 +166,7 @@ func Open(path string) *Store {
 				if _, ok := keys["welcomed"]; !ok {
 					v.Welcomed = true
 				}
+				legacyExternal(&v.DetectExternal, keys)
 			}
 			s.cur = normalize(v)
 		}
@@ -205,6 +210,18 @@ func (s *Store) Set(v Settings) (Settings, error) {
 	return v, nil
 }
 
+// legacyExternal reads detectUnofficial, the name before v1.9, when the
+// JSON (an older settings file, or another PC's older Seaglass) has no
+// detectExternal.
+func legacyExternal(detect *bool, keys map[string]json.RawMessage) {
+	if _, ok := keys["detectExternal"]; ok {
+		return
+	}
+	if raw, ok := keys["detectUnofficial"]; ok {
+		_ = json.Unmarshal(raw, detect)
+	}
+}
+
 func normalize(v Settings) Settings {
 	var folders []string
 	seen := map[string]bool{}
@@ -222,6 +239,9 @@ func normalize(v Settings) Settings {
 	v.Folders = folders
 	hidden := []string{}
 	for _, id := range v.HiddenSources {
+		if id == "unofficial" { // its name before v1.9
+			id = "external"
+		}
 		if Sources[id] && !slices.Contains(hidden, id) {
 			hidden = append(hidden, id)
 		}

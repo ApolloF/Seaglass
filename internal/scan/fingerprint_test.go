@@ -36,7 +36,7 @@ func TestEmulationCache(t *testing.T) {
 	if _, ok := emulationCache.get(folderKey(root)); !ok {
 		t.Fatal("answer not cached")
 	}
-	// A crack's config dropped next to the DLL: that folder's time changes.
+	// An emulator's config dropped next to the DLL: that folder's time changes.
 	ini := filepath.Join(root, "Binaries", "Win64", "steam_emu.ini")
 	mk(t, root, map[string]string{"Binaries/Win64/steam_emu.ini": "AppId=620\nUserName=RUNE\n"})
 	touch(t, filepath.Dir(ini))

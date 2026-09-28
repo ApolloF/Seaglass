@@ -1,6 +1,6 @@
 // Package achievements reads a game's achievements: what it has (the
 // schema: names, descriptions, icons) and which the player unlocked. Store
-// installs are read from the store's own files or API; unofficial copies
+// installs are read from the store's own files or API; external copies
 // from the unlock files their Steam emulator writes. Every file is treated
 // as untrusted: reads are capped and parsers never panic.
 package achievements

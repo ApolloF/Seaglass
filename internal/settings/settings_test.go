@@ -37,13 +37,13 @@ func TestHiddenSources(t *testing.T) {
 		t.Fatalf("new settings hide %v", got)
 	}
 	v := s.Get()
-	v.HiddenSources = []string{"epic", "nope", "epic", "unofficial"}
+	v.HiddenSources = []string{"epic", "nope", "epic", "external"}
 	got, err := s.Set(v)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.HiddenSources) != 2 || got.HiddenSources[0] != "epic" || got.HiddenSources[1] != "unofficial" {
-		t.Errorf("hidden sources = %v, want [epic unofficial]", got.HiddenSources)
+	if len(got.HiddenSources) != 2 || got.HiddenSources[0] != "epic" || got.HiddenSources[1] != "external" {
+		t.Errorf("hidden sources = %v, want [epic external]", got.HiddenSources)
 	}
 }
 
@@ -86,5 +86,30 @@ func TestPortable(t *testing.T) {
 	got, _ = Defaults().WithPortable([]byte(`{"theme":"neon","syncWait":7}`))
 	if got.Theme != "system" || got.SyncWait != 60 {
 		t.Fatalf("not normalised: %+v", got)
+	}
+}
+
+// Settings from before v1.9 called external copies unofficial.
+func TestLegacyUnofficial(t *testing.T) {
+	old := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(old, []byte(`{"detectUnofficial":false,"hiddenSources":["unofficial","steam"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v := Open(old).Get()
+	if v.DetectExternal {
+		t.Error("detectUnofficial false was lost")
+	}
+	if len(v.HiddenSources) != 2 || v.HiddenSources[0] != "external" || v.HiddenSources[1] != "steam" {
+		t.Errorf("hidden sources = %v, want [external steam]", v.HiddenSources)
+	}
+	got, err := Defaults().WithPortable([]byte(`{"detectUnofficial":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DetectExternal {
+		t.Error("an older PC's detectUnofficial false was lost")
+	}
+	if got, _ := Defaults().WithPortable([]byte(`{"detectUnofficial":false,"detectExternal":true}`)); !got.DetectExternal {
+		t.Error("detectExternal should win over detectUnofficial")
 	}
 }

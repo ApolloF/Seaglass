@@ -16,7 +16,7 @@ function game(p: Partial<Game> & { title: string }): Game {
     sortTitle: p.title.toLowerCase().replace(/^the /, ""),
     source: "steam",
     sourceLabel: "Steam",
-    unofficial: false,
+    external: false,
     installed: true,
     dir: `D:\\Games\\${p.title}`,
     how: "Steam library",
@@ -30,14 +30,14 @@ function game(p: Partial<Game> & { title: string }): Game {
 }
 
 let games: Game[] = [
-  game({ meta: { description: "A fallen knight climbs a burning mountain to take back a crown that was never theirs. Brutal, fair combat and a world that remembers every choice.", developers: ["Ashgrove"], publishers: ["Ashgrove"], genres: ["Action", "RPG"], releaseYear: 2026, dualSense: "yes", accent: "#e8894a" }, title: "Ember Crown", source: "installer", sourceLabel: "Unofficial · Goldberg", unofficial: true, emulator: "Goldberg", steamAppId: 1245620, how: "Game folder in D:\\Games (Steam emulator)", matchHow: "Steam AppID read from steam_settings", confidence: 95, playtime: 18 * 3600, lastPlayed: now - 3600, favorite: true, exe: "D:\\Games\\Ember Crown\\EmberCrown.exe", sizeBytes: 54e9 }),
+  game({ meta: { description: "A fallen knight climbs a burning mountain to take back a crown that was never theirs. Brutal, fair combat and a world that remembers every choice.", developers: ["Ashgrove"], publishers: ["Ashgrove"], genres: ["Action", "RPG"], releaseYear: 2026, dualSense: "yes", accent: "#e8894a" }, title: "Ember Crown", source: "installer", sourceLabel: "External · Goldberg", external: true, emulator: "Goldberg", steamAppId: 1245620, how: "Game folder in D:\\Games (Steam emulator)", matchHow: "Steam AppID read from steam_settings", confidence: 95, playtime: 18 * 3600, lastPlayed: now - 3600, favorite: true, exe: "D:\\Games\\Ember Crown\\EmberCrown.exe", sizeBytes: 54e9 }),
   game({ title: "Hollow Tide", steamAppId: 413150, launchUri: "steam://rungameid/413150", playtime: 42 * 3600, lastPlayed: now - day, favorite: true, dir: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Tide", sizeBytes: 64e9 }),
-  game({ title: "Neon Meridian", source: "installer", sourceLabel: "Repack · DODI", unofficial: true, repacker: "DODI", how: "Installed by a DODI repack", matchHow: "Matched by title", confidence: 85, playtime: 7 * 3600, lastPlayed: now - 3 * day, padMode: "steam", sizeBytes: 21e9 }),
+  game({ title: "Neon Meridian", source: "installer", sourceLabel: "Repack · DODI", external: true, repacker: "DODI", how: "Installed by a DODI repack", matchHow: "Matched by title", confidence: 85, playtime: 7 * 3600, lastPlayed: now - 3 * day, padMode: "steam", sizeBytes: 21e9 }),
   game({ title: "Starfall Protocol", source: "epic", sourceLabel: "Epic", how: "Epic Games library", matchHow: "Epic Games library", playtime: 64 * 3600, lastPlayed: now - 8 * day, sizeBytes: 38e9 }),
-  game({ title: "Grimwald", source: "installer", sourceLabel: "Unofficial · EMPRESS", unofficial: true, emulator: "EMPRESS", steamAppId: 1149460, how: "Installer entry in Windows", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, playtime: 88 * 3600, lastPlayed: now - 15 * day, favorite: true, sizeBytes: 47e9 }),
+  game({ title: "Grimwald", source: "installer", sourceLabel: "External · EMPRESS", external: true, emulator: "EMPRESS", steamAppId: 1149460, how: "Installer entry in Windows", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, playtime: 88 * 3600, lastPlayed: now - 15 * day, favorite: true, sizeBytes: 47e9 }),
   game({ title: "Quiet Harbor", source: "gog", sourceLabel: "GOG", gogId: "1207658924", how: "GOG Galaxy library", matchHow: "GOG Galaxy library", playtime: 12 * 3600, lastPlayed: now - 34 * day, sizeBytes: 9e9 }),
   game({ title: "Frostline", source: "xbox", sourceLabel: "Xbox", how: "Xbox app library", matchHow: "Xbox app library", playtime: 9 * 3600, lastPlayed: now - 40 * day, sizeBytes: 88e9 }),
-  game({ title: "Iron Veil", source: "installer", sourceLabel: "Unofficial · RUNE", unofficial: true, emulator: "RUNE", repacker: "FitGirl", steamAppId: 1086940, how: "Installed by a FitGirl repack", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, addedAt: now - 3600, sizeBytes: 71e9 }),
+  game({ title: "Iron Veil", source: "installer", sourceLabel: "External · RUNE", external: true, emulator: "RUNE", repacker: "FitGirl", steamAppId: 1086940, how: "Installed by a FitGirl repack", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, addedAt: now - 3600, sizeBytes: 71e9 }),
   game({ title: "Sable Run", source: "folder", sourceLabel: "Folder", how: "Game folder in D:\\Games (Unity)", matchHow: "Not matched to a known game", confidence: 40, needsReview: true, addedAt: now - 2 * 3600, padMode: "steam", sizeBytes: 3e9 }),
   game({ title: "Lumen Drift", steamAppId: 620, launchUri: "steam://rungameid/620", addedAt: now - day, sizeBytes: 6e9 }),
   game({ title: "Kestrel", source: "steam", installed: false, playtime: 6 * 3600, lastPlayed: now - 400 * day }),
@@ -71,7 +71,7 @@ if (mockParams.get("art") === "steam") {
 let settings: Settings = {
   folders: ["D:\\Games"],
   autoFolders: true,
-  detectUnofficial: true,
+  detectExternal: true,
   reviewUncertain: true,
   showNotInstalled: false,
   theme: "system",
