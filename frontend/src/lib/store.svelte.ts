@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { Achievement, AppInfo, Game, MetaState, ScanState, Session, SessionAchievements, Settings, UpdateState } from "./types";
+import type { Achievement, AppInfo, Game, MetaState, Profile, ScanState, Session, SessionAchievements, Settings, UpdateState } from "./types";
 import { unlockedText } from "./achievements";
 import { lastPlayed, ownedOnly, played, title } from "./types";
 
@@ -52,6 +52,8 @@ class LibraryStore {
   update = $state<UpdateState | null>(null);
   /** The achievements the last play session unlocked (views read theirs again). */
   achSession = $state<SessionAchievements | null>(null);
+  /** Who's playing on this PC (Syncer's accounts). */
+  profile = $state<Profile | null>(null);
 
   filter = $state<Filter>({ kind: "all" });
   sort = $state<Sort>("title");
@@ -179,12 +181,22 @@ class LibraryStore {
     api.onScanState((s) => ((this.scan = s), fresh.add("scan")));
     api.onMetaState((s) => ((this.meta = s), fresh.add("meta")));
     api.launch.onSession((s) => ((this.session = s), fresh.add("session")));
+    api.profile.onChange((p) => {
+      const was = this.profile?.owner;
+      this.profile = p;
+      fresh.add("profile");
+      if (was && was !== p.owner && p.ownerName) this.toast(`${p.ownerName} is playing on this PC`);
+    });
+    api.onSettingsChanged((s) => {
+      this.settings = s;
+      fresh.add("settings");
+    });
     api.updates.onState((s) => ((this.update = s), fresh.add("update")));
     api.achievements.onSession((s) => {
       this.achSession = s;
       if (s.unlocked.length) this.toast(`${s.title}: ${unlockedText(s.unlocked.length)}`, "info", s.unlocked.slice(0, 5));
     });
-    const [games, settings, scan, info, meta, session, update] = await Promise.all([
+    const [games, settings, scan, info, meta, session, update, profile] = await Promise.all([
       api.games(),
       api.settings(),
       api.scanState(),
@@ -192,7 +204,9 @@ class LibraryStore {
       api.metaState(),
       api.launch.session(),
       api.updates.state(),
+      api.profile.get(),
     ]);
+    if (!fresh.has("profile")) this.profile = profile;
     if (!fresh.has("update")) this.update = update;
     this.announceVersion(info.version);
     if (info.crashedLastTime) this.toast("Seaglass closed unexpectedly last time. Settings → About → Copy diagnostics helps with a bug report.", "error");
@@ -200,7 +214,7 @@ class LibraryStore {
     if (!fresh.has("session")) this.session = session;
     this.games = games;
     if (fresh.has("games")) void this.refresh();
-    this.settings = settings;
+    if (!fresh.has("settings")) this.settings = settings;
     if (!fresh.has("scan")) this.scan = scan;
     this.info = info;
     this.loaded = true;
@@ -246,6 +260,13 @@ class LibraryStore {
     const i = this.games.findIndex((x) => x.id === g.id);
     if (i >= 0) this.games[i] = g;
     else if (add) this.games.push(g);
+  }
+
+  /** Makes another of Syncer's accounts the one playing on this PC. */
+  async switchAccount(id: string) {
+    const p = await this.run(() => api.profile.switch(id));
+    if (p) this.profile = p;
+    return !!p;
   }
 
   async saveSettings(next: Settings) {

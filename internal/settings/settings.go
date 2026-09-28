@@ -48,6 +48,9 @@ type Settings struct {
 	BackupSavesAfter bool `json:"backupSavesAfter"` // back its saves up after it exits
 	SyncWait         int  `json:"syncWait"`         // seconds to wait for a sync before playing
 	StartSyncer      bool `json:"startSyncer"`      // start Syncer (without its window) when it isn't running
+	SyncProfile      bool `json:"syncProfile"`      // Syncer syncs playtime, achievements and settings between PCs
+	SameSettings     bool `json:"sameSettings"`     // take the settings saved last on another PC (see Portable)
+	AskWhoPlays      bool `json:"askWhoPlays"`      // with several Syncer accounts, ask who's playing before a game starts
 
 	// Achievements
 	Achievements           bool `json:"achievements"`           // show achievements (read from stores and emulator files)
@@ -75,8 +78,68 @@ func Defaults() Settings {
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
 		SyncSavesBefore: true, BackupSavesAfter: true, SyncWait: 60, StartSyncer: true,
+		SyncProfile: true, SameSettings: true,
 		AutoUpdate: true, Achievements: true,
 	}
+}
+
+// Portable are the settings that go with a person to their other PCs.
+// What depends on the PC stays: its game folders and stores, whether it
+// starts in big picture (a TV, not a desk), whether it asks who's playing
+// (a PC several people share), and the welcome.
+type Portable struct {
+	DetectUnofficial       bool     `json:"detectUnofficial"`
+	ReviewUncertain        bool     `json:"reviewUncertain"`
+	ShowNotInstalled       bool     `json:"showNotInstalled"`
+	ShowOwned              bool     `json:"showOwned"`
+	HiddenSources          []string `json:"hiddenSources"`
+	Theme                  string   `json:"theme"`
+	BigPictureLayout       string   `json:"bigPictureLayout"`
+	Sounds                 bool     `json:"sounds"`
+	Haptics                bool     `json:"haptics"`
+	Lightbar               bool     `json:"lightbar"`
+	PSButton               bool     `json:"psButton"`
+	Glyphs                 string   `json:"glyphs"`
+	CloseWhilePlaying      bool     `json:"closeWhilePlaying"`
+	PadWhilePlaying        string   `json:"padWhilePlaying"`
+	NoticeExternal         bool     `json:"noticeExternal"`
+	SyncSavesBefore        bool     `json:"syncSavesBefore"`
+	BackupSavesAfter       bool     `json:"backupSavesAfter"`
+	SyncWait               int      `json:"syncWait"`
+	Achievements           bool     `json:"achievements"`
+	ShowHiddenAchievements bool     `json:"showHiddenAchievements"`
+	AutoUpdate             bool     `json:"autoUpdate"`
+}
+
+// Portable returns the settings that go with a person.
+func (v Settings) Portable() Portable {
+	return Portable{
+		DetectUnofficial: v.DetectUnofficial, ReviewUncertain: v.ReviewUncertain, ShowNotInstalled: v.ShowNotInstalled,
+		ShowOwned: v.ShowOwned, HiddenSources: append([]string{}, v.HiddenSources...), Theme: v.Theme,
+		BigPictureLayout: v.BigPictureLayout, Sounds: v.Sounds, Haptics: v.Haptics, Lightbar: v.Lightbar,
+		PSButton: v.PSButton, Glyphs: v.Glyphs, CloseWhilePlaying: v.CloseWhilePlaying, PadWhilePlaying: v.PadWhilePlaying,
+		NoticeExternal: v.NoticeExternal, SyncSavesBefore: v.SyncSavesBefore, BackupSavesAfter: v.BackupSavesAfter,
+		SyncWait: v.SyncWait, Achievements: v.Achievements,
+		ShowHiddenAchievements: v.ShowHiddenAchievements, AutoUpdate: v.AutoUpdate,
+	}
+}
+
+// WithPortable returns v with another PC's portable settings, given as
+// JSON. Settings the JSON doesn't have (an older Seaglass saved it) stay
+// as they are.
+func (v Settings) WithPortable(b []byte) (Settings, error) {
+	p := v.Portable()
+	if err := json.Unmarshal(b, &p); err != nil {
+		return v, err
+	}
+	v.DetectUnofficial, v.ReviewUncertain, v.ShowNotInstalled = p.DetectUnofficial, p.ReviewUncertain, p.ShowNotInstalled
+	v.ShowOwned, v.HiddenSources, v.Theme = p.ShowOwned, p.HiddenSources, p.Theme
+	v.BigPictureLayout, v.Sounds, v.Haptics, v.Lightbar = p.BigPictureLayout, p.Sounds, p.Haptics, p.Lightbar
+	v.PSButton, v.Glyphs, v.CloseWhilePlaying, v.PadWhilePlaying = p.PSButton, p.Glyphs, p.CloseWhilePlaying, p.PadWhilePlaying
+	v.NoticeExternal, v.SyncSavesBefore, v.BackupSavesAfter = p.NoticeExternal, p.SyncSavesBefore, p.BackupSavesAfter
+	v.SyncWait, v.Achievements = p.SyncWait, p.Achievements
+	v.ShowHiddenAchievements, v.AutoUpdate = p.ShowHiddenAchievements, p.AutoUpdate
+	return normalize(v), nil
 }
 
 // Store loads and saves settings. Safe for concurrent use.

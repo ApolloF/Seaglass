@@ -4,14 +4,47 @@
   import Icon from "../components/Icon.svelte";
   import { api } from "../lib/api";
   import { feedback, input, pad, useInput } from "../lib/input.svelte";
+  import { hasAccounts, playing } from "../lib/profile";
   import { lib } from "../lib/store.svelte";
   import type { Settings } from "../lib/types";
   import Hints from "./Hints.svelte";
 
   let { light, onclose, onsettings, ondesktop }: { light: string; onclose: () => void; onsettings: () => void; ondesktop: () => void } = $props();
 
-  type Item = { id: string; title: string; detail: string; toggle?: keyof Settings; run?: () => void };
-  const items = $derived.by((): Item[] => [
+  type Item = { id: string; title: string; detail: string; toggle?: keyof Settings; run?: () => void; current?: boolean };
+  // Choosing who's playing lists the accounts in place of the items.
+  let choosing = $state(false);
+  let switching = $state("");
+  const accountItems = $derived.by((): Item[] => {
+    const p = lib.profile;
+    if (!hasAccounts(p)) return [];
+    const me = playing(p);
+    return [
+      ...p.accounts.map((a) => ({
+        id: "acc:" + a.id,
+        title: a.name,
+        detail: switching === a.id ? "Putting their saves in place…" : a.id === me?.id ? "Playing on this PC" : "Their saves, playtime and achievements",
+        current: a.id === me?.id,
+        run: () => void choose(a.id),
+      })),
+      { id: "back", title: "Back", detail: "", run: () => ((choosing = false), (i = 0)) },
+    ];
+  });
+  async function choose(id: string) {
+    if (switching) return;
+    if (id !== playing(lib.profile)?.id) {
+      switching = id;
+      await lib.switchAccount(id);
+      switching = "";
+    }
+    choosing = false;
+    i = 0;
+  }
+  const items = $derived.by((): Item[] => (choosing && accountItems.length ? accountItems : mainItems));
+  const mainItems = $derived.by((): Item[] => [
+    ...(hasAccounts(lib.profile)
+      ? [{ id: "who", title: `${playing(lib.profile)?.name ?? "Nobody"} is playing`, detail: "Switch to someone else's saves", run: () => ((choosing = true), (i = 0)) }]
+      : []),
     {
       id: "scan",
       title: "Look for games",
@@ -49,6 +82,13 @@
           activate(items[i]);
           return;
         case "back":
+          if (choosing) {
+            choosing = false;
+            i = 0;
+            return;
+          }
+          onclose();
+          return;
         case "menu":
         case "home":
         case "left":
@@ -81,7 +121,9 @@
   {#each items as it, k (it.id)}
     <button type="button" class="item" class:on={k === i} onclick={() => ((i = k), activate(it))} aria-pressed={it.toggle ? !!lib.settings?.[it.toggle] : undefined}>
       <span class="text"><span class="t">{it.title}</span><span class="d">{it.detail}</span></span>
-      {#if it.toggle}
+      {#if it.current}
+        <span class="cur">Playing</span>
+      {:else if it.toggle}
         <span class="track" class:yes={!!lib.settings?.[it.toggle]}><span class="knob"></span></span>
       {:else}
         <Icon name="chevronDown" size={20} stroke={2.2} />
@@ -93,6 +135,11 @@
 </aside>
 
 <style>
+  .cur {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-text, #9fd3ff);
+  }
   .scrim {
     position: absolute;
     inset: 0;

@@ -1,7 +1,7 @@
 // Made-up library for `npm run dev:mock`: the games from the design canvas,
 // covering every way a game can be found.
 import type { Api } from "./api";
-import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
+import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
 import { sessionActive } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -92,6 +92,9 @@ let settings: Settings = {
   backupSavesAfter: true,
   syncWait: 60,
   startSyncer: true,
+  syncProfile: true,
+  sameSettings: true,
+  askWhoPlays: false,
   autoUpdate: true,
   achievements: true,
   showHiddenAchievements: false,
@@ -168,6 +171,30 @@ const achList = (g: Game, source: string, items: Achievement[], hint = ""): Achi
 });
 
 const sessionAchListeners = new Set<(s: SessionAchievements) => void>();
+const profileListeners = new Set<(p: Profile) => void>();
+// ?accounts=off shows Syncer without accounts.
+let profile: Profile =
+  mockParams.get("accounts") === "off"
+    ? { enabled: false, accounts: [], owner: "shared", installed: true, reachable: true, supported: true, synced: true, backup: true, dismissed: false, dir: "C:\Users\you\AppData\Roaming\Seaglass\Profile" }
+    : {
+        enabled: true,
+        active: "anna",
+        accounts: [
+          { id: "anna", name: "Anna", color: "#5b8def", active: true },
+          { id: "ben", name: "Ben", color: "#e8845c", active: false },
+          { id: "kid", name: "Mia", color: "#63c28b", active: false },
+        ],
+        owner: "anna",
+        ownerName: "Anna",
+        installed: true,
+        reachable: true,
+        supported: true,
+        synced: true,
+        backup: true,
+        dismissed: false,
+        dir: "C:\Users\you\AppData\Roaming\Seaglass\Profile",
+        settingsFrom: "TV-PC",
+      };
 const extraUnlocks = new Map<number, number>(); // game id → unlocked in pretend sessions
 
 function mockAchievements(g: Game | undefined): Achievements {
@@ -338,6 +365,9 @@ export const mockApi: Api = {
     settings = clone(s);
     return clone(settings);
   },
+  onSettingsChanged() {
+    return () => {};
+  },
   async addFolder() {
     settings = { ...settings, folders: [...settings.folders, "E:\\More Games"] };
     return clone(settings);
@@ -437,6 +467,23 @@ export const mockApi: Api = {
       if (mode === "old") return { installed: true, version: "0.9.2", outdated: true, connected: false, running: false, error: "Syncer needs an update (version 0.11.0 or newer)", syncing: false, paused: false, backingUp: false, games: 0, conflicts: 0, checkedAt: at };
       if (mode === "off" && !start) return { installed: true, version: "0.12.0", outdated: false, connected: false, running: false, syncing: false, paused: false, backingUp: false, games: 0, conflicts: 0, checkedAt: at };
       return { installed: true, version: "0.12.0", outdated: false, connected: true, running: true, syncing: true, paused: false, backingUp: false, lastBackup: at - 2 * hour, games: 42, conflicts: 1, checkedAt: at };
+    },
+  },
+  profile: {
+    async get() {
+      return clone(profile);
+    },
+    async switch(id) {
+      await wait(900);
+      const a = profile.accounts.find((x) => x.id === id);
+      if (!a) throw new Error("unknown account");
+      profile = { ...profile, active: id, owner: id, ownerName: a.name, accounts: profile.accounts.map((x) => ({ ...x, active: x.id === id })) };
+      profileListeners.forEach((cb) => cb(clone(profile)));
+      return clone(profile);
+    },
+    onChange(cb) {
+      profileListeners.add(cb);
+      return () => profileListeners.delete(cb);
     },
   },
   achievements: {

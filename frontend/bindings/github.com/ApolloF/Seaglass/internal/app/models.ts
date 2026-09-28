@@ -55,6 +55,49 @@ export interface PadAction {
 }
 
 /**
+ * Profile is who's playing on this PC and how their playtime,
+ * achievements and settings get to their other PCs, for the interface.
+ */
+export interface Profile {
+    /**
+     * Accounts are Syncer's; Enabled false when it has none, is off, or
+     * is too old for them.
+     */
+    "enabled": boolean;
+    "active"?: string;
+    "accounts": syncer$0.Account[] | null;
+
+    /**
+     * Owner is whose playtime this PC adds to: the active account, the
+     * last one this PC had, or "shared".
+     */
+    "owner": string;
+    "ownerName"?: string;
+
+    /**
+     * Syncer: installed, answered, and has accounts.
+     */
+    "installed": boolean;
+    "reachable": boolean;
+    "supported": boolean;
+
+    /**
+     * Synced: Syncer syncs the profile folder (Backup: backs it up).
+     */
+    "synced": boolean;
+    "backup": boolean;
+    "dismissed": boolean;
+    "dataError"?: string;
+    "dir": string;
+
+    /**
+     * SettingsFrom is the PC the settings in use were saved on ("" this one).
+     */
+    "settingsFrom"?: string;
+    "checkedAt"?: number;
+}
+
+/**
  * Saves is what Syncer knows about a game's saves, for the interface.
  */
 export interface Saves {

@@ -68,6 +68,9 @@ type Folder struct {
 	BackedUp  time.Time `json:"backedUp"`
 	NewerOn   string    `json:"newerOn"`
 	NewerAt   time.Time `json:"newerAt"`
+	// Account: the game has separate saves per account, and this folder
+	// holds the saves of the account playing on this PC.
+	Account string `json:"account,omitempty"`
 }
 
 // Game identifies a game to Syncer.
@@ -109,6 +112,46 @@ type RPCError struct {
 }
 
 func (e *RPCError) Error() string { return "Syncer: " + e.Message }
+
+// UnknownMethod reports whether Syncer answered that it doesn't have the
+// method: it's older than the feature.
+func UnknownMethod(err error) bool {
+	var e *RPCError
+	return errors.As(err, &e) && e.Code == -32601
+}
+
+// Account is one person with their own saves in Syncer.
+type Account struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Color  string `json:"color,omitempty"`
+	Active bool   `json:"active"`
+}
+
+// Accounts are Syncer's accounts: with them on, each person keeps their
+// own saves of the games they split.
+type Accounts struct {
+	Enabled  bool      `json:"enabled"`
+	Active   string    `json:"active,omitempty"` // the account playing on this PC
+	Accounts []Account `json:"accounts"`
+	Split    []struct {
+		Game     string   `json:"game"`
+		Label    string   `json:"label"`
+		Accounts []string `json:"accounts"`
+	} `json:"split"`
+}
+
+// LauncherData is a launcher's own data folder that Syncer syncs and
+// backs up like a game's saves.
+type LauncherData struct {
+	ID     string `json:"id"`
+	Label  string `json:"label"`
+	Sync   bool   `json:"sync"`
+	Backup bool   `json:"backup"`
+	Added  bool   `json:"added"` // added by this call
+	// Dismissed: someone stopped syncing it in Syncer, and it stays that way.
+	Dismissed bool `json:"dismissed"`
+}
 
 // Client is one connection to Syncer. Safe for concurrent use.
 type Client struct {
@@ -356,6 +399,28 @@ func (c *Client) RegisterGames(ctx context.Context, games []Game) error {
 
 // Subscribe asks for "changed" notifications (see OnNotify).
 func (c *Client) Subscribe(ctx context.Context) error { return c.Call(ctx, "subscribe", nil, nil) }
+
+// Accounts returns Syncer's accounts. Syncer before accounts answers
+// with an error UnknownMethod recognises.
+func (c *Client) Accounts(ctx context.Context) (Accounts, error) {
+	var a Accounts
+	err := c.Call(ctx, "accounts", nil, &a)
+	return a, err
+}
+
+// SwitchAccount puts an account's saves in place on this PC. It fails
+// while a game runs, or when that account's saves haven't arrived yet.
+func (c *Client) SwitchAccount(ctx context.Context, id string) error {
+	return c.Call(ctx, "switchAccount", map[string]any{"id": id}, nil)
+}
+
+// SyncLauncherData asks Syncer to sync and back up a launcher's own data
+// folder (it must be in the user's AppData). Asking again is harmless.
+func (c *Client) SyncLauncherData(ctx context.Context, launcher, path string) (LauncherData, error) {
+	var d LauncherData
+	err := c.Call(ctx, "launcherData", map[string]any{"launcher": launcher, "path": path}, &d)
+	return d, err
+}
 
 // MinVersion is the first Syncer release with the launcher API.
 const MinVersion = "0.11.0"

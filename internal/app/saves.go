@@ -303,6 +303,9 @@ func (c *Core) savesBeforeStep(g library.Game, known *bool) launch.Step {
 			if _, err := cl.Status(ctx); err != nil {
 				return err
 			}
+			if !cfg.AskWhoPlays {
+				c.profile.follow(ctx, cl) // the person Syncer has on this PC plays
+			}
 			if cl.RegisterGames(ctx, c.syncerGames()) == nil {
 				c.registered.Store(true)
 			}

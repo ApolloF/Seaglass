@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon, { type IconName } from "../components/Icon.svelte";
+  import WhoPlays from "../components/WhoPlays.svelte";
   import { api } from "../lib/api";
   import { scanned } from "../lib/format";
   import { lib, type FilterKind } from "../lib/store.svelte";
@@ -83,6 +84,7 @@
   </nav>
 
   <div class="foot">
+    <WhoPlays />
     {#if lib.update?.status === "ready" && !lib.update.failed}
       <button type="button" class="update" onclick={() => lib.installUpdate()} title="Installs {lib.update.latest} and restarts Seaglass">
         <Icon name="sparkle" size={16} stroke={2} />

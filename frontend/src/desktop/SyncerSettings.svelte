@@ -4,6 +4,7 @@
   import Icon from "../components/Icon.svelte";
   import Toggle from "../components/Toggle.svelte";
   import { api } from "../lib/api";
+  import { accountColor, hasAccounts, initial, playing, profileSummary } from "../lib/profile";
   import { syncerSummary } from "../lib/saves";
   import { lib } from "../lib/store.svelte";
   import type { Settings, SyncerStatus } from "../lib/types";
@@ -26,6 +27,7 @@
   // Looked at when shown and every little while after, without starting it.
   $effect(() => {
     check();
+    api.profile.get(true).then((p) => (lib.profile = p)).catch(() => {});
     const t = setInterval(() => !busy && check(), 15000);
     return () => clearInterval(t);
   });
@@ -37,6 +39,16 @@
     check();
   }
   const sum = $derived(syncerSummary(status, s?.startSyncer ?? true));
+  const prof = $derived(lib.profile);
+  const me = $derived(playing(prof));
+  const psum = $derived(profileSummary(prof, s?.syncProfile ?? true));
+  let switching = $state("");
+  async function pick(id: string) {
+    if (switching || id === me?.id) return;
+    switching = id;
+    await lib.switchAccount(id);
+    switching = "";
+  }
   const waits: [number, string][] = [
     [30, "30 s"],
     [60, "1 min"],
@@ -81,6 +93,37 @@
     </div>
     <Toggle checked={s.backupSavesAfter} title="Back up saves after playing" detail="A backup runs as soon as the game exits, also for games started outside Seaglass." onchange={(v) => set({ backupSavesAfter: v })} />
     <Toggle checked={s.startSyncer} title="Start Syncer when it isn't running" detail="In the background, without its window. Off: games whose saves need Syncer start without syncing until you open it." onchange={(v) => set({ startSyncer: v })} />
+  </div>
+  <div class="group">
+    <span class="glabel">Who's playing</span>
+    {#if hasAccounts(prof)}
+      <div class="people" role="radiogroup" aria-label="Who's playing on this PC">
+        {#each prof.accounts as a (a.id)}
+          <button type="button" role="radio" aria-checked={a.id === me?.id} class="person" class:on={a.id === me?.id} disabled={!!switching} onclick={() => pick(a.id)}>
+            <span class="av" style:background={accountColor(a)}>{initial(a.name)}</span>
+            <span>{switching === a.id ? "Switching…" : a.name}</span>
+          </button>
+        {/each}
+      </div>
+      <p class="sub">Switching puts that person's saves in place (Syncer keeps the others') and shows their playtime, achievements and settings.</p>
+      <Toggle checked={s.askWhoPlays} title="Ask who's playing before a game starts" detail="For a PC several people take turns on. Off: games start as whoever is playing now, the person picked here or in Syncer." onchange={(v) => set({ askWhoPlays: v })} />
+    {:else}
+      <p class="sub">
+        {prof?.reachable && !prof.supported
+          ? "Update Syncer to give each person their own saves, playtime and achievements."
+          : "Everyone shares one set of saves, playtime and achievements. To give each person their own, add people under Accounts in Syncer."}
+      </p>
+    {/if}
+  </div>
+
+  <div class="group">
+    <span class="glabel">Playtime, achievements and settings</span>
+    <Toggle checked={s.syncProfile} title="Sync them with Syncer" detail="Playtime, unlocked achievements and settings go to your other PCs and into Syncer's backup, for each person on their own." onchange={(v) => set({ syncProfile: v })} />
+    <p class="state" class:ok={psum.tone === "ok"} class:warn={psum.tone === "warn"}>{psum.text}</p>
+    <Toggle checked={s.sameSettings} title="Same settings on every PC" detail="Settings changed on another PC are used here too. Game folders, store sign-ins and starting in big picture stay per PC." onchange={(v) => set({ sameSettings: v })} />
+    {#if s.sameSettings && prof?.settingsFrom}
+      <p class="sub">The settings in use were changed last on {prof.settingsFrom}.</p>
+    {/if}
   </div>
   <p class="hint">Which games and folders Syncer looks after, and your other PCs, are set up in Syncer.</p>
 {/if}
@@ -194,6 +237,60 @@
   .seg button.on {
     background: var(--surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+  .group + .group {
+    margin-top: 18px;
+  }
+  .people {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 2px 0 8px;
+  }
+  .person {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px 0 6px;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .person.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .av {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .sub,
+  .state {
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .state {
+    padding-left: 12px;
+  }
+  .state.ok {
+    color: oklch(0.72 0.13 150);
+  }
+  .state.warn {
+    color: oklch(0.78 0.13 75);
   }
   .hint {
     margin: 14px 0 0;

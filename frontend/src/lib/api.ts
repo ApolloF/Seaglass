@@ -1,7 +1,7 @@
 // The frontend's one door to the Go side. In mock mode (`npm run dev:mock`)
 // the same interface is served by made-up data, so the interface can be
 // built and checked in a normal browser. Vite drops the unused one.
-import type { Accounts, Achievements, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 import { realApi } from "./api.real";
 import { mockApi } from "./api.mock";
 
@@ -33,6 +33,8 @@ export interface Api {
 
   settings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<Settings>;
+  /** Settings saved on another PC were taken. */
+  onSettingsChanged(cb: (s: Settings) => void): () => void;
   addFolder(): Promise<Settings>;
   removeFolder(path: string): Promise<Settings>;
   autoFolders(): Promise<string[]>;
@@ -75,6 +77,15 @@ export interface Api {
     syncerProject(): Promise<void>;
     /** Syncer's state; start starts it (without its window) when it isn't running. */
     syncer(start: boolean): Promise<SyncerStatus>;
+  };
+
+  /** Who's playing on this PC (Syncer's accounts). */
+  profile: {
+    /** fresh asks Syncer first (without starting it). */
+    get(fresh?: boolean): Promise<Profile>;
+    /** Puts that account's saves in place and shows their playtime, achievements and settings. */
+    switch(id: string): Promise<Profile>;
+    onChange(cb: (p: Profile) => void): () => void;
   };
 
   achievements: {

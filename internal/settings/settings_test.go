@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,5 +55,36 @@ func TestAchievementDefaults(t *testing.T) {
 	}
 	if v := Open(old).Get(); !v.Achievements || v.ShowHiddenAchievements {
 		t.Errorf("achievements %v, hidden shown %v", v.Achievements, v.ShowHiddenAchievements)
+	}
+}
+
+func TestAskWhoPlaysOff(t *testing.T) {
+	if Defaults().AskWhoPlays {
+		t.Error("asking who's playing is on by default")
+	}
+}
+
+func TestPortable(t *testing.T) {
+	a := Defaults()
+	a.Theme, a.Glyphs, a.HiddenSources, a.Folders, a.StartInBigPicture = "light", "xbox", []string{"epic"}, []string{`D:\Games`}, true
+	a.AskWhoPlays = true // a PC people take turns on
+	b, err := json.Marshal(a.Portable())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Defaults().WithPortable(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Theme != "light" || got.Glyphs != "xbox" || len(got.HiddenSources) != 1 {
+		t.Fatalf("not taken: %+v", got)
+	}
+	if len(got.Folders) != 0 || got.StartInBigPicture || got.AskWhoPlays {
+		t.Fatalf("the PC's own settings changed: %+v", got)
+	}
+	// Bad values from another PC are normalised.
+	got, _ = Defaults().WithPortable([]byte(`{"theme":"neon","syncWait":7}`))
+	if got.Theme != "system" || got.SyncWait != 60 {
+		t.Fatalf("not normalised: %+v", got)
 	}
 }
