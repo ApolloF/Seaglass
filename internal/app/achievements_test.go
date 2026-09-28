@@ -139,3 +139,26 @@ func TestSessionBaseline(t *testing.T) {
 		t.Errorf("baselines left: %d", n)
 	}
 }
+
+// A cached result doesn't wait for another game's read.
+func TestAchievementsCacheHitDoesNotWait(t *testing.T) {
+	c, id, _ := achTestCore(t)
+	if _, err := c.ach.get(c.ctx, id, false); err != nil {
+		t.Fatal(err)
+	}
+	c.ach.run.Lock() // another game's read is running
+	defer c.ach.run.Unlock()
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.ach.get(c.ctx, id, false)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a cache hit waited for the running read")
+	}
+}

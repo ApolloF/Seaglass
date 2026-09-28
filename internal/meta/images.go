@@ -198,9 +198,19 @@ func cropCover(img image.Image) image.Image {
 		return img
 	}
 	x := b.Min.X + (b.Dx()-w)/2
-	sub := image.NewNRGBA(image.Rect(0, 0, w, b.Dy()))
-	draw.Draw(sub, sub.Bounds(), img, image.Point{X: x, Y: b.Min.Y}, draw.Src)
-	return sub
+	return crop(img, image.Rect(x, b.Min.Y, x+w, b.Max.Y))
+}
+
+// crop returns r of img, sharing its pixels when the image type allows it.
+func crop(img image.Image, r image.Rectangle) image.Image {
+	if s, ok := img.(interface {
+		SubImage(image.Rectangle) image.Image
+	}); ok {
+		return s.SubImage(r)
+	}
+	dst := image.NewNRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, r.Min, draw.Src)
+	return dst
 }
 
 // crop16x9 cuts the middle 16:9 out of an image: the sides of a wide
@@ -217,9 +227,7 @@ func crop16x9(img image.Image) image.Image {
 		return img
 	}
 	x, y := b.Min.X+(b.Dx()-w)/2, b.Min.Y+(b.Dy()-h)/2
-	sub := image.NewNRGBA(image.Rect(0, 0, w, h))
-	draw.Draw(sub, sub.Bounds(), img, image.Point{X: x, Y: y}, draw.Src)
-	return sub
+	return crop(img, image.Rect(x, y, x+w, y+h))
 }
 
 // makeTile draws a game's round tile: the middle of its key art (the hero,
@@ -274,21 +282,8 @@ func makeTile(hero, logo, cover image.Image) image.Image {
 
 // storeImage encodes an image the pipeline made itself (a cropped cover).
 func (c *Client) storeImage(img image.Image, kind Kind) (string, error) {
-	img = fit(img, maxWidth[kind])
-	var out bytes.Buffer
-	if err := jpeg.Encode(&out, flatten(img), &jpeg.Options{Quality: 88}); err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(out.Bytes())
-	name := hex.EncodeToString(sum[:20]) + ".jpg"
-	p := filepath.Join(c.artDir, name)
-	if err := os.MkdirAll(c.artDir, 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(p+".tmp", out.Bytes(), 0o644); err != nil {
-		return "", err
-	}
-	return artPrefix + name, os.Rename(p+".tmp", p)
+	art, _, err := c.keepImage(img, kind)
+	return art, err
 }
 
 // Accent picks a lively colour from an image: the most prominent hue among

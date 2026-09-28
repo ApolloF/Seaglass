@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ApolloF/Seaglass/internal/logx"
 )
 
 // Game is one game in the library.
@@ -304,7 +306,14 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 			g.MatchHow, g.Confidence, g.NeedsReview = f.MatchHow, f.Confidence, f.NeedsReview
 		}
 		g.EpicApp, g.How, g.SeenAt = f.EpicApp, f.How, ts
-		g.StorePlaytime, g.StoreLastPlayed, g.PadHint = f.StorePlaytime, f.StoreLastPlayed, f.PadHint
+		g.PadHint = f.PadHint
+		if g.Owned {
+			// The owned sync may know more (GOG Galaxy, Steam's web API);
+			// store playtime only goes up.
+			g.StorePlaytime, g.StoreLastPlayed = max(g.StorePlaytime, f.StorePlaytime), max(g.StoreLastPlayed, f.StoreLastPlayed)
+		} else {
+			g.StorePlaytime, g.StoreLastPlayed = f.StorePlaytime, f.StoreLastPlayed
+		}
 	}
 	for k, g := range s.byKey {
 		if !seen[k] && g.Installed {
@@ -317,11 +326,21 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 	return added, removed
 }
 
-func (s *Store) scheduleSaveLocked() {
+func (s *Store) scheduleSaveLocked() { s.scheduleSaveAfterLocked(time.Second) }
+
+func (s *Store) scheduleSaveAfterLocked(d time.Duration) {
 	if s.saveT != nil {
 		s.saveT.Stop()
 	}
-	s.saveT = time.AfterFunc(time.Second, func() { _ = s.Flush() })
+	s.saveT = time.AfterFunc(d, func() {
+		if err := s.Flush(); err != nil {
+			logx.Printf("saving library: %v", err)
+			// Try again later (e.g. antivirus holding library.json open).
+			s.mu.Lock()
+			s.scheduleSaveAfterLocked(30 * time.Second)
+			s.mu.Unlock()
+		}
+	})
 }
 
 // Flush writes the library to disk now.

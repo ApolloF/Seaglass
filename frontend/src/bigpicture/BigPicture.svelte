@@ -180,7 +180,7 @@
       {:else if screen === "padtest"}
         <PadTest onback={() => go("settings")} />
       {:else if screen === "search"}
-        <SearchScreen {width} onplay={play} oninfo={info} {onfocus} onback={() => go("home")} onsection={(s) => go(s)} />
+        <SearchScreen {width} active={!sheet && !qa && !showLaunch} onplay={play} oninfo={info} {onfocus} onback={() => go("home")} onsection={(s) => go(s)} />
       {:else}
         <BPSettings onback={() => go("home")} onpadtest={() => go("padtest")} />
       {/if}

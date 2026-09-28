@@ -69,8 +69,8 @@ type Core struct {
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
-	lastSession int64 // the last session whose end was handled
-	registered  bool  // the game list went to Syncer (when it was running)
+	lastSession int64       // the last session whose end was handled
+	registered  atomic.Bool // the game list reached Syncer
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -80,8 +80,11 @@ type Core struct {
 	state   ScanState
 	pending chan struct{}
 	watcher *fsnotify.Watcher
-	meta    *metaWorker
-	pruned  sync.Once // unused art is cleared once per start
+	// linkDirs are watched folders only shortcuts (.lnk) in matter to (the
+	// desktops, when they aren't game folders too).
+	linkDirs atomic.Pointer[map[string]bool]
+	meta     *metaWorker
+	pruned   sync.Once // unused art is cleared once per start
 }
 
 // NewCore opens the library and settings.
@@ -242,8 +245,7 @@ func (c *Core) scanNow() {
 	c.rewatch(cfg)
 	c.meta.queueMissing()
 	c.pruned.Do(func() { go c.pruneArt() })
-	if added > 0 || removed > 0 || !c.registered {
-		c.registered = true
+	if added > 0 || removed > 0 || !c.registered.Load() {
 		go c.registerWithSyncer()
 	}
 }
@@ -342,8 +344,6 @@ func (c *Core) rewatch(cfg settings.Settings) {
 		add(d)
 	}
 	add(scan.EpicManifestDir())
-	add(platform.Desktop)
-	add(platform.PublicDesktop)
 	for _, f := range cfg.Folders {
 		add(f)
 	}
@@ -352,6 +352,14 @@ func (c *Core) rewatch(cfg settings.Settings) {
 			add(f)
 		}
 	}
+	links := map[string]bool{}
+	for _, d := range []string{platform.Desktop, platform.PublicDesktop} {
+		if d != "" && !want[platform.Key(d)] {
+			links[platform.Key(d)] = true
+		}
+		add(d)
+	}
+	c.linkDirs.Store(&links)
 	for _, d := range c.watcher.WatchList() {
 		if !want[platform.Key(d)] {
 			_ = c.watcher.Remove(d)
@@ -372,6 +380,10 @@ func (c *Core) watchLoop(w *fsnotify.Watcher) {
 			name := strings.ToLower(ev.Name)
 			// Steam rewrites manifests while downloading; only finished changes matter.
 			if strings.HasSuffix(name, ".tmp") || strings.Contains(name, `\downloading`) || strings.Contains(name, `\temp`) {
+				continue
+			}
+			// A screenshot or download saved to the desktop isn't a game.
+			if l := c.linkDirs.Load(); l != nil && (*l)[platform.Key(filepath.Dir(ev.Name))] && !strings.EqualFold(filepath.Ext(ev.Name), ".lnk") {
 				continue
 			}
 			if debounce != nil {

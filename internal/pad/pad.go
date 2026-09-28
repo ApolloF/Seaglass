@@ -155,6 +155,9 @@ type Manager struct {
 	// The rumble effect playing, only touched on the SDL thread.
 	pulses  []pulse
 	pulseAt time.Time
+	// Why SDL didn't start on the last mode change, kept in every state
+	// until a mode change works; only touched on the SDL thread.
+	padErr string
 }
 
 // Start loads SDL and begins reading controllers. onAction gets every
@@ -510,11 +513,13 @@ func (m *Manager) loop() {
 			clear(hats)
 			m.pulses = nil
 			off, passive = mode == Off, mode == Passive
+			m.padErr = ""
 			if !off {
 				if err := m.start(s, mode == Passive); err != nil {
-					m.setState(func(st *State) { st.Error = "controller support unavailable: " + err.Error() })
+					m.padErr = "controller support unavailable: " + err.Error()
+					off = true // SDL isn't running: nothing to poll or quit
 				} else if err := m.attachVirtual(s); err != nil {
-					m.setState(func(st *State) { st.Error = err.Error() })
+					m.padErr = err.Error()
 				}
 			}
 			m.refreshState(s)
@@ -538,7 +543,7 @@ func (m *Manager) loop() {
 			}
 			typ := binary.LittleEndian.Uint32(ev[0:])
 			which := binary.LittleEndian.Uint32(ev[16:])
-			if typ == evGamepadDown || typ == evGamepadAxis {
+			if typ == evGamepadDown {
 				lastInput = time.Now()
 			}
 			switch typ {
@@ -547,8 +552,17 @@ func (m *Manager) loop() {
 			case evGamepadRemoved:
 				m.close(s, which)
 				rawButtons = 0
+				// SDL recentres the hat as the pad goes, in this same
+				// batch; with the pad forgotten that would never let go
+				// of a held direction, so it's let go here.
+				if !dpadButtons[which] && hats[which] != 0 {
+					for _, d := range [...]string{Up, Right, Down, Left} {
+						release("hat" + d)
+					}
+				}
 				delete(dpadButtons, which)
 				delete(hats, which)
+				delete(hatNow, which)
 			case evGamepadDown:
 				m.use(s, which)
 				if b := ev[20]; b >= 11 && b <= 14 {
@@ -571,9 +585,15 @@ func (m *Manager) loop() {
 					hatNow[which] = ev[21]
 				}
 			case evGamepadAxis:
-				m.use(s, which)
 				axis := ev[20]
 				v := int16(binary.LittleEndian.Uint16(ev[24:]))
+				// Only a real push counts as input: resting sticks jitter
+				// a step or two, which mustn't take over as the current
+				// controller or keep the polling fast.
+				if v > stickOff || v < -stickOff { // triggers too: stickOff is below triggerOn
+					lastInput = time.Now()
+					m.use(s, which)
+				}
 				prev := axes[axis]
 				axes[axis] = v
 				switch axis {
@@ -710,7 +730,7 @@ func (m *Manager) refreshState(s *sdl) {
 	gp := pads[current]
 	padsMu.Unlock()
 	m.setState(func(st *State) {
-		*st = State{Battery: -1}
+		*st = State{Battery: -1, Error: m.padErr}
 		if gp == nil {
 			return
 		}

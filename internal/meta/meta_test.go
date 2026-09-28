@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestAllowed(t *testing.T) {
@@ -70,6 +71,32 @@ func TestCrop16x9(t *testing.T) {
 		if b := crop16x9(solid(tc.w, tc.h, color.White)).Bounds(); b.Dx() != tc.cw || b.Dy() != tc.ch {
 			t.Errorf("crop16x9(%dx%d) = %v, want %dx%d", tc.w, tc.h, b, tc.cw, tc.ch)
 		}
+	}
+	// The crop shares the source's pixels: the middle of a banner that is
+	// red on the sides and white in the middle is all white.
+	src := solid(400, 100, color.RGBA{255, 0, 0, 255}).(*image.NRGBA)
+	white := src.SubImage(image.Rect(111, 0, 289, 100)).(*image.NRGBA)
+	for i := range white.Pix {
+		white.Pix[i] = 255
+	}
+	for _, c := range []image.Image{crop16x9(src), cropCover(src)} {
+		b := c.Bounds()
+		for _, p := range []image.Point{b.Min, b.Max.Sub(image.Pt(1, 1))} {
+			if r, g, _, _ := c.At(p.X, p.Y).RGBA(); r != 0xffff || g != 0xffff {
+				t.Errorf("crop %v: pixel at %v not white", b, p)
+			}
+		}
+	}
+}
+
+func TestFirstParagraphUTF8(t *testing.T) {
+	s := strings.Repeat("é", 400) // 800 bytes, no sentence break
+	got := firstParagraph(s)
+	if !utf8.ValidString(got) || !strings.HasSuffix(got, "…") || len(got) > 600+len("…") {
+		t.Errorf("firstParagraph cut %q", got[len(got)-8:])
+	}
+	if got := firstParagraph("x" + s); !utf8.ValidString(got) {
+		t.Errorf("odd offset: invalid UTF-8 %q", got[len(got)-8:])
 	}
 }
 

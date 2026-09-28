@@ -212,9 +212,18 @@ func (m *Manager) Active() bool {
 // ErrBusy means a game is already being played.
 var ErrBusy = errors.New("a game is already running")
 
+// ErrClosed means Seaglass is quitting and starts no more games.
+var ErrClosed = errors.New("Seaglass is closing")
+
 // Launch starts a session in the background.
 func (m *Manager) Launch(ctx context.Context, p Plan) error {
 	m.mu.Lock()
+	select {
+	case <-m.stop:
+		m.mu.Unlock()
+		return ErrClosed
+	default:
+	}
 	if !m.cur.Phase.Done() {
 		m.mu.Unlock()
 		return ErrBusy
@@ -224,10 +233,10 @@ func (m *Manager) Launch(ctx context.Context, p Plan) error {
 	m.cancel, m.skip, m.tracked = cancel, map[string]context.CancelFunc{}, nil
 	m.cur = Session{ID: m.seq, GameID: p.GameID, Title: p.Title, From: p.From, Phase: Preparing,
 		Before: states(p.Before), After: states(p.After)}
+	m.running.Add(1) // under m.mu, so Close can't be waiting yet
 	m.mu.Unlock()
 	m.update(func(*Session) {})
-	m.running.Add(1)
-	go m.run(ctx, p)
+	go m.run(ctx, cancel, p)
 	return nil
 }
 
@@ -296,22 +305,29 @@ func (m *Manager) Quit() error {
 	if !running || len(procs) == 0 {
 		return errors.New("no game is running")
 	}
+	// Some of the processes may have ended since the last poll: it's only
+	// a failure when none could be ended.
 	var first error
+	ended := 0
 	for pid, started := range procs {
-		if err := m.end(pid, started); err != nil && first == nil {
-			first = err
+		if err := m.end(pid, started); err != nil {
+			if first == nil {
+				first = err
+			}
+		} else {
+			ended++
 		}
+	}
+	if ended > 0 {
+		return nil
 	}
 	return first
 }
 
-func (m *Manager) run(ctx context.Context, p Plan) {
+// cancel is this session's own: m.cancel may already be the next one's.
+func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, p Plan) {
 	defer m.running.Done()
-	defer func() {
-		m.mu.Lock()
-		m.cancel()
-		m.mu.Unlock()
-	}()
+	defer cancel()
 	for _, st := range p.Before {
 		if err := m.step(ctx, st, &m.cur.Before); errors.Is(err, ErrCancel) || ctx.Err() != nil {
 			m.update(func(s *Session) { s.Phase = Cancelled })
@@ -396,69 +412,72 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 		var game map[uint32]uint64
 		if err == nil {
 			game = t.update(ps)
-		}
-		m.mu.Lock()
-		m.tracked = game
-		m.mu.Unlock()
-		if err == nil {
+			m.mu.Lock()
+			m.tracked = game
+			m.mu.Unlock()
 			reap(game)
 		}
-		if !shown && len(game) > 0 && m.front != nil {
-			if _, ok := game[m.front()]; ok {
-				shown = true
-				m.update(func(s *Session) { s.Shown = true })
-			}
-		}
-		switch {
-		case len(game) > 0 && seenAt.IsZero():
-			seenAt, last = now, now
-			m.update(func(s *Session) { s.Phase, s.StartedAt = Running, now.Unix() })
-			if p.OnRun != nil {
-				p.OnRun()
-			}
-		case !seenAt.IsZero():
-			// Count wall time between polls, but not a gap from sleep or
-			// hibernation. Time without a game process only counts when
-			// the game turns out to still be there (a launcher handoff).
-			if d := now.Sub(last); d > 0 && d < 30*time.Second {
-				gap += d.Seconds()
-			}
-			last = now
-			if len(game) == 0 {
-				quiet++
-				if quiet == 1 && p.OnGone != nil {
-					p.OnGone()
+		// A failed snapshot says nothing about the game: once it's been
+		// seen, wait for a good poll (which counts the time since the last
+		// one). Before that, only the detect timeout can apply.
+		if err == nil || seenAt.IsZero() {
+			if !shown && len(game) > 0 && m.front != nil {
+				if _, ok := game[m.front()]; ok {
+					shown = true
+					m.update(func(s *Session) { s.Shown = true })
 				}
-				if quiet >= m.quiet {
-					flush()
-					secs := int64(total)
-					crash := ""
-					if platform.Crashed(lastExit) {
-						crash = fmt.Sprintf("0x%08X", lastExit)
+			}
+			switch {
+			case len(game) > 0 && seenAt.IsZero():
+				seenAt, last = now, now
+				m.update(func(s *Session) { s.Phase, s.StartedAt = Running, now.Unix() })
+				if p.OnRun != nil {
+					p.OnRun()
+				}
+			case !seenAt.IsZero():
+				// Count wall time between polls, but not a gap from sleep or
+				// hibernation. Time without a game process only counts when
+				// the game turns out to still be there (a launcher handoff).
+				if d := now.Sub(last); d > 0 && d < 30*time.Second {
+					gap += d.Seconds()
+				}
+				last = now
+				if len(game) == 0 {
+					quiet++
+					if quiet == 1 && p.OnGone != nil {
+						p.OnGone()
 					}
-					m.update(func(s *Session) { s.Seconds, s.Crash = secs, crash })
-					return secs
+					if quiet >= m.quiet {
+						flush()
+						secs := int64(total)
+						crash := ""
+						if platform.Crashed(lastExit) {
+							crash = fmt.Sprintf("0x%08X", lastExit)
+						}
+						m.update(func(s *Session) { s.Seconds, s.Crash = secs, crash })
+						return secs
+					}
+					break
 				}
-				break
+				if quiet > 0 && p.OnBack != nil {
+					p.OnBack()
+				}
+				quiet = 0
+				total += gap
+				unsaved += gap
+				gap = 0
+				if unsaved >= 60 {
+					flush()
+				}
+				secs := int64(total)
+				m.update(func(s *Session) { s.Seconds = secs })
+			case now.Sub(began) > timeout:
+				m.update(func(s *Session) {
+					s.Phase = Ended
+					s.Note = "Seaglass couldn't see the game running, so no playtime was counted."
+				})
+				return -1
 			}
-			if quiet > 0 && p.OnBack != nil {
-				p.OnBack()
-			}
-			quiet = 0
-			total += gap
-			unsaved += gap
-			gap = 0
-			if unsaved >= 60 {
-				flush()
-			}
-			secs := int64(total)
-			m.update(func(s *Session) { s.Seconds = secs })
-		case now.Sub(began) > timeout:
-			m.update(func(s *Session) {
-				s.Phase = Ended
-				s.Note = "Seaglass couldn't see the game running, so no playtime was counted."
-			})
-			return -1
 		}
 		select {
 		case <-m.stop:

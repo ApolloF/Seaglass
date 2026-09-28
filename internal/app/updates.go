@@ -47,11 +47,13 @@ type UpdateState struct {
 	Failed bool `json:"failed"`
 }
 
-// Update timing: the first check waits until start-up is over; later ones
-// are twice a day (a timer, no polling).
+// Update timing: one check once start-up has settled, so a release is
+// downloaded during the session it's noticed in. After that only the user
+// checks (or turning automatic updates on). A game running at start puts
+// the check off until it's done.
 const (
-	updateFirstCheck = 90 * time.Second
-	updateInterval   = 12 * time.Hour
+	updateFirstCheck = 15 * time.Second
+	updateGameWait   = 5 * time.Minute
 )
 
 type updater struct {
@@ -107,7 +109,7 @@ func (u *updater) set(fn func(*UpdateState)) {
 	u.c.emit(EventUpdateState, s)
 }
 
-// loop checks now and then while automatic updates are on, and whenever
+// loop checks once at start while automatic updates are on, and whenever
 // the user asks.
 func (u *updater) loop(ctx context.Context) {
 	if u.state().Status == UpdateOff {
@@ -120,13 +122,16 @@ func (u *updater) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			// Not while a game runs: it may want all the bandwidth.
-			if u.c.Settings.Get().AutoUpdate && !u.c.Launch.Active() {
-				u.check(ctx)
-				t.Reset(updateInterval)
-			} else {
-				t.Reset(30 * time.Minute)
+			if !u.c.Settings.Get().AutoUpdate {
+				continue // turning it on checks
 			}
+			// Not while a game runs: it may want all the bandwidth.
+			if u.c.Launch.Active() {
+				t.Reset(updateGameWait)
+				continue
+			}
+			u.check(ctx)
+			u.installIfIdle()
 		case <-u.kick:
 			u.check(ctx)
 		}
@@ -238,6 +243,30 @@ func (u *updater) install() error {
 	}
 	u.c.quitForUpdate()
 	return nil
+}
+
+// installIfIdle installs a ready update straight away when nobody would
+// notice: Seaglass shows only its tray icon (started with Windows, or
+// for a shortcut's game) and no game runs. It comes back in the tray.
+func (u *updater) installIfIdle() {
+	u.mu.Lock()
+	p := u.pending
+	u.mu.Unlock()
+	sh := u.c.shell
+	if p == nil || p.Attempts > 0 || sh == nil || !sh.Hidden() || u.c.Launch.Active() || !u.c.Settings.Get().AutoUpdate {
+		return
+	}
+	if err := applyPending(*p, u.dir, u.exe, true); err != nil {
+		logx.Printf("update %s in the tray: %v", p.Tag, err)
+		q := *p
+		q.Attempts++
+		u.mu.Lock()
+		u.pending = &q
+		u.mu.Unlock()
+		u.set(func(s *UpdateState) { s.Failed, s.Error = true, "The update to "+p.Tag+" didn't install." })
+		return
+	}
+	u.c.quitForUpdate()
 }
 
 // applyPending starts installing p: the installer runs (and restarts

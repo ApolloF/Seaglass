@@ -150,7 +150,7 @@ func (s *LibraryService) RefreshMetadata(id int64) error {
 // SearchSteam looks up titles on the Steam store, to pick the right game.
 func (s *LibraryService) SearchSteam(query string) ([]meta.StoreHit, error) {
 	if len(query) > 120 {
-		query = query[:120]
+		query = strings.ToValidUTF8(query[:120], "") // not half a character
 	}
 	ctx, cancel := context.WithTimeout(s.c.ctx, 20*time.Second)
 	defer cancel()

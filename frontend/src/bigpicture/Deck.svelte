@@ -9,6 +9,7 @@
   import { lib } from "../lib/store.svelte";
   import { title, type Game } from "../lib/types";
   import Hints from "./Hints.svelte";
+  import { rowOffset } from "./nav";
   import Sections, { type Section } from "./Sections.svelte";
 
   type Props = {
@@ -54,24 +55,32 @@
 
   let zone = $state<number | "rail">(0); // row index or the rail
   let lastRow = $state(0);
-  let idx = $state<number[]>([0, 0, 0]);
+  // The cursor in each row, by row id: rows come and go (a first new find,
+  // the last one checked), so their positions shift.
+  let idx = $state<Record<Row["id"], number>>({ cont: 0, fresh: 0, lib: 0 });
   let ri = $state(0);
 
   const rowLen = (r: Row) => r.games.length + (r.extra ? 1 : 0);
+  const at = (row: number) => (rows[row] ? idx[rows[row].id] : 0);
   const focusGame = $derived.by(() => {
-    if (zone === "rail") return rows[lastRow]?.games[idx[lastRow]] ?? null;
-    const r = rows[zone];
-    return r?.games[idx[zone]] ?? null;
+    const r = rows[zone === "rail" ? lastRow : zone];
+    return r?.games[idx[r.id]] ?? null;
   });
   $effect(() => p.onfocus(focusGame));
   $effect(() => {
     if (typeof zone === "number" && zone >= rows.length) zone = Math.max(0, rows.length - 1);
+    if (lastRow >= rows.length) lastRow = Math.max(0, rows.length - 1);
+  });
+  $effect(() => {
+    for (const r of rows) {
+      const max = Math.max(0, rowLen(r) - 1);
+      if (idx[r.id] > max) idx[r.id] = max;
+    }
   });
 
   function setIdx(row: number, v: number) {
-    const next = [...idx];
-    next[row] = v;
-    idx = next;
+    const r = rows[row];
+    if (r) idx[r.id] = v;
   }
 
   $effect(() =>
@@ -95,7 +104,7 @@
       const r = rows[zone];
       if (!r) return false;
       const n = rowLen(r);
-      const i = idx[zone];
+      const i = at(zone);
       switch (intent) {
         case "left":
           if (i === 0) {
@@ -111,14 +120,14 @@
         case "up":
           if (zone > 0) {
             zone = zone - 1;
-            setIdx(zone, Math.min(idx[zone], rowLen(rows[zone]) - 1));
+            setIdx(zone, Math.min(at(zone), rowLen(rows[zone]) - 1));
             feedback.move();
           } else feedback.edge();
           return;
         case "down":
           if (zone < rows.length - 1) {
             zone = zone + 1;
-            setIdx(zone, Math.min(idx[zone], rowLen(rows[zone]) - 1));
+            setIdx(zone, Math.min(at(zone), rowLen(rows[zone]) - 1));
             feedback.move();
           } else feedback.edge();
           return;
@@ -168,10 +177,9 @@
   });
 
   const size = { cont: [520, 292, 24], fresh: [420, 244, 24], lib: [200, 300, 20] } as const;
-  const offset = (row: Row, rIdx: number) => {
+  const offset = (row: Row) => {
     const [w, , gap] = size[row.id];
-    const lead = row.id === "lib" ? 4 : 1;
-    return -Math.max(0, idx[rIdx] - lead) * (w + gap);
+    return rowOffset(idx[row.id], w, gap, row.id === "lib" ? 4 : 1);
   };
 </script>
 
@@ -199,9 +207,9 @@
           <h2>{row.label}</h2>
           {#if row.sub}<span>{row.sub}</span>{/if}
         </div>
-        <div class="strip" style:transform="translateX({offset(row, r)}px)" style:gap="{size[row.id][2]}px">
+        <div class="strip" style:transform="translateX({offset(row)}px)" style:gap="{size[row.id][2]}px">
           {#each row.games as g, k (g.id)}
-            {@const on = zone === r && idx[r] === k}
+            {@const on = zone === r && idx[row.id] === k}
             <button
               type="button"
               class="card {row.id}"
@@ -229,7 +237,7 @@
             </button>
           {/each}
           {#if row.extra}
-            {@const on = zone === r && idx[r] === row.games.length}
+            {@const on = zone === r && idx[row.id] === row.games.length}
             <button type="button" class="card more" class:on style:width="{size.lib[0]}px" style:height="{size.lib[1]}px" onclick={p.onlibrary}>
               <Icon name="grid" size={40} stroke={1.7} />
               <span>All games</span>
