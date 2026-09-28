@@ -101,6 +101,12 @@ export interface Settings {
   syncWait: number;
   /** Start Syncer (without its window) when it isn't running. */
   startSyncer: boolean;
+  /** Syncer syncs playtime, achievements and settings between PCs. */
+  syncProfile: boolean;
+  /** Take the settings saved last on another PC (the PC's own ones stay). */
+  sameSettings: boolean;
+  /** With several Syncer accounts, ask who's playing before a game starts. */
+  askWhoPlays: boolean;
   autoUpdate: boolean;
   /** Read and show achievements. */
   achievements: boolean;
@@ -183,6 +189,40 @@ export interface SyncerStatus {
   games: number;
   conflicts: number;
   checkedAt: number;
+}
+
+/** One of Syncer's accounts: a person with their own saves. */
+export interface SyncerAccount {
+  id: string;
+  name: string;
+  color?: string;
+  active: boolean;
+}
+
+/** Who's playing on this PC, and how their playtime, achievements and
+ * settings get to their other PCs. */
+export interface Profile {
+  /** Syncer has accounts turned on. */
+  enabled: boolean;
+  active?: string;
+  accounts: SyncerAccount[];
+  /** Whose playtime this PC adds to: an account id or "shared". */
+  owner: string;
+  ownerName?: string;
+  installed: boolean;
+  reachable: boolean;
+  /** Syncer knows accounts (new enough). */
+  supported: boolean;
+  /** Syncer syncs the profile folder (and backs it up). */
+  synced: boolean;
+  backup: boolean;
+  /** Someone stopped syncing it in Syncer. */
+  dismissed: boolean;
+  dataError?: string;
+  dir: string;
+  /** The PC the settings in use were saved on ("" this one). */
+  settingsFrom?: string;
+  checkedAt?: number;
 }
 
 export interface Saves {

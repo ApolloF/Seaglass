@@ -308,28 +308,44 @@ func (s *SettingsService) Info() AppInfo {
 // Get returns the settings.
 func (s *SettingsService) Get() settings.Settings { return s.c.Settings.Get() }
 
-// Save stores new settings; library settings trigger a scan.
+// Save stores new settings; library settings trigger a scan. Settings
+// that go with the person are shared with their other PCs.
 func (s *SettingsService) Save(v settings.Settings) (settings.Settings, error) {
+	s.c.setMu.Lock()
+	defer s.c.setMu.Unlock()
 	old := s.c.Settings.Get()
-	saved, err := s.c.Settings.Set(v)
+	saved, err := s.c.saveSettings(v)
+	if err == nil && s.c.profile != nil {
+		s.c.profile.settingsSaved(old, saved)
+	}
+	return saved, err
+}
+
+// saveSettings stores new settings and does what changing them needs.
+func (c *Core) saveSettings(v settings.Settings) (settings.Settings, error) {
+	old := c.Settings.Get()
+	saved, err := c.Settings.Set(v)
 	if err != nil {
 		return saved, err
 	}
-	if saved.ShowOwned && !old.ShowOwned {
-		s.c.meta.queueMissing()
+	if saved.SyncProfile && !old.SyncProfile && c.profile != nil {
+		c.profile.changed()
 	}
-	if saved.NoticeExternal != old.NoticeExternal && s.c.external != nil {
-		s.c.external.set(saved.NoticeExternal)
+	if saved.ShowOwned && !old.ShowOwned {
+		c.meta.queueMissing()
+	}
+	if saved.NoticeExternal != old.NoticeExternal && c.external != nil {
+		c.external.set(saved.NoticeExternal)
 	}
 	if saved.Achievements != old.Achievements || saved.ShowHiddenAchievements != old.ShowHiddenAchievements {
-		s.c.ach.clear()
+		c.ach.clear()
 	}
 	if saved.AutoUpdate && !old.AutoUpdate {
-		NewUpdateService(s.c).Check()
+		NewUpdateService(c).Check()
 	}
 	if !sameStrings(old.Folders, saved.Folders) || old.AutoFolders != saved.AutoFolders ||
 		old.DetectUnofficial != saved.DetectUnofficial || old.ReviewUncertain != saved.ReviewUncertain {
-		s.c.RequestScan()
+		c.RequestScan()
 	}
 	return saved, nil
 }

@@ -140,14 +140,10 @@ func (c *Core) externalPlan(g library.Game, pid uint32) launch.Plan {
 	return launch.Plan{
 		GameID: g.ID, Title: title, Dirs: dirs, DetectTimeout: 30 * time.Second, After: after,
 		Start: func() (uint32, string, error) {
-			_, _ = c.Lib.Update(g.ID, func(x *library.Game) { x.LastPlayed = time.Now().Unix() })
-			c.gamesChanged(g.ID)
+			c.startedPlaying(g)
 			return pid, RouteExternal, nil
 		},
-		Played: func(secs int64) {
-			_, _ = c.Lib.Update(g.ID, func(x *library.Game) { x.Playtime += secs })
-			c.gamesChanged(g.ID)
-		},
+		Played: func(secs int64) { c.addPlaytime(g, secs) },
 		OnRun: func() {
 			heapDiag("playing")
 			c.shell.setTrayTooltip("Seaglass · playing " + title)

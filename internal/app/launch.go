@@ -153,6 +153,11 @@ func (c *Core) plan(g library.Game) launch.Plan {
 	var before, after []launch.Step
 	cfg := c.Settings.Get()
 	if _, ok := syncer.Installed(); ok {
+		if cfg.AskWhoPlays {
+			before = append(before, c.whoPlaysStep(g))
+		} else if !cfg.SyncSavesBefore && c.profile != nil {
+			c.profile.changed() // who's playing now (savesBefore looks otherwise)
+		}
 		known := false
 		if cfg.SyncSavesBefore {
 			before = append(before, c.savesBeforeStep(g, &known))
@@ -198,14 +203,10 @@ func (c *Core) plan(g library.Game) launch.Plan {
 			// The game looks for controllers as it starts, which can be
 			// long before it's seen running: hand it over now.
 			c.padForGame()
-			_, _ = c.Lib.Update(g.ID, func(x *library.Game) { x.LastPlayed = time.Now().Unix() })
-			c.gamesChanged(g.ID)
+			c.startedPlaying(g)
 			return uint32(pid), used, nil
 		},
-		Played: func(secs int64) {
-			_, _ = c.Lib.Update(g.ID, func(x *library.Game) { x.Playtime += secs })
-			c.gamesChanged(g.ID)
-		},
+		Played: func(secs int64) { c.addPlaytime(g, secs) },
 		OnRun: func() {
 			heapDiag("playing")
 			c.shell.setTrayTooltip("Seaglass · playing " + title)

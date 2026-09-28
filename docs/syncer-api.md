@@ -18,6 +18,26 @@ Seaglass talks to [Syncer](https://github.com/ApolloF/syncer) through Syncer's l
 
 Both steps can be skipped from the launch screen. Neither step blocks a game from starting unless you choose *Cancel* or *Open Syncer*.
 
+## Who's playing (accounts)
+
+With *Accounts* on in Syncer, each person keeps their own saves of the games they split. Seaglass follows the account playing on this PC:
+
+- **Following:** a launch plays as the account Syncer has on this PC, without asking: the saves step reads it from Syncer (`accounts`) before syncing, so playtime and achievements go to that person. Whoever switched last, in Seaglass or in Syncer, keeps playing.
+- **Asking (optional):** for a PC several people take turns on, setting *Ask who's playing* (off by default, kept per PC) has a launch with two or more accounts first ask *Who's playing?*. The person playing now is the first choice. Picking someone else calls `switchAccount` before the saves are synced (a split game's folder id belongs to the account). If switching fails (a game runs, their saves haven't arrived), you choose *Play as <current>* or *Cancel*.
+- **Switching any time:** the sidebar's *<name> is playing* (desktop), *Who's playing* in quick access (big picture), and Settings → Saves list the accounts.
+- **Looking:** Seaglass asks Syncer (`accounts`) every two minutes while Syncer runs, without starting it, and after each switch. When Syncer isn't running or accounts are off, the last account this PC had stays in use (`%APPDATA%\Seaglass\profile-owner.txt`).
+
+## Playtime, achievements and settings (the profile)
+
+Seaglass keeps them per person in `%APPDATA%\Seaglass\Profile`, and asks Syncer to sync and back that folder up (`launcherData`; setting *Sync them with Syncer*, on by default). Syncer adds it once, labelled *Seaglass (playtime, achievements, settings)*, never splits it per account, and doesn't add it again after you stop syncing it.
+
+- **Layout:** `Profile\<account>\<pc>.json`, or `Profile\shared\<pc>.json` while no account is in use (it moves to the first account this PC gets). `<pc>` is the PC's name and a hash of its machine id. Each PC writes only its own files, so syncing never makes conflict copies and PCs playing offline at the same time lose nothing.
+- **Games** are keyed the same way on every PC: `steam:<app>`, `gog:<id>`, `epic:<app>`, else `title:<loose title>`.
+- **Playtime** is the sum of the person's files; **last played** the newest. The library's `playtime` and `lastPlayed` are filled in from them (for the person playing).
+- **Achievements:** what a session unlocked is recorded (the ones Seaglass announces after playing). A game's list shows what this PC's files and stores say plus what the person unlocked elsewhere; the cache keeps only this PC's part.
+- **Settings:** the ones that go with a person (appearance, controller, while playing, saves, achievements, updates, which libraries show) are taken from whichever PC saved them last (setting *Same settings on every PC*). Game folders, store sign-ins, *start in big picture*, *open big picture when a controller connects*, *ask who's playing* and GOG Galaxy's library stay per PC.
+- **First start:** this PC's playtime, last plays, achievements (as last read) and settings go into its first file.
+
 ## Interface
 
 The game details (desktop) and the game page (big picture) show a saves line from `gameStatus`:

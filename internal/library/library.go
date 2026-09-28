@@ -236,6 +236,25 @@ func (s *Store) Update(id int64, fn func(g *Game)) (Game, error) {
 	return out, nil
 }
 
+// SetPlayed sets each game's playtime and last play to what fn returns
+// (ok false leaves the game alone) and returns the games that changed.
+func (s *Store) SetPlayed(fn func(g *Game) (playtime, lastPlayed int64, ok bool)) []int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var changed []int64
+	for id, g := range s.games {
+		pt, lp, ok := fn(g)
+		if ok && (g.Playtime != pt || g.LastPlayed != lp) {
+			g.Playtime, g.LastPlayed = pt, lp
+			changed = append(changed, id)
+		}
+	}
+	if len(changed) > 0 {
+		s.scheduleSaveLocked()
+	}
+	return changed
+}
+
 // ApplyScan merges a scan into the library. Found games are added or
 // refreshed; games no longer found are kept (with their playtime) but
 // marked not installed. User choices are never overwritten.

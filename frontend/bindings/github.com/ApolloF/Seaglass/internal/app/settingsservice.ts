@@ -96,7 +96,8 @@ export function ReportUIError(message: string): $CancellablePromise<void> {
 }
 
 /**
- * Save stores new settings; library settings trigger a scan.
+ * Save stores new settings; library settings trigger a scan. Settings
+ * that go with the person are shared with their other PCs.
  */
 export function Save(v: settings$0.Settings): $CancellablePromise<settings$0.Settings> {
     return $Call.ByID(3541197710, v);

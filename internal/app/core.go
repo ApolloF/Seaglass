@@ -62,6 +62,10 @@ type Core struct {
 	updates  *updater
 	external *externalWatch
 	ach      *achState
+	profile  *profileState
+	// setMu makes settings changes one at a time (read, change, save), so
+	// settings taken from another PC don't undo one made here.
+	setMu sync.Mutex
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
@@ -97,6 +101,7 @@ func NewCore(version string) (*Core, error) {
 	c.owned = newOwnedState(c)
 	c.updates = newUpdater(c)
 	c.ach = newAchState(c, c.owned.client, c.meta.client)
+	c.profile = newProfileState(c)
 	return c, nil
 }
 
@@ -104,12 +109,14 @@ func NewCore(version string) (*Core, error) {
 // the folders games install into.
 func (c *Core) Start() {
 	if c.Frozen {
+		c.profile = &profileState{c: c, kick: make(chan struct{}, 1)} // a test harness's library: no profile
 		c.external = newExternalWatch(c)
 		c.external.set(c.Settings.Get().NoticeExternal)
 		c.setState(func(s *ScanState) { s.LastScan, s.Games = time.Now().Unix(), len(c.Lib.Games()) })
 		return
 	}
 	go c.scanLoop()
+	c.profile.start()
 	heapDiag("idle")
 	go c.meta.run(c.ctx)
 	go c.owned.loop(c.ctx)
@@ -160,6 +167,11 @@ func (c *Core) Stop() {
 	}
 	if err := c.Lib.Flush(); err != nil {
 		logx.Printf("saving library: %v", err)
+	}
+	if c.profile != nil && c.profile.store != nil {
+		if err := c.profile.store.Flush(); err != nil {
+			logx.Printf("saving profile: %v", err)
+		}
 	}
 }
 

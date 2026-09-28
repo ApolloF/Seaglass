@@ -482,6 +482,16 @@ Steam-style achievements for every game Seaglass can read: a card in the details
 - **Ubisoft achievements**: Uplay emulators (`upc_r2.ini`, `uplay_r*.ini`) and VOICES38 (`voices38.dll`) are detected; their `Goldberg UplayEmu Saves` files are read (see [achievements.md](achievements.md)).
 - **Launch sequence and mode**: sessions carry where they were started (`Session.From`: bigpicture, desktop, or "" for `--play` and games noticed outside Seaglass). Big picture's launch sequence plays only for its own launches (others show it only to ask something or to say a launch failed); after a game the window comes back in the mode it was started from (`?mode=desktop` too, so *start in big picture* applies only to the first window), a `--play` game leaves the interface closed, and the controller coming back after a game no longer counts as connecting one (*open big picture when a controller connects*).
 
+## 26. Syncer accounts and the profile (2026-09-27)
+
+Syncer can give each person their own saves (accounts). Seaglass follows the person playing, and has Syncer sync what goes with them. Details in [syncer-api.md](syncer-api.md).
+
+- **Who's playing**: a launch plays as the account Syncer has on this PC, without asking (read in the saves step). Switched from the sidebar, big picture's quick access or Settings → Saves (`switchAccount` puts their saves in place). Asking before each launch is optional (*Ask who's playing*, off, per PC) for PCs people take turns on.
+- **Profile** (`internal/profile`): playtime, last plays, unlocked achievements and portable settings per person, in `%APPDATA%\Seaglass\Profile\<account>\<pc>.json`. One file per PC and person: PCs never write the same file, totals are sums and unions, settings the newest. Syncer syncs and backs up the folder through a new launcher API method, `launcherData` (Syncer's `ApolloF/LauncherData` branch).
+- **Library** playtime and last play now come from the profile (for the person playing); what this PC had goes into its first file.
+- New settings: *Sync them with Syncer*, *Same settings on every PC* (on), *Ask who's playing* (off).
+- **Audit**: a game's totals add every key it was recorded under (title before a store match, Steam and metadata ids), so a match doesn't hide earlier play; the library is carried over once per install (`profile-seeded.txt`), not again after a PC rename; settings saved here are stamped newer than any seen (clocks ahead elsewhere); settings changes are serialised (`Core.setMu`); switching people waits for a running apply; the shared file is moved aside before it's merged, so it's merged once.
+
 ## To-do (maintainer)
 
 - [x] **Back up the release key** (backed up 2026-09-27; made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).

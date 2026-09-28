@@ -258,9 +258,12 @@ func (s *AccountsService) OpenSteamKeyPage() error {
 
 // SetGOG turns reading GOG Galaxy's library on or off.
 func (s *AccountsService) SetGOG(on bool) (Accounts, error) {
+	s.c.setMu.Lock()
 	v := s.c.Settings.Get()
 	v.OwnedGOG = on
-	if _, err := s.c.Settings.Set(v); err != nil {
+	_, err := s.c.Settings.Set(v)
+	s.c.setMu.Unlock()
+	if err != nil {
 		return s.Get(), err
 	}
 	if on {

@@ -111,6 +111,21 @@ export interface Settings {
     "startSyncer": boolean;
 
     /**
+     * Syncer syncs playtime, achievements and settings between PCs
+     */
+    "syncProfile": boolean;
+
+    /**
+     * take the settings saved last on another PC (see Portable)
+     */
+    "sameSettings": boolean;
+
+    /**
+     * with several Syncer accounts, ask who's playing before a game starts
+     */
+    "askWhoPlays": boolean;
+
+    /**
      * Achievements
      * show achievements (read from stores and emulator files)
      */

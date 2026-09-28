@@ -1,7 +1,7 @@
 import { Events, Window } from "@wailsio/runtime";
-import { AccountsService, AchievementsService, LaunchService, LibraryService, PadService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
+import { AccountsService, AchievementsService, LaunchService, LibraryService, PadService, ProfileService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
 import type { Api } from "./api";
-import type { Accounts, Achievements, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 
 // The generated bindings return the Go structs; their JSON matches ./types.
 const g = (p: Promise<unknown>) => p as Promise<Game>;
@@ -29,6 +29,7 @@ export const realApi: Api = {
 
   settings: () => SettingsService.Get() as Promise<unknown> as Promise<Settings>,
   saveSettings: (s) => SettingsService.Save(s as never) as Promise<unknown> as Promise<Settings>,
+  onSettingsChanged: (cb) => Events.On("settings:changed", (e) => cb(e.data as unknown as Settings)),
   addFolder: () => SettingsService.AddFolder() as Promise<unknown> as Promise<Settings>,
   removeFolder: (p) => SettingsService.RemoveFolder(p) as Promise<unknown> as Promise<Settings>,
   autoFolders: () => SettingsService.AutoFolders().then((f) => f ?? []),
@@ -61,6 +62,12 @@ export const realApi: Api = {
     installSyncer: () => SavesService.InstallSyncer(),
     syncerProject: () => SavesService.SyncerProject(),
     syncer: (start) => SavesService.Syncer(start) as Promise<unknown> as Promise<SyncerStatus>,
+  },
+
+  profile: {
+    get: (fresh = false) => ProfileService.Get(fresh) as Promise<unknown> as Promise<Profile>,
+    switch: (id) => ProfileService.Switch(id) as Promise<unknown> as Promise<Profile>,
+    onChange: (cb) => Events.On("profile:changed", (e) => cb(e.data as unknown as Profile)),
   },
 
   achievements: {

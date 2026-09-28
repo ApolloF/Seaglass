@@ -153,7 +153,7 @@ func (a *achState) get(ctx context.Context, id int64, fresh bool) (achievements.
 	d := a.deps()
 	stamp := achStamp(g, d)
 	if e, ok := a.last(id); ok && !fresh && e.Stamp == stamp && (!e.Net || time.Since(time.Unix(e.List.UpdatedAt, 0)) < netResultAge) {
-		return e.List, nil
+		return a.withUnlocks(g, e.List), nil
 	}
 	d.Offline = a.active()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -169,7 +169,16 @@ func (a *achState) get(ctx context.Context, id int64, fresh bool) (achievements.
 	if err := a.cache.Save(id, e); err != nil {
 		logx.Printf("achievements: saving %d: %v", id, err)
 	}
-	return e.List, nil
+	return a.withUnlocks(g, e.List), nil
+}
+
+// withUnlocks adds what the person playing unlocked on their other PCs.
+// The cache keeps only what this PC's files and stores say.
+func (a *achState) withUnlocks(g library.Game, l achievements.List) achievements.List {
+	if a.c.profile == nil {
+		return l
+	}
+	return a.c.profile.withUnlocks(g, l)
 }
 
 // clear forgets every result (the settings they depend on changed).
@@ -202,6 +211,9 @@ func (a *achState) sessionStarted(sessionID, gameID int64) {
 	go func() {
 		e, ok := a.last(gameID)
 		l := e.List
+		if g, found := a.c.Lib.Get(gameID); ok && found {
+			l = a.withUnlocks(g, l) // as get gives it after the session
+		}
 		if !ok {
 			var err error
 			if l, err = a.get(a.c.ctx, gameID, false); err != nil {
@@ -239,6 +251,9 @@ func (a *achState) afterSession(sessionID, gameID int64, title string, wait time
 	}
 	if fresh := newlyUnlocked(before, after); len(fresh) > 0 {
 		logx.Printf("achievements: %q unlocked %d", title, len(fresh))
+		if g, ok := a.c.Lib.Get(gameID); ok && a.c.profile != nil {
+			a.c.profile.addAchievements(g, fresh)
+		}
 		a.c.emit(EventAchievementsSession, SessionAchievements{GameID: gameID, Title: title, Unlocked: fresh})
 	}
 }
