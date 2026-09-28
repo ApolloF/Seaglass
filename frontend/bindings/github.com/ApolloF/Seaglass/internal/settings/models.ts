@@ -138,7 +138,7 @@ export interface Settings {
 
     /**
      * Updates
-     * check GitHub for new versions and install them on the next start
+     * check GitHub for new versions and install them on the next start or while idle in the tray
      */
     "autoUpdate": boolean;
 

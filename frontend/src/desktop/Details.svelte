@@ -123,6 +123,16 @@
     achOpen = false;
   });
 
+  // A Uplay emulator saves achievements only with Achievements = 1 in its ini.
+  let enablingAch = $state(false);
+  async function enableUplay() {
+    const id = gid;
+    enablingAch = true;
+    const a = await lib.run(() => api.achievements.enableUplay(id));
+    enablingAch = false;
+    if (a && id === gid) ach = a;
+  }
+
   let installingSyncer = $state(false);
   async function installSyncer() {
     installingSyncer = true;
@@ -352,6 +362,11 @@
         <div class="card-head">
           <Icon name="trophy" size={22} stroke={1.8} />
           <span class="grow">Achievements</span>
+          {#if ach?.fix === "uplay-ini"}
+            <button type="button" class="btn small" disabled={enablingAch} title="Sets Achievements = 1 in the emulator's ini (a copy of the old one is kept)" onclick={enableUplay}
+              >{enablingAch ? "Turning on…" : "Turn on"}</button
+            >
+          {/if}
           {#if ach && ach.total > 0}
             <button type="button" class="btn small" onclick={() => (achOpen = true)}>Show all</button>
           {/if}

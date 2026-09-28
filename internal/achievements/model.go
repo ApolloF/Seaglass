@@ -47,9 +47,15 @@ type List struct {
 	Items     []Achievement `json:"items"`
 	UpdatedAt int64         `json:"updatedAt"`
 	Hint      string        `json:"hint,omitempty"` // what's missing, and how to get it
+	// Fix is something Seaglass can do about the hint: FixUplayINI.
+	Fix string `json:"fix,omitempty"`
 	// Partial: time ran out before every icon was stored; read it again later.
 	Partial bool `json:"-"`
 }
+
+// FixUplayINI: Seaglass can turn achievements on in the game's Uplay
+// emulator ini (EnableUplay).
+const FixUplayINI = "uplay-ini"
 
 // Merge combines a schema with unlocks. Unlock IDs match schema IDs
 // ignoring case (CODEX writes them in a different case than Steam). Unlocks

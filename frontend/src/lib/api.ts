@@ -91,6 +91,8 @@ export interface Api {
   achievements: {
     /** A game's achievements; fresh reads them again (else a result from unchanged files is reused). */
     get(id: number, fresh?: boolean): Promise<Achievements>;
+    /** Turns achievements on in a Uplay emulator's ini (fix "uplay-ini") and reads them again. */
+    enableUplay(id: number): Promise<Achievements>;
     /** A play session unlocked achievements (after the game exited). */
     onSession(cb: (s: SessionAchievements) => void): () => void;
   };

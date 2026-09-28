@@ -53,4 +53,9 @@ export interface List {
      * what's missing, and how to get it
      */
     "hint"?: string;
+
+    /**
+     * Fix is something Seaglass can do about the hint: FixUplayINI.
+     */
+    "fix"?: string;
 }

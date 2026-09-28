@@ -145,6 +145,8 @@ export interface Achievements {
   updatedAt: number;
   /** What's missing, and how to get it. */
   hint?: string;
+  /** What Seaglass can do about the hint: "uplay-ini" turns achievements on in a Uplay emulator's ini. */
+  fix?: string;
 }
 
 /** What a play session unlocked (achievements:session). */

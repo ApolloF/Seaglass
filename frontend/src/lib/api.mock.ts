@@ -41,6 +41,7 @@ let games: Game[] = [
   game({ title: "Sable Run", source: "folder", sourceLabel: "Folder", how: "Game folder in D:\\Games (Unity)", matchHow: "Not matched to a known game", confidence: 40, needsReview: true, addedAt: now - 2 * 3600, padMode: "steam", sizeBytes: 3e9 }),
   game({ title: "Lumen Drift", steamAppId: 620, launchUri: "steam://rungameid/620", addedAt: now - day, sizeBytes: 6e9 }),
   game({ title: "Kestrel", source: "steam", installed: false, playtime: 6 * 3600, lastPlayed: now - 400 * day }),
+  game({ title: "Tidebreaker", source: "installer", sourceLabel: "Unofficial · VOICES38", unofficial: true, emulator: "VOICES38", steamAppId: 2840770, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 2 * 3600, lastPlayed: now - 2 * day, sizeBytes: 90e9 }),
   game({ title: "Copper Fields", source: "gog", sourceLabel: "GOG", installed: false, playtime: 21 * 3600, lastPlayed: now - 700 * day }),
 ];
 
@@ -196,6 +197,7 @@ let profile: Profile =
         settingsFrom: "TV-PC",
       };
 const extraUnlocks = new Map<number, number>(); // game id → unlocked in pretend sessions
+const uplayOn = new Set<number>(); // games whose pretend Uplay ini has Achievements = 1
 
 function mockAchievements(g: Game | undefined): Achievements {
   if (!g) return { gameId: 0, source: "", total: 0, unlocked: 0, items: [], updatedAt: now };
@@ -211,6 +213,13 @@ function mockAchievements(g: Game | undefined): Achievements {
       return achList(g, "steam", achItems(18, 18));
     case "Frostline":
       return achList(g, "", [], "Seaglass can't read achievements from the Xbox app yet.");
+    case "Tidebreaker": // Uplay emulator: off in its ini, then on and waiting for a play
+      if (uplayOn.has(g.id))
+        return achList(g, "VOICES38", [], "Achievements are turned on in upc_r2.ini. Play the game and they'll show up here; if it still saves none, this card goes away.");
+      return {
+        ...achList(g, "VOICES38", [], "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1, and VOICES38's own loader may not save them at all."),
+        fix: "uplay-ini",
+      };
   }
   return achList(g, g.source === "steam" ? "steam" : "", achItems(10, 3 + more));
 }
@@ -489,6 +498,11 @@ export const mockApi: Api = {
   achievements: {
     async get(id) {
       await wait(200);
+      return clone(mockAchievements(games.find((g) => g.id === id)));
+    },
+    async enableUplay(id) {
+      await wait(300);
+      uplayOn.add(id);
       return clone(mockAchievements(games.find((g) => g.id === id)));
     },
     onSession(cb) {

@@ -117,9 +117,13 @@ func (a *achState) liveDeps() achievements.Deps {
 
 // stamp sums up what a game's result depends on.
 func achStamp(g library.Game, d achievements.Deps) string {
+	played := "" // a Uplay game's card goes away once it's played with achievements on and saves none
+	if achievements.UplayEmulator(g.Emulator) {
+		played = strconv.FormatInt(g.LastPlayed, 10)
+	}
 	return achievements.Stamp(achievements.Files(g, d),
 		strconv.Itoa(achievements.Version), d.Lang, strconv.FormatBool(d.SteamKey != ""), strconv.FormatBool(d.Epic != nil), strconv.FormatBool(d.GOG != nil), g.Source, g.Emulator, g.EmuDir, g.Dir,
-		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID, strconv.Itoa(d.UplayGames))
+		strconv.Itoa(g.SteamAppID), strconv.Itoa(g.MetaAppID), g.EpicApp, g.GogID, strconv.Itoa(d.UplayGames), played)
 }
 
 // last is the game's last result, from memory or disk.
@@ -307,6 +311,22 @@ func NewAchievementsService(c *Core) *AchievementsService { return &Achievements
 // they came from haven't changed; fresh reads them again.
 func (s *AchievementsService) Get(id int64, fresh bool) (achievements.List, error) {
 	return s.c.ach.get(s.c.ctx, id, fresh)
+}
+
+// EnableUplay turns achievements on for a game on a Uplay emulator
+// (Achievements = 1 in its ini) and reads them again.
+func (s *AchievementsService) EnableUplay(id int64) (achievements.List, error) {
+	g, ok := s.c.Lib.Get(id)
+	if !ok {
+		return achievements.List{}, library.ErrNotFound
+	}
+	p, err := achievements.EnableUplay(g, s.c.ach.deps().Env)
+	if err != nil {
+		logx.Printf("achievements: turning on for %q: %v", g.Title, err)
+		return achievements.List{}, err
+	}
+	logx.Printf("achievements: turned on in %s for %q", p, g.Title)
+	return s.c.ach.get(s.c.ctx, id, true)
 }
 
 // forget drops a session's baseline (its game never ran).
