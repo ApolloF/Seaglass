@@ -115,7 +115,7 @@ type EmuResult struct {
 func Unknown(emulator string) bool { return unknownEmus[emulator] }
 
 // ReadEmu finds the game's unlock file and reads it. Every place is tried;
-// when several have one (an earlier crack's, or the launcher's and the
+// when several have one (an earlier emulator setup's, or the launcher's and the
 // game's), the newest file names the source and what any of them has
 // unlocked counts. Files lists every candidate path looked at, for cache keys.
 func ReadEmu(g EmuGame, env Env) (res EmuResult, files []string, ok bool) {

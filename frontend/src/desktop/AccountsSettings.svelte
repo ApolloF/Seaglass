@@ -88,7 +88,7 @@
           <button type="button" class="btn primary" disabled={!steamKey.trim() || busy === "steam"} onclick={connectSteam}>{busy === "steam" ? "Checking…" : "Connect"}</button>
         </div>
       {/if}
-      <p class="note">The key also gives achievement names and icons to unofficial copies of Steam games that don't bring their own.</p>
+      <p class="note">The key also gives achievement names and icons to external copies of Steam games that don't bring their own.</p>
     </div>
 
     <div class="acct">

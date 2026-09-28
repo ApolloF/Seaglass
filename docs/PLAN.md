@@ -5,14 +5,14 @@ Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxb
 
 ## 1. Goals
 
-- A Windows game launcher that finds games on its own: store installs and unofficial copies (emulated Steam, repacks, GOG rips, plain folders), and adds art and metadata the way Playnite does for Steam games.
+- A Windows game launcher that finds games on its own: store installs and external copies (games installed outside a store launcher: standalone and DRM-free installers, Steam API emulators, plain folders), and adds art and metadata the way Playnite does for Steam games.
 - Two modes: **Desktop** (mouse, layout D) and **Big picture** (controller). Big picture has three layouts, picked in Settings: **Deck (default)**, Console, Orbit.
 - First-class DualSense: native input, glyphs, haptics, lightbar, and the PS button to summon the launcher. Games without DualSense support start through Steam Input automatically. Games that support it start directly.
 - Syncer integration: save status per game, sync before launch, back up after exit, conflicts.
 - Add-ons through hooks, starting with DLSS Updater.
 - Pretty, responsive, secure and light: the interface unloads while you play.
 
-Not in v1: downloading games or cracks (Seaglass only manages what's installed), emulators and ROMs, macOS or Linux, importing from Playnite. Achievements came in v1.6 (section 24, [achievements.md](achievements.md)).
+Not in v1, and not planned: downloading or modifying games, or anything that bypasses copy protection (Seaglass only manages what's installed). Also not in v1: emulators and ROMs, macOS or Linux, importing from Playnite. Achievements came in v1.6 (section 24, [achievements.md](achievements.md)).
 
 ## 2. Decisions
 
@@ -52,7 +52,7 @@ internal/
   library/                   schema, migrations, queries, models
   scan/                      orchestrator, watchers
     sources/                 steam, epic, gog, xbox, ea, ubisoft, battlenet, uninstall, shortcuts, folders
-    unofficial/              emulator and crack signatures -> store IDs
+    external/                Steam API emulator signatures -> store IDs
     exe/                     picking the main exe (ported from DLSS Updater's GameInspector)
   identify/                  ID match, Ludusavi, PCGamingWiki, fuzzy titles, confidence
   meta/                      steamstore, gog, pcgw, steamgriddb, images (fetch, validate, resize, cache, accent colour)
@@ -89,7 +89,7 @@ Data: `%APPDATA%\Seaglass` (`settings.json`, `library.json`, log), `%LOCALAPPDAT
 
 - **Identify:** exact ID first, then the Ludusavi manifest (install folder name to title and AppID, already used by Syncer), then PCGamingWiki, then normalised fuzzy title matching. Each match gets a confidence score. Low-confidence matches wait in *Found on this PC* for a check (setting on by default).
 - **Main exe:** prefer the launcher exe in the game's root folder and known engine patterns; skip uninstallers, redistributables and crash handlers. Signals include version info and icon.
-- **Duplicates:** the same folder or the same store ID merges. A store copy and an unofficial copy can both exist and are labelled.
+- **Duplicates:** the same folder or the same store ID merges. A store copy and an external copy can both exist and are labelled.
 - **Owned but not installed (opt-in, v0.7):**
   - Steam: `IPlayerService/GetOwnedGames` with the user's own Web API key (DPAPI) and the SteamID of the account in use (from `gamekit/steam`).
   - GOG: Galaxy's `galaxy-2.0.db`, read with a small read-only SQLite reader (`internal/sqlite`, WAL included) instead of a ~7 MB SQLite library.
@@ -183,7 +183,7 @@ Each phase ends with a working build, a GitHub prerelease and a check-in.
 
 | # | Version | Scope |
 |---|---|---|
-| 1 | v0.1 | Scaffold (Wails v3, Svelte 5, CI). Steam playtime import (pulled forward from v0.4). Detection code copied into `internal/` for now, split into `gamekit` in phase 5. SQLite schema, scanner (stores, unofficial, folders), Desktop D with real data (grid, filters, details), Settings skeleton, mock backend |
+| 1 | v0.1 | Scaffold (Wails v3, Svelte 5, CI). Steam playtime import (pulled forward from v0.4). Detection code copied into `internal/` for now, split into `gamekit` in phase 5. SQLite schema, scanner (stores, external copies, folders), Desktop D with real data (grid, filters, details), Settings skeleton, mock backend |
 | 2 | v0.2 | Metadata and art (Steam, GOG, SteamGridDB; PCGamingWiki dropped), image pipeline, accent colours, *Found on this PC* review |
 | 3 | v0.3 | Big picture: focus engine, SDL3 controller layer, **Deck** first, then Console, then Orbit; glyphs, haptics, lightbar, on-screen keyboard |
 | 4 | v0.4 | Launch and tracking, hooks pipeline, game mode (with tray), PS-button overlay, Steam Input routing, `--play` (playtime import moved to v0.1) |
@@ -210,7 +210,7 @@ Each phase ends with a working build, a GitHub prerelease and a check-in.
 | Steam also claims the PS button | Setting explained in Controller settings; detect and warn |
 | Overlay over exclusive full-screen games | Recommend borderless windowed; overlay is optional; no injection |
 | Metadata endpoints change | One provider per package, cache, fallback chain |
-| Scope | Only installed games are managed; no download sources or crack tools |
+| Scope | Only installed games are managed; no download sources, and nothing that modifies games or bypasses copy protection |
 
 ## 15. Workflow and releases
 
@@ -456,7 +456,7 @@ WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the li
 
 - The PS button in big picture took the window out of full screen (`Shell.OpenMain` called Wails' `Restore`, which also leaves full screen). It now only un-minimises, and big picture goes back to full screen if it left it.
 - Orbit puts the ten games played in the last 60 days in the middle, then favorites, then the rest (`orbitOrder`).
-- Libraries can be hidden (`settings.hiddenSources`: steam, epic, gog, ea, ubisoft, battlenet, xbox, unofficial, standalone, folder) in desktop Settings → Library and big picture Settings.
+- Libraries can be hidden (`settings.hiddenSources`: steam, epic, gog, ea, ubisoft, battlenet, xbox, external, standalone, folder; `external` was `unofficial` before v1.9) in desktop Settings → Library and big picture Settings.
 - *Install Syncer* / *Update Syncer* downloads Syncer's latest `Syncer-amd64-installer.exe` from its releases, checks it against the SHA-256 GitHub computed on upload (`digest`), and runs it silently (per user). *About Syncer* links to the project.
 - The add-on host and DLSS Updater's add-on moved to the `feature/dlss-addon` branch, with [ideas](https://github.com/ApolloF/Seaglass/blob/feature/dlss-addon/docs/dlss-addon.md) for integrating it better.
 
@@ -469,7 +469,7 @@ WaterLauncher is renamed **Seaglass**, the repository `ApolloF/Seaglass`, the li
 
 Steam-style achievements for every game Seaglass can read: a card in the details (count, progress, the latest unlocks), the full list (unlocked first, rarity, dates, hidden ones masked), a big picture screen, and "N achievements unlocked" after playing. Details in [achievements.md](achievements.md).
 
-- **Sources**: Steam (its local stats cache, else the Web API with the user's key), Epic (GraphQL; progress with the Epic sign-in), GOG (Galaxy's database; names and icons with a new GOG sign-in), and 15 emulator and crack formats for unofficial copies, named by `steam_settings`, Steam's cached schema or the Web API. Rarity from Steam's global stats (no key), Epic and GOG.
+- **Sources**: Steam (its local stats cache, else the Web API with the user's key), Epic (GraphQL; progress with the Epic sign-in), GOG (Galaxy's database; names and icons with a new GOG sign-in), and 15 Steam API emulator formats for external copies, named by `steam_settings`, Steam's cached schema or the Web API. Rarity from Steam's global stats (no key), Epic and GOG.
 - **Scan**: `EmuDir` (where the emulator sits in the game folder) goes from the scan to `library.Game`; new markers for TENOKE (`SteamDataSer_stats.ini`), gbe_fork (`configs.user.ini`) and Razor1911 (`.1911`).
 - **Idle budget kept**: read when details open and once after a session, cached by the files' times; nothing online while a game runs.
 - **Not read yet**: VOICES38, CPY, PLAZA, FLT, Steamworks Fix, Hoodlum and DARKSiDERS (no public description of their files), and EA, Ubisoft, Battle.net and Xbox games.
@@ -478,7 +478,7 @@ Steam-style achievements for every game Seaglass can read: a card in the details
 
 - **Resident Evil 4 (2023) wasn't matched**: Steam sells it as "Resident Evil 4" (the original is "Resident Evil 4 (2005)"), and the store search finds nothing for "Resident Evil 4 Remake". Matching and *Change game…* now also try the title without "Remake" (last, after the edition and aliases), and RE2/RE3/RE4 short names (`RE4R`) are written out. *Change game…* retries a search that found nothing the same way.
 - **Typing in *Change game…*** selected the whole title on every key: the effect that focuses the field also read the query. It now runs once, and results follow the title as it's typed.
-- **RUNE showed one achievement for a finished game**: the INI reader now counts IDs listed in `[SteamAchievements]` (the unlocked ones, in order) and progress at its maximum, and unlocks in older files (another crack's leftovers) still count instead of only the newest file's.
+- **RUNE showed one achievement for a finished game**: the INI reader now counts IDs listed in `[SteamAchievements]` (the unlocked ones, in order) and progress at its maximum, and unlocks in older files (left behind by an earlier emulator setup) still count instead of only the newest file's.
 - **Ubisoft achievements**: Uplay emulators (`upc_r2.ini`, `uplay_r*.ini`) and VOICES38 (`voices38.dll`) are detected; their `Goldberg UplayEmu Saves` files are read (see [achievements.md](achievements.md)).
 - **Launch sequence and mode**: sessions carry where they were started (`Session.From`: bigpicture, desktop, or "" for `--play` and games noticed outside Seaglass). Big picture's launch sequence plays only for its own launches (others show it only to ask something or to say a launch failed); after a game the window comes back in the mode it was started from (`?mode=desktop` too, so *start in big picture* applies only to the first window), a `--play` game leaves the interface closed, and the controller coming back after a game no longer counts as connecting one (*open big picture when a controller connects*).
 
@@ -491,6 +491,13 @@ Syncer can give each person their own saves (accounts). Seaglass follows the per
 - **Library** playtime and last play now come from the profile (for the person playing); what this PC had goes into its first file.
 - New settings: *Sync them with Syncer*, *Same settings on every PC* (on), *Ask who's playing* (off).
 - **Audit**: a game's totals add every key it was recorded under (title before a store match, Steam and metadata ids), so a match doesn't hide earlier play; the library is carried over once per install (`profile-seeded.txt`), not again after a PC rename; settings saved here are stamped newer than any seen (clocks ahead elsewhere); settings changes are serialised (`Core.setMu`); switching people waits for a running apply; the shared file is moved aside before it's merged, so it's merged once.
+
+## 27. External copies (v1.9)
+
+Games from outside a store launcher were called *unofficial copies*; they are now *external copies*, so the wording describes where a game came from rather than suggesting what it is. The README gained an *Intended use* section: Seaglass manages installed games only, and doesn't download, modify or unlock them.
+
+- `Game.unofficial` → `external`, `settings.detectUnofficial` → `detectExternal`, the hidden library `unofficial` → `external`, labels `Unofficial · X` → `External · X`, `internal/scan/unofficial.go` → `emulation.go`.
+- Older files keep working: settings read `detectUnofficial` when `detectExternal` is missing (also from another PC's older Seaglass through the profile) and turn a hidden `unofficial` into `external`; libraries saved before (file version 1) carry the flag and label over, and are saved as version 2.
 
 ## To-do (maintainer)
 

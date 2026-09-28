@@ -16,10 +16,10 @@ import (
 
 // Options control a scan.
 type Options struct {
-	Folders          []string // watched folders from Settings
-	AutoFolders      bool     // also look in common game folders on every drive
-	DetectUnofficial bool     // look for Steam emulators and cracks in game folders
-	Signed           func(path string) bool
+	Folders        []string // watched folders from Settings
+	AutoFolders    bool     // also look in common game folders on every drive
+	DetectExternal bool     // look for Steam API emulators in game folders
+	Signed         func(path string) bool
 }
 
 // Result is one scan's outcome.
@@ -113,7 +113,7 @@ func Run(ctx context.Context, o Options) Result {
 // enrich fills in what the source didn't know: emulator, AppID, GOG
 // details, the shortcut's launch target and a fallback executable.
 func enrich(c *Candidate, scs []shortcut, o Options) {
-	if o.DetectUnofficial && c.Source != Xbox {
+	if o.DetectExternal && c.Source != Xbox {
 		em := detectEmulationCached(c.Dir, o.Signed)
 		c.Emulator, c.EmuMarker, c.EmuDir, c.PadHint = em.Emulator, em.Marker, em.EmuDir, em.PadHint
 		if em.AppID > 0 && c.SteamAppID == 0 {

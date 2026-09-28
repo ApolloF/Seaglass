@@ -21,10 +21,10 @@ export interface Game {
     "source": string;
 
     /**
-     * "Steam", "Unofficial · RUNE", "Repack · DODI", …
+     * "Steam", "External · RUNE", "Repack · DODI", …
      */
     "sourceLabel": string;
-    "unofficial": boolean;
+    "external": boolean;
     "emulator"?: string;
 
     /**

@@ -1,6 +1,6 @@
 # Achievements
 
-Seaglass shows each game's achievements: icons, locked or unlocked, when, progress and how rare they are. Official installs are read from the store's own files or servers; unofficial copies from the unlock files their Steam emulator writes. The code is `internal/achievements` (reading and merging), `internal/owned` (store servers) and `internal/app/achievements.go` (the service, the cache and the note after playing).
+Seaglass shows each game's achievements: icons, locked or unlocked, when, progress and how rare they are. Official installs are read from the store's own files or servers; external copies from the unlock files their Steam API emulator writes. The code is `internal/achievements` (reading and merging), `internal/owned` (store servers) and `internal/app/achievements.go` (the service, the cache and the note after playing).
 
 ## How it works
 
@@ -29,7 +29,7 @@ Unlock IDs match schema IDs ignoring case (CODEX writes them in a different case
 
 | Game | Schema | Unlocks |
 |---|---|---|
-| Unofficial copy, or found in a folder or installer (not GOG) | `steam_settings\achievements.json` next to the emulator, else Steam's cached schema, else Steam's Web API with your key | the emulator's unlock file (below) |
+| External copy, or found in a folder or installer (not GOG) | `steam_settings\achievements.json` next to the emulator, else Steam's cached schema, else Steam's Web API with your key | the emulator's unlock file (below) |
 | Steam | Steam's cached schema, else the Web API (key) | Steam's cached stats, else `GetPlayerAchievements` (key, public game details) |
 | Epic | Epic's store (anonymous) | Epic, when signed in to Epic in Settings |
 | GOG, or a DRM-free GOG copy | GOG's servers, when signed in to GOG in Settings | GOG Galaxy's database, else GOG's servers |
@@ -47,7 +47,7 @@ These files use binary KeyValues types 0x00–0x08 only as far as is known (Stea
 
 ## Emulator unlock files
 
-`{roaming}` is `%APPDATA%`, `{local}` `%LOCALAPPDATA%`, `{public}` `%PUBLIC%`, `{programdata}` `%ProgramData%`, `{documents}` the user's Documents; `{emu}` is the folder the emulator sits in (`Game.EmuDir`, relative to the game folder), `{appid}` the Steam app. When several places have a file (an old crack's leftovers), the newest names the source and anything unlocked in any of them counts. Every file is capped at 4 MB and treated as untrusted; each format has a fuzz test.
+`{roaming}` is `%APPDATA%`, `{local}` `%LOCALAPPDATA%`, `{public}` `%PUBLIC%`, `{programdata}` `%ProgramData%`, `{documents}` the user's Documents; `{emu}` is the folder the emulator sits in (`Game.EmuDir`, relative to the game folder), `{appid}` the Steam app. When several places have a file (left behind by an earlier emulator setup), the newest names the source and anything unlocked in any of them counts. Every file is capped at 4 MB and treated as untrusted; each format has a fuzz test.
 
 | Group | Where | Format |
 |---|---|---|
@@ -78,7 +78,7 @@ VOICES38's own loader seems to write no achievements at all (the open Goldberg R
 
 All through `internal/owned`: allowlisted hosts, HTTPS, response size limits, and errors that never carry the key.
 
-- **Steam**: `ISteamUserStats/GetSchemaForGame/v2` (key, `l=` language) and `GetPlayerAchievements/v1` (key, the account in use) with the Steam Web API key from Settings → Accounts; `GetGlobalAchievementPercentagesForApp/v2` without one. The key also gives unofficial copies names and icons.
+- **Steam**: `ISteamUserStats/GetSchemaForGame/v2` (key, `l=` language) and `GetPlayerAchievements/v1` (key, the account in use) with the Steam Web API key from Settings → Accounts; `GetGlobalAchievementPercentagesForApp/v2` without one. The key also gives external copies names and icons.
 - **Epic**: GraphQL at `launcher.store.epicgames.com/graphql`. `productAchievementsRecordBySandbox(sandboxId, locale)` needs no sign-in (the sandbox is the namespace in `Game.EpicApp`); `playerAchievementGameRecordsBySandbox(epicAccountId, sandboxId)` uses the Epic sign-in. One access token is shared with the owned-games sync, refreshed one at a time, the newest refresh token kept.
 - **GOG**: unlocks from GOG Galaxy's database (`UserAchievements`: `gameReleaseKey = gog_<id>`, `apikey`, `unlockTime`, `isUnlocked`; read-only, WAL included). Names, icons and rarity from `gameplay.gog.com/clients/<clientId>/users/<userId>/achievements` with a GOG sign-in (Settings → Accounts, paste-the-address like Epic's; the `gog-account` secret keeps the refresh token). The client id comes from `goggame-<id>.info`; the product id is tried when that finds nothing. Galaxy's own sign-in is never used: refreshing its token could sign Galaxy out.
 

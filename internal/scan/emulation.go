@@ -12,7 +12,7 @@ import (
 	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
-// emuFiles are files Steam emulators and cracks drop next to the game,
+// emuFiles are files Steam API emulators drop next to the game,
 // mapped to the name Seaglass shows.
 var emuFiles = map[string]string{
 	"steam_emu.ini":           "", // CODEX, RUNE and relatives; the group is worked out below
@@ -49,12 +49,12 @@ var emuFiles = map[string]string{
 const UplayEmu = "Uplay emulator"
 
 // unlockers wrap the real steam_api DLL (CreamAPI, SmokeAPI): the game
-// still runs through Steam, so they don't make a copy unofficial.
+// still runs through Steam, so they don't make a copy external.
 var unlockers = map[string]bool{"cream_api.ini": true, "smokeapi.json": true, "smokeapi.config.json": true, "steam_api_o.dll": true, "steam_api64_o.dll": true}
 
 var reAppID = regexp.MustCompile(`(?im)^\s*(?:appid|realappid|app_id)\s*=\s*(\d{1,10})\s*$`)
 
-// Emulation is what unofficial-copy detection found in a game folder.
+// Emulation is what external-copy detection found in a game folder.
 type Emulation struct {
 	Emulator  string // "RUNE", "Goldberg", …; "" when the copy looks official
 	Marker    string // the file that gave it away
@@ -68,7 +68,7 @@ type Emulation struct {
 	EmuDir string
 }
 
-// DetectEmulation looks through a game folder for Steam emulators, cracks
+// DetectEmulation looks through a game folder for Steam API emulators
 // and GOG game info files. signed reports whether a DLL carries a valid
 // signature; nil skips that check.
 func DetectEmulation(dir string, signed func(string) bool) Emulation {

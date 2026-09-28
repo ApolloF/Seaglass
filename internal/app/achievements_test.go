@@ -21,7 +21,7 @@ func achTestCore(t *testing.T) (*Core, int64, string) {
 		t.Fatal(err)
 	}
 	game := filepath.Join(root, "Game")
-	lib.ApplyScan([]library.Found{{Key: `c:\game`, Title: "Game", Source: "folder", Dir: game, Emulator: "Goldberg", Unofficial: true, SteamAppID: 620}}, time.Now())
+	lib.ApplyScan([]library.Found{{Key: `c:\game`, Title: "Game", Source: "folder", Dir: game, Emulator: "Goldberg", External: true, SteamAppID: 620}}, time.Now())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	c := &Core{Lib: lib, Settings: settings.Open(filepath.Join(root, "settings.json")), ctx: ctx}
