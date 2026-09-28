@@ -38,7 +38,7 @@ func TestResolveUplayTurnOn(t *testing.T) {
 		"bare/uplay_r1_loader64.dll": "x",
 	})
 	d := testDeps(t, root, nil)
-	g := library.Game{ID: 1, Source: "installer", Unofficial: true, Emulator: "VOICES38", EmuDir: ".", Dir: filepath.Join(root, "game"), LastPlayed: time.Now().Add(-time.Hour).Unix()}
+	g := library.Game{ID: 1, Source: "installer", External: true, Emulator: "VOICES38", EmuDir: ".", Dir: filepath.Join(root, "game"), LastPlayed: time.Now().Add(-time.Hour).Unix()}
 	l, _ := Resolve(context.Background(), g, d)
 	if l.Source != "VOICES38" || l.Fix != FixUplayINI || !strings.Contains(l.Hint, "Achievements = 1") {
 		t.Fatalf("off: %+v", l)
@@ -80,7 +80,7 @@ func TestResolveUplayTurnOn(t *testing.T) {
 
 	// No ini yet: one named after the loader is made.
 	d.UplayGames = 2
-	bare := library.Game{ID: 2, Source: "installer", Unofficial: true, Emulator: "Uplay emulator", EmuDir: ".", Dir: filepath.Join(root, "bare")}
+	bare := library.Game{ID: 2, Source: "installer", External: true, Emulator: "Uplay emulator", EmuDir: ".", Dir: filepath.Join(root, "bare")}
 	if l, _ = Resolve(context.Background(), bare, d); l.Fix != FixUplayINI {
 		t.Fatalf("bare: %+v", l)
 	}
@@ -95,7 +95,7 @@ func TestResolveUplayTurnOn(t *testing.T) {
 	}
 
 	// Nothing to change: no fix offered, and EnableUplay says why.
-	none := library.Game{ID: 3, Source: "installer", Unofficial: true, Emulator: "VOICES38", EmuDir: ".", Dir: filepath.Join(root, "none")}
+	none := library.Game{ID: 3, Source: "installer", External: true, Emulator: "VOICES38", EmuDir: ".", Dir: filepath.Join(root, "none")}
 	_ = os.MkdirAll(none.Dir, 0o755)
 	if l, _ = Resolve(context.Background(), none, d); l.Fix != "" {
 		t.Errorf("none: %+v", l)
