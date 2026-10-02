@@ -29,21 +29,45 @@ export function backupAppData() {
   if (isRunning()) throw new Error("Seaglass is already running: close it (or the other harness run) first");
   if (fs.existsSync(MARK)) {
     console.log("an earlier run left a backup: restoring it first");
-    restoreAppData();
+    restoreAppData({ keep: true });
   }
   fs.rmSync(BACKUP, { recursive: true, force: true });
-  if (fs.existsSync(DATA)) fs.cpSync(DATA, BACKUP, { recursive: true });
-  fs.writeFileSync(MARK, JSON.stringify({ from: DATA, at: new Date().toISOString(), existed: fs.existsSync(DATA) }));
+  const existed = fs.existsSync(DATA);
+  if (existed) fs.cpSync(DATA, BACKUP, { recursive: true });
+  fs.writeFileSync(MARK, JSON.stringify({ from: DATA, at: new Date().toISOString(), existed, files: existed ? countFiles(BACKUP) : 0 }));
 }
 
-/** Puts %APPDATA%\Seaglass back exactly as it was. */
-export function restoreAppData() {
+/** Puts %APPDATA%\Seaglass back as it was. The backup lives in Temp,
+ * which Windows may have cleaned since: when it's gone or has fewer files
+ * than were copied, the real data stays as it is. What a run left in its
+ * place is moved aside, not deleted, until the backup is back; with keep
+ * (a backup an earlier run left, perhaps long ago) it stays aside, since
+ * Seaglass may have saved newer data there since. */
+export function restoreAppData({ keep = false } = {}) {
   if (!fs.existsSync(MARK)) return;
   const m = JSON.parse(fs.readFileSync(MARK, "utf8"));
-  fs.rmSync(DATA, { recursive: true, force: true });
-  if (m.existed) fs.cpSync(BACKUP, DATA, { recursive: true });
+  if (m.existed && !(typeof m.files === "number" && fs.existsSync(BACKUP) && countFiles(BACKUP) >= m.files)) {
+    fs.renameSync(MARK, `${MARK}.broken`);
+    console.error(`the backup of ${DATA} in ${BACKUP} is gone or incomplete: left ${DATA} as it is`);
+    return;
+  }
+  const aside = `${DATA}.harness-${Date.now()}`;
+  if (fs.existsSync(DATA)) fs.renameSync(DATA, aside);
+  try {
+    if (m.existed) fs.cpSync(BACKUP, DATA, { recursive: true });
+  } catch (e) {
+    fs.rmSync(DATA, { recursive: true, force: true });
+    if (fs.existsSync(aside)) fs.renameSync(aside, DATA);
+    throw e;
+  }
+  if (keep && fs.existsSync(aside)) console.log(`kept what was in ${DATA} in ${aside}`);
+  else fs.rmSync(aside, { recursive: true, force: true });
   fs.rmSync(MARK);
   console.log("restored", DATA);
+}
+
+function countFiles(dir) {
+  return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).length;
 }
 
 /** The real library (from the backup), for its art. */

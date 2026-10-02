@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
@@ -16,8 +17,14 @@ const maxSize = 1 << 20 // rotate at 1 MiB
 
 var mu sync.Mutex
 
-// Path of the current log file.
-func Path() string { return filepath.Join(platform.AppDir(), "seaglass.log") }
+// Path of the current log file. Tests log to a file in Temp: their made-up
+// people and games don't belong in the real log.
+func Path() string {
+	if testing.Testing() && !platform.AppDirOverridden() {
+		return filepath.Join(os.TempDir(), "seaglass-test.log")
+	}
+	return filepath.Join(platform.AppDir(), "seaglass.log")
+}
 
 // Printf appends a timestamped line to the log.
 func Printf(format string, args ...any) {
