@@ -153,3 +153,30 @@ func TestSharedMergedOnce(t *testing.T) {
 		t.Errorf("playtime %d, want 60", got)
 	}
 }
+
+// Syncer brings back a launcher's data folder that was emptied: a file this
+// PC wrote again since is kept, and the backup's older copy goes next to it
+// as <pc>.restored-<time>.json. Both count, so nothing is lost or doubled.
+func TestRestoredCopyOfThisPCsFileCounts(t *testing.T) {
+	dir := t.TempDir()
+	old := &File{Version: fileVersion, PC: "desk", Games: map[string]*Game{
+		"steam:1": {Playtime: 7200, LastPlayed: 50, Achievements: map[string]int64{"WIN": 40}},
+	}}
+	b, _ := json.Marshal(old)
+	if err := os.MkdirAll(filepath.Join(dir, "anna"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "anna", "desk.restored-20261002-155700.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := open(t, dir, "desk")
+	if _, err := s.SetOwner("anna"); err != nil {
+		t.Fatal(err)
+	}
+	s.AddPlaytime("steam:1", "Game", 130)
+	s.Played("steam:1", "Game", 90)
+	g := s.Merged().Games["steam:1"]
+	if g.Playtime != 7330 || g.LastPlayed != 90 || g.Achievements["WIN"] != 40 {
+		t.Fatalf("totals: %+v", g)
+	}
+}
