@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/ApolloF/Seaglass/internal/logx"
 )
 
 // Actions sent to the interface.
@@ -136,14 +138,19 @@ type Manager struct {
 	onAction func(action string, repeat bool)
 	onState  func(State)
 
-	cmds   chan func(*sdl)
-	modeCh chan Mode
+	cmds chan func(*sdl)
+	// modeCh says the wanted mode changed; the SDL thread reads it from
+	// mode itself, so two quick switches can't arrive in the wrong order.
+	modeCh chan struct{}
 	quit   chan struct{}
 	done   chan struct{}
 
 	mu    sync.Mutex
 	state State
-	mode  Mode
+	mode  Mode // wanted
+	// The mode SDL is in, and whether it started; for diagnostics.
+	inMode  Mode
+	started bool
 
 	// The virtual controller (dev flag --virtual-pad), made again whenever
 	// SDL starts over.
@@ -165,7 +172,7 @@ type Manager struct {
 // controller changes. Both are called from the SDL thread.
 func Start(onAction func(string, bool), onState func(State)) *Manager {
 	m := &Manager{onAction: onAction, onState: onState, cmds: make(chan func(*sdl), 16),
-		modeCh: make(chan Mode, 1), quit: make(chan struct{}), done: make(chan struct{})}
+		modeCh: make(chan struct{}, 1), quit: make(chan struct{}), done: make(chan struct{})}
 	m.state.Battery = -1
 	go m.loop()
 	return m
@@ -230,6 +237,16 @@ const (
 	Off
 )
 
+func (m Mode) String() string {
+	switch m {
+	case Active:
+		return "active"
+	case Passive:
+		return "passive"
+	}
+	return "off"
+}
+
 // SetMode switches the controller layer's mode.
 func (m *Manager) SetMode(mode Mode) {
 	m.mu.Lock()
@@ -240,12 +257,8 @@ func (m *Manager) SetMode(mode Mode) {
 	m.mode = mode
 	m.mu.Unlock()
 	select {
-	case <-m.modeCh: // a switch nobody has acted on yet is replaced
-	default:
-	}
-	select {
-	case m.modeCh <- mode:
-	case <-m.quit:
+	case m.modeCh <- struct{}{}:
+	default: // a signal is pending already; it reads the newest mode
 	}
 }
 
@@ -255,6 +268,17 @@ func (m *Manager) Mode() Mode {
 	defer m.mu.Unlock()
 	return m.mode
 }
+
+// InMode returns the mode the SDL thread last brought SDL to, and whether
+// SDL is running (false when that mode is Off or SDL didn't start).
+func (m *Manager) InMode() (Mode, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.inMode, m.started
+}
+
+// retryStart is how long after SDL failed to start it is tried again.
+const retryStart = 10 * time.Second
 
 // start sets SDL's hints and initialises its gamepad layer.
 func (m *Manager) start(s *sdl, passive bool) error {
@@ -367,18 +391,27 @@ func (m *Manager) loop() {
 	defer runtime.UnlockOSThread()
 	defer close(m.done)
 
-	s, err := loadSDL()
-	if err != nil {
-		m.setState(func(st *State) { st.Error = "controller support unavailable: " + err.Error() })
-		<-m.quit
-		return
+	// Loading can fail for a while (a virus scanner holding the file just
+	// written); it's tried again rather than leaving controllers dead
+	// until Seaglass restarts.
+	var s *sdl
+	for s == nil {
+		var err error
+		if s, err = loadSDL(); err != nil {
+			m.padErr = "controller support unavailable: " + err.Error()
+			m.refreshState(nil)
+			select {
+			case <-m.quit:
+				return
+			case <-time.After(retryStart):
+			}
+		}
 	}
-	if err := m.start(s, false); err != nil {
-		m.setState(func(st *State) { st.Error = "controller support unavailable: " + err.Error() })
-		<-m.quit
-		return
-	}
-	off, passive := false, false
+	// off: SDL isn't running (the mode is Off, or it didn't start).
+	// applied is the mode SDL was last brought to; failed, that it
+	// didn't start then and is tried again.
+	off, passive := true, false
+	applied, failed := Off, false
 	defer func() {
 		if !off {
 			s.quit.Call()
@@ -402,6 +435,7 @@ func (m *Manager) loop() {
 	// D-pad buttons (the others send both).
 	dpadButtons := map[uint32]bool{}
 	hats := map[uint32]uint8{}
+	// Every 30 s: the battery, and another try when SDL didn't start.
 	battery := time.NewTicker(30 * time.Second)
 	defer battery.Stop()
 	// SDL is polled; how often depends on what could happen. Without a
@@ -433,6 +467,43 @@ func (m *Manager) loop() {
 			tick.Reset(every)
 		}
 	}
+	// apply brings SDL to the wanted mode. SDL starts over for every
+	// change, since the HIDAPI hint differs between the modes.
+	apply := func() {
+		want := m.Mode()
+		if want == applied && !failed {
+			return
+		}
+		if !off {
+			m.closeAll(s)
+			s.quit.Call()
+		}
+		clear(held)
+		clear(axes)
+		rawButtons = 0
+		clear(dpadButtons)
+		clear(hats)
+		m.pulses = nil
+		off, passive, applied, failed = true, want == Passive, want, false
+		m.padErr = ""
+		if want != Off {
+			if err := m.start(s, want == Passive); err != nil {
+				m.padErr = "controller support unavailable: " + err.Error()
+				failed = true
+			} else {
+				off = false
+				if err := m.attachVirtual(s); err != nil {
+					m.padErr = err.Error()
+				}
+			}
+		}
+		m.mu.Lock()
+		m.inMode, m.started = want, !off
+		m.mu.Unlock()
+		m.refreshState(s)
+		retune()
+	}
+	apply()
 
 	press := func(key, a string) {
 		if a == "" {
@@ -501,32 +572,15 @@ func (m *Manager) loop() {
 			fn(s)
 			retune()
 			continue
-		case mode := <-m.modeCh:
-			if !off {
-				m.closeAll(s)
-				s.quit.Call()
-			}
-			clear(held)
-			clear(axes)
-			rawButtons = 0
-			clear(dpadButtons)
-			clear(hats)
-			m.pulses = nil
-			off, passive = mode == Off, mode == Passive
-			m.padErr = ""
-			if !off {
-				if err := m.start(s, mode == Passive); err != nil {
-					m.padErr = "controller support unavailable: " + err.Error()
-					off = true // SDL isn't running: nothing to poll or quit
-				} else if err := m.attachVirtual(s); err != nil {
-					m.padErr = err.Error()
-				}
-			}
-			m.refreshState(s)
-			retune()
+		case <-m.modeCh:
+			apply()
 			continue
 		case <-battery.C:
-			m.refreshState(s)
+			if failed {
+				apply()
+			} else {
+				m.refreshState(s)
+			}
 			continue
 		case <-tick.C:
 		}
@@ -657,6 +711,10 @@ func (m *Manager) loop() {
 func (m *Manager) open(s *sdl, id uint32) {
 	r, _, _ := s.openGamepad.Call(uintptr(id))
 	if r == 0 {
+		// Usually another program holds the controller for itself
+		// (HidHide, DS4Windows, DSX): say so, or it just never shows up.
+		n, _, _ := s.gamepadNameForID.Call(uintptr(id))
+		logx.Printf("controller: couldn't open %q: %s", gostr(n), s.errorText())
 		return
 	}
 	name, _, _ := s.gamepadName.Call(r)
@@ -743,12 +801,14 @@ func (m *Manager) refreshState(s *sdl) {
 	})
 }
 
+// setState changes the state and tells onState when it changed.
 func (m *Manager) setState(fn func(*State)) {
 	m.mu.Lock()
+	before := m.state
 	fn(&m.state)
 	st := m.state
 	m.mu.Unlock()
-	if m.onState != nil {
+	if st != before && m.onState != nil {
 		m.onState(st)
 	}
 }

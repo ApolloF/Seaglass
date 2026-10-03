@@ -1,6 +1,7 @@
 package pad
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -36,5 +37,35 @@ func TestSetLightValidates(t *testing.T) {
 	}
 	if err := m.SetLight("#3ea8eb"); err != nil {
 		t.Error(err)
+	}
+}
+
+// Switches from several goroutines at once (a game ending while the next
+// one starts) leave SDL in the mode asked for last, never an older one.
+func TestQuickModeSwitchesEndInTheLastMode(t *testing.T) {
+	m := Start(func(string, bool) {}, func(State) {})
+	defer m.Stop()
+	for _, last := range []Mode{Passive, Active, Off, Active} {
+		var wg sync.WaitGroup
+		for i := range 20 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				m.SetMode(Mode(i % 3))
+			}()
+		}
+		wg.Wait()
+		m.SetMode(last)
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			in, running := m.InMode()
+			if in == last && running == (last != Off) {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("asked for %s last, SDL is in %s (running %v)", last, in, running)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 	}
 }

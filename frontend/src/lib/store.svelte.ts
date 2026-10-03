@@ -39,6 +39,19 @@ const WEEK = 7 * 86400;
 export const isFresh = (g: Game) => !g.initial && !lastPlayed(g) && !played(g) && Date.now() / 1000 - g.addedAt < WEEK;
 
 const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "");
+// One collator for every sort: localeCompare builds one per call.
+const collator = new Intl.Collator();
+// What the search box matches, worked out once per game object (an
+// updated game is a new object, so it's worked out again).
+const searchTexts = new WeakMap<Game, string>();
+function searchText(g: Game): string {
+  let t = searchTexts.get(g);
+  if (t === undefined) {
+    t = norm(title(g)) + "|" + norm(g.sourceLabel);
+    searchTexts.set(g, t);
+  }
+  return t;
+}
 
 class LibraryStore {
   games = $state<Game[]>([]);
@@ -72,7 +85,9 @@ class LibraryStore {
     );
   });
 
-  visible = $derived.by(() => {
+  /** The filtered, sorted list, apart from the search text: typing in
+   * the search box only filters it, it doesn't sort everything again. */
+  private sorted = $derived.by(() => {
     const f = this.filter;
     let list: Game[];
     if (f.kind === "hidden") list = this.games.filter((g) => g.hidden);
@@ -98,10 +113,8 @@ class LibraryStore {
         }
       });
     }
-    const q = norm(this.query);
-    if (q) list = list.filter((g) => norm(title(g)).includes(q) || norm(g.sourceLabel).includes(q));
     const sort = f.kind === "recent" ? "recent" : this.sort;
-    const byTitle = (a: Game, b: Game) => a.sortTitle.localeCompare(b.sortTitle);
+    const byTitle = (a: Game, b: Game) => collator.compare(a.sortTitle, b.sortTitle);
     return [...list].sort((a, b) => {
       switch (sort) {
         case "recent":
@@ -114,6 +127,11 @@ class LibraryStore {
           return byTitle(a, b);
       }
     });
+  });
+
+  visible = $derived.by(() => {
+    const q = norm(this.query);
+    return q ? this.sorted.filter((g) => searchText(g).includes(q)) : this.sorted;
   });
 
   selected = $derived.by(() => {
@@ -269,10 +287,19 @@ class LibraryStore {
     return !!p;
   }
 
+  private settingsSeq = 0;
+  /** Saves the settings. They change here at once, so a second change
+   * made before the first is saved builds on it instead of undoing it;
+   * only the newest save's answer is kept. */
   async saveSettings(next: Settings) {
+    const seq = ++this.settingsSeq;
+    const before = this.settings;
+    this.settings = next;
     try {
-      this.settings = await api.saveSettings($state.snapshot(next) as Settings);
+      const saved = await api.saveSettings($state.snapshot(next) as Settings);
+      if (seq === this.settingsSeq) this.settings = saved;
     } catch (e) {
+      if (seq === this.settingsSeq) this.settings = before;
       this.toast(errText(e), "error");
     }
   }

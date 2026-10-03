@@ -42,9 +42,18 @@ func ProcessImage(pid uint32) (path string, started uint64, err error) {
 		return "", 0, err
 	}
 	defer windows.CloseHandle(h)
-	buf := make([]uint16, windows.MAX_LONG_PATH)
-	n := uint32(len(buf))
-	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
+	// Most paths fit in MAX_PATH; a long path asks again with room for
+	// the longest, rather than every lookup taking 64 KB.
+	var buf []uint16
+	var n uint32
+	for _, size := range []int{windows.MAX_PATH + 1, windows.MAX_LONG_PATH} {
+		buf = make([]uint16, size)
+		n = uint32(len(buf))
+		if err = windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != windows.ERROR_INSUFFICIENT_BUFFER {
+			break
+		}
+	}
+	if err != nil {
 		return "", 0, err
 	}
 	var c, x, k, u windows.Filetime

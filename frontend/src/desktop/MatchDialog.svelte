@@ -59,7 +59,7 @@
 </script>
 
 <div class="scrim" role="presentation" onclick={(e) => e.target === e.currentTarget && onclose()}>
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Change game" tabindex="-1" onkeydown={(e) => e.key === "Escape" && onclose()}>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="Change game" tabindex="-1" onkeydown={(e) => e.key === "Escape" && (e.preventDefault(), onclose())}>
     <div class="head">
       <h2>Which game is this?</h2>
       <button type="button" class="close" aria-label="Close" onclick={onclose}><Icon name="close" size={18} stroke={2.2} /></button>

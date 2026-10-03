@@ -31,6 +31,7 @@ type sdl struct {
 	openGamepad            *windows.Proc
 	closeGamepad           *windows.Proc
 	gamepadName            *windows.Proc
+	gamepadNameForID       *windows.Proc
 	gamepadType            *windows.Proc
 	rumbleGamepad          *windows.Proc
 	setGamepadLED          *windows.Proc
@@ -76,7 +77,7 @@ func loadSDL() (*sdl, error) {
 	}{
 		{"SDL_Init", &s.init}, {"SDL_Quit", &s.quit}, {"SDL_SetHint", &s.setHint}, {"SDL_GetError", &s.getError},
 		{"SDL_PollEvent", &s.pollEvent}, {"SDL_OpenGamepad", &s.openGamepad}, {"SDL_CloseGamepad", &s.closeGamepad},
-		{"SDL_GetGamepadName", &s.gamepadName}, {"SDL_GetGamepadType", &s.gamepadType},
+		{"SDL_GetGamepadName", &s.gamepadName}, {"SDL_GetGamepadNameForID", &s.gamepadNameForID}, {"SDL_GetGamepadType", &s.gamepadType},
 		{"SDL_RumbleGamepad", &s.rumbleGamepad}, {"SDL_SetGamepadLED", &s.setGamepadLED},
 		{"SDL_GetGamepadPowerInfo", &s.gamepadPowerInfo}, {"SDL_GetGamepadConnectionState", &s.gamepadConnectionState},
 	} {

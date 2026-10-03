@@ -30,7 +30,12 @@ type procInfo struct {
 	started uint64
 	game    bool
 	helper  bool // a crash handler: never counts as the game
+	misses  int  // failed lookups of its exe so far
 }
+
+// lookupTries is how many polls a process's exe is looked up for: a
+// process that has only just started can't always be read yet.
+const lookupTries = 5
 
 // tracker finds the processes that belong to a running game: the process
 // Seaglass started, everything it starts in turn, and anything
@@ -72,10 +77,13 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 		// A known id that now lists another exe was handed out again
 		// between polls: look it up afresh.
 		k := t.known[p.PID]
-		if k != nil && (k.path == "" || strings.EqualFold(p.Name, filepath.Base(k.path))) {
+		if k != nil && (k.path == "" && k.misses >= lookupTries || k.path != "" && strings.EqualFold(p.Name, filepath.Base(k.path))) {
 			continue
 		}
 		info := &procInfo{}
+		if k != nil && k.path == "" {
+			info.misses, info.game = k.misses, k.game // in the tree already: stays in
+		}
 		if path, started, err := t.image(p.PID); err == nil {
 			if k != nil && k.started == started {
 				continue // the same process after all: keep what's known
@@ -95,6 +103,8 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 					break
 				}
 			}
+		} else {
+			info.misses++
 		}
 		t.known[p.PID] = info
 	}

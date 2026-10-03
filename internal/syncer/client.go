@@ -326,7 +326,11 @@ func (c *Client) Call(ctx context.Context, method string, params, out any) error
 	b, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
 	if err == nil {
 		_ = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		_, err = c.conn.Write(append(b, '\n'))
+		if _, err = c.conn.Write(append(b, '\n')); err != nil {
+			// Part of the line may be on the pipe, which would garble
+			// every call after it: start over on a new connection.
+			_ = c.conn.Close()
+		}
 	}
 	if err != nil {
 		delete(c.pending, id)

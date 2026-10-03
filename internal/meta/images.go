@@ -157,12 +157,25 @@ func encodeAndStore(dir string, img image.Image, kind Kind) (string, error) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return "", err
 		}
-		tmp := p + ".tmp"
-		if err := os.WriteFile(tmp, out.Bytes(), 0o644); err != nil {
+		// A temporary file of its own: the same picture can be fetched
+		// twice at once, and both land on the same name.
+		f, err := os.CreateTemp(dir, name+".*.tmp")
+		if err != nil {
 			return "", err
 		}
-		if err := os.Rename(tmp, p); err != nil {
-			return "", err
+		tmp := f.Name()
+		_, err = f.Write(out.Bytes())
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err == nil {
+			err = os.Rename(tmp, p)
+		}
+		if err != nil {
+			_ = os.Remove(tmp)
+			if _, serr := os.Stat(p); serr != nil {
+				return "", err
+			}
 		}
 	}
 	return name, nil

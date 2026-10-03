@@ -180,7 +180,8 @@ func readIndex(p string) ([]Entry, error) {
 		return nil, err
 	}
 	var es []Entry
-	return es, gob.NewDecoder(zr).Decode(&es)
+	err = gob.NewDecoder(zr).Decode(&es)
+	return es, err
 }
 
 func writeIndex(p string, es []Entry) error {

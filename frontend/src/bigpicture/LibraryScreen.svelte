@@ -43,10 +43,10 @@
     { id: "new", label: "New" },
     ...lib.collections.map((c) => ({ id: `c:${c.name}`, label: c.name })),
   ]);
-  let tab = $state(0);
-  $effect(() => {
-    if (tab >= tabs.length) tab = 0;
-  });
+  // The tab is kept by id: when a collection goes, the tab doesn't turn
+  // into the one after it, it goes back to All.
+  let tabId = $state("all");
+  const tab = $derived(Math.max(0, tabs.findIndex((t) => t.id === tabId)));
   // With many collections only the tabs around the current one fit.
   const TABS_SHOWN = 7;
   const tabStart = $derived(Math.max(0, Math.min(tab - 3, tabs.length - TABS_SHOWN)));
@@ -103,7 +103,7 @@
         case "lt":
         case "rt":
           if (only) return;
-          tab = (tab + (intent === "lt" ? tabs.length - 1 : 1)) % tabs.length;
+          tabId = tabs[(tab + (intent === "lt" ? tabs.length - 1 : 1)) % tabs.length].id;
           i = 0;
           feedback.move();
           return;
@@ -146,7 +146,7 @@
         {#if tabStart > 0}<span class="more">…</span>{/if}
         {#each tabs.slice(tabStart, tabStart + TABS_SHOWN) as t, n (t.id)}
           {@const k = tabStart + n}
-          <button type="button" tabindex="-1" class:on={k === tab} onclick={() => ((tab = k), (i = 0))}>{t.label}</button>
+          <button type="button" tabindex="-1" class:on={k === tab} onclick={() => ((tabId = t.id), (i = 0))}>{t.label}</button>
         {/each}
         {#if tabStart + TABS_SHOWN < tabs.length}<span class="more">…</span>{/if}
         <Glyph button="rt" size={28} />

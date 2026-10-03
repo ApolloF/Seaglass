@@ -12,7 +12,14 @@
   import { lib } from "../lib/store.svelte";
   import { played, title } from "../lib/types";
 
-  lib.init().then(async () => Object.assign(pad, await api.pad.state()));
+  lib
+    .init()
+    .then(async () => Object.assign(pad, await api.pad.state()))
+    // Without the library the overlay has nothing to show: it goes, and
+    // the PS button brings it back to try again.
+    .catch(() => close());
+  // The battery and connection change while the overlay is open.
+  $effect(() => api.pad.onState((st) => Object.assign(pad, st)));
 
   const s = $derived(lib.session);
   const game = $derived(s ? (lib.games.find((g) => g.id === s.gameId) ?? null) : null);

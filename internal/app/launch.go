@@ -248,6 +248,13 @@ func (c *Core) padForGame() {
 // game has ended, gives the controller back and reopens the interface.
 func (c *Core) onSession(s launch.Session) {
 	c.emit(EventSession, s)
+	// The game has exited: the controller comes back now, not after the
+	// steps that follow it (a save backup can take minutes).
+	if s.Phase == launch.Finishing {
+		if m := c.padManager(); m != nil {
+			m.SetMode(pad.Active)
+		}
+	}
 	if !s.Phase.Done() {
 		if c.ach != nil {
 			c.ach.sessionStarted(s.ID, s.GameID)

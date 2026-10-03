@@ -474,3 +474,24 @@ func TestRootPIDReused(t *testing.T) {
 		t.Errorf("after 200 reused: %v, want none", got)
 	}
 }
+
+// A game process that can't be read the moment it appears (it has only
+// just started) is looked up again on the next polls, so the folder rule
+// still finds it.
+func TestLookupRetriedAfterAFailure(t *testing.T) {
+	ready := false
+	tr := newTracker([]string{gameDir}, 0, 1, func(pid uint32) (string, uint64, error) {
+		if !ready {
+			return "", 0, errors.New("access denied")
+		}
+		return gameDir + `\game.exe`, 5, nil
+	})
+	ps := []platform.Proc{{PID: 300, PPID: 4000, Name: "game.exe"}}
+	if got := tr.update(ps); len(got) != 0 {
+		t.Fatalf("unreadable: %v", got)
+	}
+	ready = true
+	if got := tr.update(ps); got[300] != 5 {
+		t.Errorf("readable on the next poll: %v, want 300", got)
+	}
+}

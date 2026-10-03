@@ -66,7 +66,8 @@ func (s *PadService) onAction(action string, repeat bool) {
 	// drive the overlay, which the PS / Xbox button opens and closes.
 	if s.c.Launch.Current().Phase == launch.Running {
 		if home {
-			s.c.shell.ToggleOverlay()
+			// Window calls stay off the SDL thread, which Stop waits for.
+			go s.c.shell.ToggleOverlay()
 		} else if s.c.shell.OverlayOpen() {
 			s.c.emit(EventOverlayAction, PadAction{Action: action, Repeat: repeat})
 		}
@@ -75,7 +76,7 @@ func (s *PadService) onAction(action string, repeat bool) {
 	// Otherwise the PS / Xbox button brings Seaglass forward, from
 	// wherever the user is.
 	if home {
-		s.c.shell.OpenMain()
+		go s.c.shell.OpenMain()
 	}
 	s.c.emit(EventPadAction, PadAction{Action: action, Repeat: repeat})
 }
