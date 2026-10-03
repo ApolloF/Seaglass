@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
 )
@@ -153,23 +154,37 @@ type Store struct {
 	cur  Settings
 }
 
-// Open reads the settings file (defaults when missing or unreadable).
+// Open reads the settings file (defaults when missing). A damaged file
+// (cut short by a power cut) is set aside and the copy from the last
+// good start is used, so the folders and choices aren't lost to defaults.
 func Open(path string) *Store {
 	s := &Store{path: path, cur: Defaults()}
-	if b, err := os.ReadFile(path); err == nil {
-		v := Defaults()
-		if json.Unmarshal(b, &v) == nil {
-			// Settings saved before the welcome existed belong to someone
-			// who has used Seaglass already.
-			var keys map[string]json.RawMessage
-			if json.Unmarshal(b, &keys) == nil {
-				if _, ok := keys["welcomed"]; !ok {
-					v.Welcomed = true
-				}
-				legacyExternal(&v.DetectExternal, keys)
-			}
-			s.cur = normalize(v)
+	for _, p := range []string{path, path + ".bak"} {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			continue
 		}
+		v := Defaults()
+		if json.Unmarshal(b, &v) != nil {
+			if p == path {
+				_ = os.Rename(path, path+".broken-"+time.Now().Format("20060102-150405"))
+			}
+			continue
+		}
+		if p == path {
+			_ = writeAtomic(path+".bak", b)
+		}
+		// Settings saved before the welcome existed belong to someone
+		// who has used Seaglass already.
+		var keys map[string]json.RawMessage
+		if json.Unmarshal(b, &keys) == nil {
+			if _, ok := keys["welcomed"]; !ok {
+				v.Welcomed = true
+			}
+			legacyExternal(&v.DetectExternal, keys)
+		}
+		s.cur = normalize(v)
+		break
 	}
 	return s
 }
@@ -196,14 +211,7 @@ func (s *Store) Set(v Settings) (Settings, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return s.cur, err
-	}
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
-		return s.cur, err
-	}
-	if err := os.Rename(tmp, s.path); err != nil {
+	if err := writeAtomic(s.path, b); err != nil {
 		return s.cur, err
 	}
 	s.cur = v
@@ -273,4 +281,29 @@ func normalize(v Settings) Settings {
 		v.Glyphs = "auto"
 	}
 	return v
+}
+
+// writeAtomic writes through a flushed temporary file, so a power cut
+// leaves the old file or the new one, never half of one.
+func writeAtomic(path string, b []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }

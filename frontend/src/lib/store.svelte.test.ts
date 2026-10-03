@@ -78,3 +78,17 @@ describe("errText", () => {
     expect(errText("just text")).toBe("just text");
   });
 });
+
+describe("saving settings", () => {
+  it("keeps both of two changes made before the first is saved", async () => {
+    const { api } = (await import("./api")) as unknown as { api: { saveSettings: (s: Settings) => Promise<Settings> } };
+    const answers: ((s: Settings) => void)[] = [];
+    api.saveSettings = (s) => new Promise((done) => answers.push(() => done(s)));
+    const first = lib.saveSettings({ ...lib.settings!, showOwned: true });
+    const second = lib.saveSettings({ ...lib.settings!, showNotInstalled: true });
+    answers.forEach((a) => a(settings()));
+    await Promise.all([first, second]);
+    expect(lib.settings?.showOwned).toBe(true);
+    expect(lib.settings?.showNotInstalled).toBe(true);
+  });
+});

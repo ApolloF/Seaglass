@@ -355,7 +355,11 @@ func (o *ownedState) epicAccess(ctx context.Context) (access, account string, er
 	if tok.ExpiresAt.IsZero() {
 		tok.ExpiresAt = time.Now().Add(time.Hour)
 	}
-	ep.Refresh = tok.RefreshToken
+	// A refresh that hands out no new refresh token leaves the old one in
+	// use; saving "" would remove the sign-in.
+	if tok.RefreshToken != "" {
+		ep.Refresh = tok.RefreshToken
+	}
 	if tok.AccountID != "" {
 		ep.Account = tok.AccountID
 	}
@@ -409,7 +413,12 @@ func (o *ownedState) gogAccess(ctx context.Context) (access, user string, err er
 	if err != nil {
 		return "", "", err
 	}
-	a.Refresh, a.User = tok.RefreshToken, tok.UserID
+	if tok.RefreshToken != "" {
+		a.Refresh = tok.RefreshToken
+	}
+	if tok.UserID != "" {
+		a.User = tok.UserID
+	}
 	if err := saveGOG(a); err != nil {
 		logx.Printf("owned: saving GOG sign-in: %v", err)
 	}

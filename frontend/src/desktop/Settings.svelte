@@ -73,7 +73,7 @@
 </script>
 
 <div class="scrim" role="presentation" onclick={(e) => e.target === e.currentTarget && onclose()}>
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1" bind:this={dialog} onkeydown={(e) => e.key === "Escape" && onclose()}>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1" bind:this={dialog} onkeydown={(e) => e.key === "Escape" && (e.preventDefault(), onclose())}>
     <nav class="tabs" aria-label="Settings sections">
       <span class="heading">Settings</span>
       {#each tabs as t (t.id)}

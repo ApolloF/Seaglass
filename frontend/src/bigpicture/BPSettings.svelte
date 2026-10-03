@@ -101,6 +101,10 @@
   });
 
   let i = $state(0);
+  // The list can get shorter under the cursor (a library gone after a scan).
+  $effect(() => {
+    if (i >= rows.length) i = Math.max(0, rows.length - 1);
+  });
   const s = $derived(lib.settings);
 
   let syncer = $state<SyncerStatus | null>(null);
@@ -129,8 +133,8 @@
   }
 
   function change(dir: 1 | -1) {
-    if (!s) return;
     const row = rows[i];
+    if (!s || !row) return;
     if (row.kind === "action") {
       feedback.confirm();
       onpadtest();
@@ -165,7 +169,7 @@
         const j = i + (intent === "up" ? -1 : 1);
         if (j >= 0 && j < rows.length) ((i = j), feedback.move());
         else feedback.edge();
-      } else if (intent === "confirm" || (intent === "right" && rows[i].kind !== "action")) change(1);
+      } else if (intent === "confirm" || (intent === "right" && rows[i]?.kind !== "action")) change(1);
       else if (intent === "left") change(-1);
       else if (intent === "back") onback();
       else return false;

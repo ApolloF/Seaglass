@@ -58,7 +58,7 @@
   $effect(() =>
     api.pad.onAction((action, repeat) => {
       if (mode === "bigpicture") dispatchFrom("pad", action as Intent, repeat);
-      else if (action === "home" && !repeat) enterBigPicture();
+      else if (action === "home" && !repeat && !welcome) enterBigPicture();
       else if (!failed) desktopPad(action as Intent, repeat);
     }),
   );
@@ -66,7 +66,9 @@
     api.pad.onState((s) => {
       const wasConnected = pad.connected;
       Object.assign(pad, s);
-      if (s.connected && !wasConnected && lib.settings?.openBigPictureOnController && !sessionActive(lib.session) && performance.now() > padQuietUntil) enterBigPicture();
+      // Not during the welcome: big picture's screens would take the
+      // controller from it.
+      if (s.connected && !wasConnected && !welcome && lib.settings?.openBigPictureOnController && !sessionActive(lib.session) && performance.now() > padQuietUntil) enterBigPicture();
     }),
   );
 

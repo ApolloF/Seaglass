@@ -40,7 +40,25 @@ func SaveSecret(name, value string) error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(p, enc, 0o600)
+	// Through a flushed temporary file: a crash mid-write mustn't leave a
+	// half secret, which reads as signed out.
+	tmp := p + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(enc); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, p)
 }
 
 // LoadSecret reads a secret stored with SaveSecret; "" when there is none.

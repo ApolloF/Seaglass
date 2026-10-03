@@ -113,3 +113,27 @@ func TestLegacyUnofficial(t *testing.T) {
 		t.Error("detectExternal should win over detectUnofficial")
 	}
 }
+
+// A settings file cut short (a power cut while saving) is set aside and
+// the copy from the last good start is used, not the defaults.
+func TestDamagedFileFallsBackToBackup(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	s := Open(path)
+	v := s.Get()
+	v.Theme, v.Folders = "light", []string{`D:\Games`}
+	if _, err := s.Set(v); err != nil {
+		t.Fatal(err)
+	}
+	Open(path) // a good start keeps a backup
+	if err := os.WriteFile(path, []byte(`{"theme":"li`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := Open(path).Get()
+	if got.Theme != "light" || len(got.Folders) != 1 {
+		t.Errorf("after damage: theme %q, folders %v", got.Theme, got.Folders)
+	}
+	if broken, _ := filepath.Glob(path + ".broken-*"); len(broken) != 1 {
+		t.Errorf("the damaged file wasn't set aside: %v", broken)
+	}
+}

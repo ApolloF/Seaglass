@@ -35,10 +35,13 @@
     const q = norm(query);
     const base = lib.base.filter((g) => g.installed);
     if (!q) return [];
+    // Each title is normalised once, not again in every comparison.
     return base
-      .filter((g) => norm(title(g)).includes(q))
-      .sort((a, b) => Number(norm(title(b)).startsWith(q)) - Number(norm(title(a)).startsWith(q)) || a.sortTitle.localeCompare(b.sortTitle))
-      .slice(0, RCOLS * 2);
+      .map((g) => ({ g, t: norm(title(g)) }))
+      .filter((x) => x.t.includes(q))
+      .sort((a, b) => Number(b.t.startsWith(q)) - Number(a.t.startsWith(q)) || a.g.sortTitle.localeCompare(b.g.sortTitle))
+      .slice(0, RCOLS * 2)
+      .map((x) => x.g);
   });
   $effect(() => onfocus(zone === "results" ? (results[r] ?? null) : (results[0] ?? null)));
   $effect(() => {

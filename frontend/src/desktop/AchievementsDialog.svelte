@@ -26,7 +26,7 @@
 </script>
 
 <div class="scrim" role="presentation" onclick={(e) => e.target === e.currentTarget && onclose()}>
-  <div class="dialog" bind:this={dialog} role="dialog" aria-modal="true" aria-label="Achievements of {title(game)}" tabindex="-1" onkeydown={(e) => e.key === "Escape" && onclose()}>
+  <div class="dialog" bind:this={dialog} role="dialog" aria-modal="true" aria-label="Achievements of {title(game)}" tabindex="-1" onkeydown={(e) => e.key === "Escape" && (e.preventDefault(), onclose())}>
     <div class="head">
       <div class="grow">
         <h2>Achievements</h2>
