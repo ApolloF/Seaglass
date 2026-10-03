@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { achievementsSummary, masked, rarityText, recentUnlocks, shown, sortAchievements, statusText, unlockedText } from "./achievements";
+import { achievementsSummary, unlockedPct, masked, rarityText, recentUnlocks, shown, sortAchievements, statusText, unlockedText } from "./achievements";
 import type { Achievement, Achievements } from "./types";
 
 const a = (id: string, p: Partial<Achievement> = {}): Achievement => ({ id, name: id, unlocked: false, ...p });
@@ -63,5 +63,14 @@ describe("texts", () => {
     expect(statusText(a("A"))).toBe("");
     expect(unlockedText(1)).toBe("1 achievement unlocked");
     expect(unlockedText(3)).toBe("3 achievements unlocked");
+  });
+});
+
+describe("unlockedPct", () => {
+  it("rounds down, so 100% means every one", () => {
+    expect(unlockedPct(list([]))).toBe(0);
+    expect(unlockedPct(list([a("A", { unlocked: true }), a("B"), a("C")]))).toBe(33);
+    const almost = list(Array.from({ length: 200 }, (_, i) => a(`${i}`, { unlocked: i > 0 })));
+    expect(unlockedPct(almost)).toBe(99);
   });
 });
