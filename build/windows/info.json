@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "1.9.1"
+		"file_version": "1.10.0"
 	},
 	"info": {
 		"0409": {
-			"ProductVersion": "1.9.1",
+			"ProductVersion": "1.10.0",
 			"CompanyName": "ApolloF",
 			"FileDescription": "Seaglass",
 			"LegalCopyright": "© 2026 ApolloF, AGPL-3.0 License",
