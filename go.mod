@@ -3,7 +3,7 @@ module github.com/ApolloF/Seaglass
 go 1.27
 
 require (
-	github.com/ApolloF/gamekit v0.1.0
+	github.com/ApolloF/gamekit v0.2.1-0.20261003195830-bed246650fbf
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.26
