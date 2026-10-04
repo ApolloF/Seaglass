@@ -4,6 +4,14 @@
 
 <p align="center">A Windows game launcher that finds the games installed on your PC on its own, from store launchers and other sources alike, and plays great with a DualSense.</p>
 
+<p align="center">
+  <a href="https://github.com/ApolloF/Seaglass/releases/latest"><img src="https://img.shields.io/github/v/release/ApolloF/Seaglass?label=download" alt="Latest release"></a>
+  <a href="https://github.com/ApolloF/Seaglass/releases"><img src="https://img.shields.io/github/downloads/ApolloF/Seaglass/total" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ApolloF/Seaglass" alt="License: AGPL-3.0"></a>
+</p>
+
+<p align="center"><img src="docs/images/seaglass-bigpicture-home.png" width="860" alt="Seaglass big picture mode: Continue playing, new games found on this PC and the library, with controller button hints"></p>
+
 <p align="center"><sub>Formerly WaterLauncher. WaterLauncher doesn't update to Seaglass on its own: install Seaglass over it, and it keeps your library and settings.</sub></p>
 
 ---
@@ -16,6 +24,12 @@
 - DualSense first: native button glyphs, haptics, lightbar, and the PS button to open the launcher. Games without DualSense support start through Steam Input automatically.
 - Works with [Syncer](https://github.com/ApolloF/syncer) to keep saves in sync before and after you play. *Settings → Saves* installs Syncer with one click.
 - Hide whole libraries you don't want to see (*Settings → Library*), for example Xbox or external copies.
+
+| Desktop mode | Achievements |
+|---|---|
+| <img src="docs/images/seaglass-desktop.png" alt="Desktop mode: game grid, sources in the sidebar and a details panel with Play, playtime, controller mode and save status"> | <img src="docs/images/seaglass-achievements.png" alt="Achievements dialog with unlock dates and rarity"> |
+
+<sub>Screenshots use the demo library (`npm run dev:mock`), so the games and art are made up.</sub>
 
 ## Intended use
 
@@ -54,6 +68,10 @@ WL_REAL_SCAN=1 go test -run RealScan -v ./internal/scan   # scan this PC and pri
 The backend lives in `internal/`: `scan` (sources, external-copy detection, executable picking), `identify` (Ludusavi matching), `library` (the game library), `settings`, `meta` (metadata and art), `pad` (controllers through SDL3), `launch` (game sessions: hooks, process tracking, playtime), `syncer` (client for Syncer's launcher API), `owned` (owned games from Steam, GOG and Epic accounts), `update` (updates from GitHub releases), `sqlite` (read-only SQLite reader for GOG Galaxy), `steaminput` (Steam shortcuts for the Steam Input route), `app` (services the interface calls, windows and tray), plus small helpers (`lnk`, `platform`, `logx`). The installer is `build/windows/nsis/project.nsi`; signing is described in [docs/SIGNING.md](docs/SIGNING.md). Steam and game-database parsing comes from [gamekit](https://github.com/ApolloF/gamekit). The Svelte 5 interface is in `frontend/src`: `desktop/` for desktop mode, `bigpicture/` for the controller layouts, `overlay/` for the in-game overlay.
 
 The DLSS Updater add-on host lives on the [`feature/dlss-addon`](https://github.com/ApolloF/Seaglass/tree/feature/dlss-addon) branch; [docs/dlss-addon.md](https://github.com/ApolloF/Seaglass/blob/feature/dlss-addon/docs/dlss-addon.md) there has ideas for bringing it back.
+
+## Support
+
+Seaglass is free and stays free: no pro tier, no locked features. If it's useful to you, you can [buy me a coffee](https://ko-fi.com/apollof). Starring the repo and filing good bug reports help just as much.
 
 ## License
 
