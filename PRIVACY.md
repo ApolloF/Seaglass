@@ -1,5 +1,7 @@
 # Privacy
 
+Last updated: 4 October 2026
+
 Seaglass is a free Windows game launcher. It runs on your PC and has no server of its own. ApolloF receives no data from the app: no account, no telemetry, no analytics, no automatic crash reports.
 
 The same text is published at https://apps.apollof.nl/seaglass/privacy/.
@@ -33,13 +35,28 @@ Keys and sign-in tokens are stored in `%APPDATA%\Seaglass\secrets`, encrypted wi
 - **Updates:** with automatic updates on (the default), it checks GitHub for a new Seaglass release at start and downloads it from GitHub. With them off it only checks when you click *Check* in Settings. Installing or updating Syncer from Seaglass checks and downloads from Syncer's GitHub releases.
 - These services see your IP address, as with any web request, and what is being looked up: game names, store IDs and, for the accounts above, your keys, tokens and IDs. Nothing else about you is sent.
 
+All requests use HTTPS and go only to allowlisted hosts. They identify the app as `Seaglass` and carry no install ID, account or machine name of their own.
+
+| Service | Hosts | When |
+|---|---|---|
+| GitHub | `api.github.com`, `github.com`, GitHub's download hosts | Update checks and downloads; installing Syncer |
+| GitHub | `raw.githubusercontent.com` | The Ludusavi game database, about once a week |
+| Steam store | `store.steampowered.com`, `*.steamstatic.com`, `steamcdn-a.akamaihd.net` | Details and art for games in your library |
+| Steam Web API | `api.steampowered.com` | Achievement data; with your key, owned games and your unlocks |
+| PCGamingWiki | `www.pcgamingwiki.com`, `images.pcgamingwiki.com` | Details for games in your library |
+| GOG | `api.gog.com`, `*.gog-statics.com`, `auth.gog.com`, `gameplay.gog.com` | GOG games' details and art; with sign-in, achievements |
+| Epic | `*.epicgames.com`, `cdn2.unrealengine.com` | Epic games' details and art; with sign-in, library and achievements |
+| SteamGridDB | `*.steamgriddb.com` | Only with your key |
+
 ## With Syncer
 
 If you use [Syncer](https://apps.apollof.nl/syncer/), Seaglass talks to it on your PC only. It tells Syncer the title, install folder and Steam or GOG ID of your installed games so Syncer can find their saves. Seaglass keeps your playtime, achievements and settings in `%APPDATA%\Seaglass\Profile`, in files named after this PC's name. With profile sync turned on (the default, effective only when Syncer is installed), Syncer copies that folder between your own PCs and includes it in its backups. Keys and sign-in tokens are not part of it. See the [Syncer privacy policy](https://apps.apollof.nl/syncer/privacy/).
 
 ## What stays on your PC
 
-Settings, your library, the profile, the log and crash logs stay in `%APPDATA%\Seaglass`. The log records events such as the titles of games started, play times and errors. Cached art, achievement data, the game database, update downloads and the data of the WebView2 component that draws Seaglass's window stay in `%LOCALAPPDATA%\Seaglass`. WebView2 is a Microsoft component; its own data handling follows Microsoft's and Windows' privacy settings, not Seaglass.
+Settings, your library, the profile, the log and crash logs stay in `%APPDATA%\Seaglass`. The log records events such as the titles of games started, play times and errors. Cached art, achievement data, the game database, update downloads and the data of the WebView2 component that draws Seaglass's window stay in `%LOCALAPPDATA%\Seaglass`. WebView2 is a Microsoft component; its own data handling follows Microsoft's and Windows' privacy settings, not Seaglass. Seaglass's interface loads no remote code (it has a strict Content Security Policy).
+
+Outside those folders Seaglass writes only when you turn the feature on: a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for *Start with Windows*, and Seaglass shortcuts in Steam's `shortcuts.vdf` for the Steam Input route for controllers. It reads, but doesn't change, the store launchers' own files and registry entries.
 
 *Copy diagnostics* (or `Seaglass.exe --diagnostics`, which writes a file to your desktop) creates a report only when you ask for it. It holds Seaglass, Windows and WebView2 versions, your settings (including game folders), library counts, the last crash and the end of the log. It holds no keys or tokens, and your user folder is shortened to `%USERPROFILE%`. It goes only where you paste or send it.
 
@@ -63,7 +80,7 @@ Settings, your library, the profile and your keys and sign-in tokens stay on you
 ## Deleting your data
 
 - Sign out of Epic and GOG, and clear the Steam and SteamGridDB keys, in Seaglass. To also revoke access on the store side, use your account settings there.
-- Uninstall Seaglass from *Settings → Apps* in Windows (this leaves your data in place), then delete `%APPDATA%\Seaglass` and `%LOCALAPPDATA%\Seaglass`.
+- Uninstall Seaglass from *Settings → Apps* in Windows and answer *Yes* when it asks whether to delete your library, settings, saved keys and art. Or delete `%APPDATA%\Seaglass` and `%LOCALAPPDATA%\Seaglass` yourself.
 
 ## Your rights
 
