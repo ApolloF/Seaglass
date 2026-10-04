@@ -48,7 +48,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 ## Security
 
 - **WebView:** strict CSP with no remote scripts. Navigation away from the app is blocked, devtools and the context menu are off in release, only bound services are exposed, and every value from the UI is validated in Go (paths must resolve inside known roots).
-- **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executables ever downloaded are Seaglass's own update from GitHub Releases (checked against the signed `SHA256SUMS`) and Syncer's installer (checked against the SHA-256 GitHub computed on upload).
+- **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executables ever downloaded are Seaglass's own update from GitHub Releases (checked against the signed `SHA256SUMS`) and Syncer's installer (checked against the SHA-256 GitHub computed on upload, never the same or an older version, and, while Syncer's releases are unsigned, only after a Yes and with the installer's own windows).
 - **Secrets:** the SteamGridDB key, Steam Web API key, Epic token and GOG token are stored with DPAPI and never logged.
 - **Parsers:** VDF, ini, JSON, lnk and ACF files, and emulators' achievement files, are treated as untrusted, with size limits and fuzz tests.
 - **Privileges:** Seaglass never elevates itself, and nothing is ever injected into games. The Syncer pipe is current-user only.

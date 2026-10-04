@@ -225,9 +225,9 @@ func (s *SavesService) InstallSyncer() error {
 		return errors.New("Syncer is being installed already")
 	}
 	defer s.installing.Unlock()
-	ctx, cancel := context.WithTimeout(s.c.ctx, syncerDownloadLimit)
-	defer cancel()
-	rel, err := syncerFeed.Latest(ctx)
+	look, cancelLook := context.WithTimeout(s.c.ctx, syncerDownloadLimit)
+	rel, err := syncerFeed.Latest(look)
+	cancelLook()
 	if err != nil {
 		return fmt.Errorf("couldn't find Syncer's latest release: %w", err)
 	}
@@ -240,6 +240,9 @@ func (s *SavesService) InstallSyncer() error {
 		logx.Printf("Syncer %s not installed: the person said no", rel.Tag)
 		return nil
 	}
+	// The download's time starts after the question, which may stay open a while.
+	ctx, cancel := context.WithTimeout(s.c.ctx, syncerDownloadLimit)
+	defer cancel()
 	dir := platform.CacheDir("syncer")
 	file, _, err := syncerFeed.Download(ctx, rel, syncerInstaller, dir, nil)
 	if err != nil {
