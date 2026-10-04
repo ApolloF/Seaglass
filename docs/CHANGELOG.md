@@ -457,7 +457,7 @@ Follow-ups in Syncer, after its `feature/steam-autocloud-copies` work lands: use
 ### Environment (set up 2026-09-25)
 
 - Go 1.27.0, Wails CLI v3.0.0-beta.26, Node 24.19 and npm 11.17, NSIS, Git 2.55, GitHub CLI 2.101 (signed in as ApolloF, used as the Git credential helper), WebView2 153.
-- Repo: `C:\Users\Florian\Documents\Coding projects\Seaglass`, branch `main`, remote `https://github.com/ApolloF/Seaglass` (public). Repo-local identity `ApolloF <me@apollof.nl>`.
+- Repo: `https://github.com/ApolloF/Seaglass` (public), branch `main`.
 - CI (`.github/workflows/build.yml`) builds and tests every push and PR on `windows-latest`. A `v*` tag publishes a prerelease with the exe, its SHA-256, and `docs/releases/<tag>.md` as notes.
 - Smoke test: a Wails v3 Svelte app built in 34 s into a 10.5 MB exe. At runtime the Go process used about 67 MB and WebView2 about 423 MB.
 - Installed later: SDL3 3.4.16 (phase 3, from the libsdl-org release, hash checked) and the .NET 8 SDK (phase 6).

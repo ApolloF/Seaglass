@@ -11,13 +11,13 @@ describe("hash", () => {
 
 describe("artFor", () => {
   it("draws the same art for the same key", () => {
-    const a = artFor("D:\Games\Same");
-    expect(artFor("D:\Games\Same")).toBe(a);
+    const a = artFor("D:\\Games\\Same");
+    expect(artFor("D:\\Games\\Same")).toBe(a);
     expect(structuredClone(a)).toEqual(a);
   });
 
   it("tells apart keys that differ only at the end", () => {
-    const accents = new Set(Array.from({ length: 20 }, (_, i) => artFor(`D:\Games\Game ${i}`).accent));
+    const accents = new Set(Array.from({ length: 20 }, (_, i) => artFor(`D:\\Games\\Game ${i}`).accent));
     expect(accents.size).toBeGreaterThan(15);
   });
 

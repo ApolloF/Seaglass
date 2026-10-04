@@ -1,8 +1,6 @@
 # Seaglass roadmap
 
 What Seaglass is for, the decisions that still hold, and what's still open. What each version already did is in [CHANGELOG.md](CHANGELOG.md) (including the original plan, under 0.1 to 0.7).
-Design reference: [Design directions](https://claude.ai/artifact/EUqrFQcmgAThrxbm8vAr6i) (A Console, B Orbit, C Deck, D Desktop).
-
 ## Maintainer to-dos
 
 These need the maintainer's accounts or decisions; nothing else can do them.
