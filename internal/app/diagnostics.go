@@ -18,8 +18,6 @@ import (
 	"github.com/ApolloF/Seaglass/internal/syncer"
 	"github.com/ApolloF/Seaglass/internal/update"
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/registry"
 )
 
 // crashFile receives what Go prints when Seaglass crashes (an
@@ -129,8 +127,7 @@ func (c *Core) diagnostics() string {
 		kind = "development build"
 	}
 	line("Seaglass %s (%s), %s", c.Version, kind, runtime.Version())
-	v := windows.RtlGetVersion()
-	line("Windows %d.%d build %d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
+	line("%s", osVersion())
 	line("WebView2 %s", webView2Version())
 	if i, ok := syncer.Find(); ok {
 		line("Syncer %s", orUnknown(i.Version))
@@ -247,27 +244,4 @@ func orUnknown(s string) string {
 		return "unknown"
 	}
 	return s
-}
-
-// webView2Version is the installed WebView2 runtime's version.
-func webView2Version() string {
-	const client = `Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`
-	for _, k := range []struct {
-		root registry.Key
-		path string
-	}{
-		{registry.LOCAL_MACHINE, `SOFTWARE\WOW6432Node\` + client},
-		{registry.CURRENT_USER, `Software\` + client},
-	} {
-		key, err := registry.OpenKey(k.root, k.path, registry.QUERY_VALUE)
-		if err != nil {
-			continue
-		}
-		v, _, err := key.GetStringValue("pv")
-		key.Close()
-		if err == nil && v != "" && v != "0.0.0.0" {
-			return v
-		}
-	}
-	return "unknown"
 }

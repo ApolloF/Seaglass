@@ -1,0 +1,44 @@
+name: linux-spike
+
+# Spike only (docs/linux-feasibility.md): checks that Seaglass compiles for
+# Linux. Not a release path; the Windows build in build.yml is unchanged.
+on:
+  push:
+    branches: ['spike/linux']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          check-latest: true
+
+      - name: GTK4 and WebKitGTK 6.0 (what Wails v3 links on Linux)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Placeholder interface
+        # The frontend isn't built here; main.go embeds frontend/dist.
+        run: mkdir -p frontend/dist && echo '<!doctype html><title>Seaglass</title>' > frontend/dist/index.html
+
+      - name: Build (cgo, GTK4)
+        run: go build ./... && go build -o bin/seaglass .
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build without cgo (Wails server tag)
+        run: CGO_ENABLED=0 go build -tags server ./...
+
+      - name: Tests (informational; many fixtures assume Windows paths)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          go test -timeout 3m ./... 2>&1 | tail -n 200

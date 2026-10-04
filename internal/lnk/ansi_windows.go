@@ -1,6 +1,11 @@
 package lnk
 
-import "golang.org/x/sys/windows"
+import (
+	"strings"
+
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
+)
 
 const cpACP = 0 // the system's ANSI code page
 
@@ -28,4 +33,15 @@ func ansi(b []byte) string {
 		return string(b)
 	}
 	return windows.UTF16ToString(u)
+}
+
+// expand fills in %VARIABLES% the way Windows does.
+func expand(s string) string {
+	if !strings.Contains(s, "%") {
+		return s
+	}
+	if e, err := registry.ExpandString(s); err == nil {
+		return e
+	}
+	return s
 }

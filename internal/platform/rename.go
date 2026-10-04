@@ -4,8 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/sys/windows/registry"
 )
 
 // OldName is what Seaglass was called before 1.5.
@@ -60,30 +58,4 @@ func MoveOldData(oldRunning bool) []string {
 	}
 	move(Local, &localDirOverride)
 	return notes
-}
-
-// MoveOldStartup turns WaterLauncher's "start with Windows" entry into
-// Seaglass's, keeping whether it's turned off in Task Manager. It reports
-// whether there was one.
-func MoveOldStartup(exe string) bool {
-	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE|registry.SET_VALUE)
-	if err != nil {
-		return false
-	}
-	defer k.Close()
-	if _, _, err := k.GetStringValue(OldName); err != nil {
-		return false
-	}
-	if filepath.IsAbs(exe) && IsFile(exe) {
-		_ = k.SetStringValue(runValue, StartupCommand(exe))
-	}
-	_ = k.DeleteValue(OldName)
-	if a, err := registry.OpenKey(registry.CURRENT_USER, approvedKey, registry.QUERY_VALUE|registry.SET_VALUE); err == nil {
-		if b, _, err := a.GetBinaryValue(OldName); err == nil {
-			_ = a.SetBinaryValue(runValue, b)
-			_ = a.DeleteValue(OldName)
-		}
-		a.Close()
-	}
-	return true
 }

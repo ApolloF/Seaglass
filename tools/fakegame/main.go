@@ -1,3 +1,5 @@
+//go:build windows
+
 // Command fakegame is a stand-in game for testing Seaglass's launch
 // and tracking in the real app (tools/harness). It opens a full-screen
 // window like a game does, and can pretend to be a launcher that hands
