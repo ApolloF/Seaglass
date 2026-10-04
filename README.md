@@ -29,7 +29,6 @@ Seaglass is an independent project and is not affiliated with, endorsed by or sp
 
 - **Installer:** `Seaglass-setup.exe` installs to `%LOCALAPPDATA%\Programs\Seaglass` with Start menu and desktop shortcuts. Uninstall from *Settings → Apps*; it asks before deleting your library.
 - **Without installing:** `Seaglass.exe` from the same release runs from any folder.
-- **winget and Scoop:** coming soon.
 - **Updates:** checked on GitHub when Seaglass starts, or by hand (*Settings → General*). New versions download in the background and install the next time Seaglass starts, or straight away while it waits in the tray. Each one must be signed with a release key that never leaves the maintainer's PC ([docs/RELEASING.md](docs/RELEASING.md)).
 - **Start with Windows:** *Settings → General*. Seaglass then waits in the tray.
 - **Games started elsewhere:** start a library game from Steam or a shortcut and Seaglass still counts its playtime and lets go of the controller (*Settings → Big picture → While playing*).

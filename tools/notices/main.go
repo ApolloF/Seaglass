@@ -271,10 +271,9 @@ func classify(text string) string {
 		return "OFL-1.1"
 	case strings.Contains(t, "apache license") && strings.Contains(t, "version 2.0"):
 		return "Apache-2.0"
-	case strings.Contains(t, "mozilla public license") && strings.Contains(t, "2.0"):
-		return "MPL-2.0"
-	case strings.Contains(t, "gnu general public license"), strings.Contains(t, "gnu affero"), strings.Contains(t, "gnu lesser"):
-		return "" // copyleft: check by hand before shipping it
+	case strings.Contains(t, "gnu general public license"), strings.Contains(t, "gnu affero"), strings.Contains(t, "gnu lesser"),
+		strings.Contains(t, "mozilla public license"):
+		return "" // copyleft (MPL: per file): check by hand before shipping it
 	case strings.Contains(t, "permission is hereby granted, free of charge"):
 		return "MIT"
 	case strings.Contains(t, "permission to use, copy, modify, and/or distribute"),
