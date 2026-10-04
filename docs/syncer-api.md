@@ -7,7 +7,7 @@ Seaglass talks to [Syncer](https://github.com/ApolloF/syncer) through Syncer's l
 - **Client:** `internal/syncer`. It dials `\\.\pipe\syncer`, then checks that the process serving the pipe belongs to the current Windows user. One JSON-RPC 2.0 message per line.
 - **Starting the helper:** when nothing serves the pipe and Syncer 0.11 or newer is installed, Seaglass starts `Syncer.exe --api`. The helper exits a minute after the last connection. Older Syncer versions would open their window instead, so they are only reported as needing an update.
   - The version is the `DisplayVersion` of `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ApolloFSyncer`.
-- **Registering games:** after a scan that changed the library, and before each launch, Seaglass sends its installed games (`registerGames`: title, install folder, Steam app, GOG id). This way Syncer can match saves to games with unusual install folders, such as repacks and other external copies. After a scan it only does this when Syncer is already running.
+- **Registering games:** after a scan that changed the library, and before each launch, Seaglass sends its installed games (`registerGames`: title, install folder, Steam app, GOG id). This way Syncer can match saves to games with unusual install folders, such as external copies. After a scan it only does this when Syncer is already running.
 
 ## Launching
 
