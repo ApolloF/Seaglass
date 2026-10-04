@@ -87,7 +87,7 @@
     {#if step === 0}
       <div class="step">
         <h1>Welcome to Seaglass</h1>
-        <p>It finds the games on this PC by itself: Steam, Epic, GOG, Xbox, EA, Ubisoft and Battle.net installs, repacks and games in plain folders, and gives them art and details.</p>
+        <p>It finds the games on this PC by itself: Steam, Epic, GOG, Xbox, EA, Ubisoft and Battle.net installs, other installers and games in plain folders, and gives them art and details.</p>
         <div class="count">
           <Icon name="scan" size={28} />
           {#if lib.scan.running && !games}Looking for games…{:else}Found {games} {games === 1 ? "game" : "games"}{lib.scan.running ? " so far…" : ""}{/if}

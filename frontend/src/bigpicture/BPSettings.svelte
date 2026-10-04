@@ -81,7 +81,7 @@
     { group: "Library and playing", key: "showOwned", title: "Show games you own that aren't installed", detail: "From the store accounts connected in desktop Settings.", kind: "toggle" },
     { key: "closeWhilePlaying", title: "Close the interface while playing", detail: "Frees its memory. It comes back when the game exits.", kind: "toggle" },
     { key: "noticeExternal", title: "Notice games started elsewhere", detail: "Games started from Steam or a shortcut count their playtime here too.", kind: "toggle" },
-    { key: "achievements", title: "Show achievements", detail: "From Steam, Epic, GOG and Steam emulators. After you play, Seaglass says what you unlocked.", kind: "toggle" },
+    { key: "achievements", title: "Show achievements", detail: "From Steam, Epic, GOG and external copies. After you play, Seaglass says what you unlocked.", kind: "toggle" },
     { key: "showHiddenAchievements", title: "Show hidden achievements", detail: "Their names before you unlock them. They can give away the story.", kind: "toggle" },
     { key: "autoUpdate", title: "Keep Seaglass up to date", detail: "New versions download in the background and install the next time Seaglass starts, or while it waits in the tray.", kind: "toggle" },
   ];

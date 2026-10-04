@@ -394,7 +394,7 @@
       <dt>Identified</dt>
       <dd>{game.matchHow}{game.confidence < 100 ? ` (${game.confidence}% sure)` : ""}</dd>
       {#if game.emulator}<dt>Emulator</dt><dd>{game.emulator}</dd>{/if}
-      {#if game.repacker}<dt>Repack</dt><dd>{game.repacker}</dd>{/if}
+      {#if game.repacker}<dt>Installer</dt><dd>{game.repacker}</dd>{/if}
       {#if game.steamAppId}<dt>Steam app</dt><dd>{game.steamAppId}</dd>{/if}
       {#if game.installed}
         <dt>Folder</dt>
