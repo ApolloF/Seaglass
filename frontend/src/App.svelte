@@ -34,7 +34,12 @@
   lib
     .init()
     .then(async () => {
-      Object.assign(pad, await api.pad.state());
+      // The controller may already be slow when the window opens (it is
+      // recreated around games, or started in the tray), so say so here too.
+      const s = await api.pad.state();
+      const slow = slowPadNotice(pad, s);
+      Object.assign(pad, { slow: false }, s);
+      if (slow) lib.toast(slow, "error");
       if (resume === "bigpicture" || (!resume && lib.settings?.startInBigPicture)) enterBigPicture();
     })
     .catch((e) => (failed = errText(e)));
