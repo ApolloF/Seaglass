@@ -57,21 +57,30 @@ const mockParams = new URLSearchParams(typeof location !== "undefined" ? locatio
   }
 }
 
-// ?art=steam gives the made-up games real art from Steam's CDN (straight
-// from the browser), to judge the layouts with real pictures. Any other
-// ?art=<base URL> takes each game's art from <base>/<slug>/cover.jpg,
-// hero.jpg, backdrop.jpg and logo.png (the marketing screenshots serve
-// their own there); games that need a check keep the generated art, like
-// in the app.
-const artBase = mockParams.get("art");
-if (artBase && artBase !== "steam") {
+// Each made-up game plays a part (a Steam favourite, a game that needs a
+// check, …); the per-game states below go by that part, not the title, so
+// a game can be shown under another name.
+const part = new Map(games.map((g) => [g.id, g.title]));
+const partOf = (g: Game) => part.get(g.id) ?? g.title;
+
+// A real library for screenshots: window.mockLibrary (set before the app
+// loads, from Seaglass tools/mockmeta) gives games real titles, metadata
+// and art, keyed by the part they play; achievements likewise.
+type RealGame = { title: string; steamAppId?: number; meta: Game["meta"]; game?: Partial<Game> };
+type RealAchievements = { items: { name: string; desc: string; icon: string; percent: number }[] };
+const real = (globalThis as { mockLibrary?: { games: Record<string, RealGame>; achievements?: Record<string, RealAchievements> } }).mockLibrary;
+if (real) {
   for (const g of games) {
-    if (g.needsReview) continue;
-    const dir = `${artBase.replace(/\/$/, "")}/${g.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
-    g.meta = { ...g.meta, cover: `${dir}/cover.jpg`, hero: `${dir}/hero.jpg`, backdrop: `${dir}/backdrop.jpg`, logo: `${dir}/logo.png` };
+    const r = real.games[g.title];
+    if (!r) continue;
+    const dir = `D:\\Games\\${r.title.replace(/[:'"]/g, "")}`;
+    Object.assign(g, { dir, ...r.game, title: r.title, sortTitle: r.title.toLowerCase().replace(/^the /, ""), steamAppId: r.steamAppId, meta: r.meta });
   }
 }
-if (artBase === "steam") {
+
+// ?art=steam gives the made-up games real art from Steam's CDN (straight
+// from the browser), to judge the layouts with real pictures.
+if (mockParams.get("art") === "steam") {
   const ids = [1245620, 413150, 1086940, 620, 1145360, 504230, 1091500, 2358720, 1623730, 292030, 1174180, 271590, 374320, 814380, 105600, 367520, 400, 220, 2050650, 883710, 782330, 379720, 1817070, 1593500, 2215430, 1151640, 990080, 252490, 1966720, 534380, 1716740, 1551360, 2379780, 1794680, 646570, 250900, 1057090, 976730, 1196590, 239140];
   const cdn = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/";
   games.forEach((g, k) => {
@@ -136,7 +145,7 @@ function mockSaves(g: Game | undefined): Saves {
     id: g.key, label: g.title, path: "C:\\Users\\you\\AppData\\Roaming\\" + g.title, sync: true, backup: true, state: "idle",
     needBytes: 0, errors: 0, conflicts: 0, exists: true, modified: iso(now - 5 * hour), backedUp: iso(now - 2 * hour), newerOn: "", newerAt: "", ...p,
   });
-  switch (g.title) {
+  switch (partOf(g)) {
     case "Ember Crown":
       return { ...base, known: true, folders: [folder({})] };
     case "Hollow Tide":
@@ -179,6 +188,19 @@ function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: 
   });
 }
 
+// A real game's achievements, rarest last as Steam lists them: the most
+// common ones unlocked, hidden ones without a description (as Steam has them).
+function realItems(r: RealAchievements, upTo: number): Achievement[] {
+  const unlocked = Math.min(upTo, r.items.length);
+  return r.items.map((x, i) => {
+    const on = i < unlocked;
+    const a: Achievement = { id: `ACH_${i + 1}`, name: x.name, desc: x.desc, icon: x.icon, unlocked: on, percent: x.percent };
+    if (!x.desc) a.hidden = true;
+    if (on) a.unlockedAt = now - (unlocked - i) * 2 * day;
+    return a;
+  });
+}
+
 const achList = (g: Game, source: string, items: Achievement[], hint = ""): Achievements => ({
   gameId: g.id, source, total: items.length, unlocked: items.filter((a) => a.unlocked).length, items, updatedAt: now, ...(hint ? { hint } : {}),
 });
@@ -214,18 +236,23 @@ const uplayOn = new Set<number>(); // games whose pretend Uplay ini has Achievem
 function mockAchievements(g: Game | undefined): Achievements {
   if (!g) return { gameId: 0, source: "", total: 0, unlocked: 0, items: [], updatedAt: now };
   const more = extraUnlocks.get(g.id) ?? 0;
-  switch (g.title) {
+  // A real game shows its own achievements wherever the scenario has names.
+  const realAch = real?.achievements?.[partOf(g)];
+  const items = (n: number, unlocked: number, opts: Parameters<typeof achItems>[2] = {}) =>
+    realAch && opts.names !== false ? realItems(realAch, unlocked) : achItems(n, unlocked, opts);
+  switch (partOf(g)) {
     case "Ember Crown": // full schema, rarity, a hidden one, progress
-      return achList(g, "Local", achItems(40, 12 + more));
+      return achList(g, "Local", items(40, 12 + more));
     case "Iron Veil": // unlock ids only: no schema, no key
       return achList(g, "Local", achItems(6, 4 + more, { names: false, icons: false, rarity: false }), "Add a Steam Web API key in Settings → Accounts to see names and icons.");
     case "Starfall Protocol": // Epic, not signed in
-      return achList(g, "epic", achItems(24, 0, { rarity: true }), "Sign in to Epic in Settings → Accounts to see your progress.");
+      return achList(g, "epic", items(24, 0, { rarity: true }), "Sign in to Epic in Settings → Accounts to see your progress.");
     case "Hollow Tide": // everything unlocked
-      return achList(g, "steam", achItems(18, 18));
+      return achList(g, "steam", items(18, Infinity));
     case "Frostline":
       return achList(g, "", [], "Seaglass can't read achievements from the Xbox app yet.");
     case "Tidebreaker": // Uplay emulator: off in its ini, then on and waiting for a play
+      if (g.source !== "installer") break;
       if (uplayOn.has(g.id))
         return achList(g, "Local", [], "Achievements are turned on in the game config. Play the game and they'll show up here; if it still saves none, this card goes away.");
       return {
@@ -233,7 +260,7 @@ function mockAchievements(g: Game | undefined): Achievements {
         fix: "uplay-ini",
       };
   }
-  return achList(g, g.source === "steam" ? "steam" : "", achItems(10, 3 + more));
+  return achList(g, g.source === "steam" ? "steam" : "", items(10, 3 + more));
 }
 
 let sgdb = false;
