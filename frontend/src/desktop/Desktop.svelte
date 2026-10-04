@@ -122,7 +122,7 @@
         <div class="empty">
           <span class="pulse"><Icon name="scan" size={40} stroke={1.6} /></span>
           <h2>Looking for games on this PC…</h2>
-          <p>Steam, Epic, GOG, EA, Ubisoft, Xbox, repacks and game folders.</p>
+          <p>Steam, Epic, GOG, EA, Ubisoft, Xbox, other installers and game folders.</p>
         </div>
       {:else if lib.counts.all === 0 && lib.filter.kind === "all"}
         <div class="empty">

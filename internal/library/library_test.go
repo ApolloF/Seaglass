@@ -325,7 +325,7 @@ func TestLegacyUnofficial(t *testing.T) {
 	}
 	a, _ := s.Get(1)
 	b, _ := s.Get(2)
-	if !a.External || a.SourceLabel != "External · RUNE" {
+	if !a.External || a.SourceLabel != "External copy" {
 		t.Errorf("a: external %v, label %q", a.External, a.SourceLabel)
 	}
 	if b.External || b.SourceLabel != "Steam" {

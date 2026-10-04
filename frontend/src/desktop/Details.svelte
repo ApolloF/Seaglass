@@ -363,7 +363,7 @@
           <Icon name="trophy" size={22} stroke={1.8} />
           <span class="grow">Achievements</span>
           {#if ach?.fix === "uplay-ini"}
-            <button type="button" class="btn small" disabled={enablingAch} title="Sets Achievements = 1 in the emulator's ini (a copy of the old one is kept)" onclick={enableUplay}
+            <button type="button" class="btn small" disabled={enablingAch} title="Sets Achievements = 1 in this copy's ini (a copy of the old one is kept)" onclick={enableUplay}
               >{enablingAch ? "Turning on…" : "Turn on"}</button
             >
           {/if}
@@ -394,7 +394,7 @@
       <dt>Identified</dt>
       <dd>{game.matchHow}{game.confidence < 100 ? ` (${game.confidence}% sure)` : ""}</dd>
       {#if game.emulator}<dt>Emulator</dt><dd>{game.emulator}</dd>{/if}
-      {#if game.repacker}<dt>Repack</dt><dd>{game.repacker}</dd>{/if}
+      {#if game.repacker}<dt>Installer</dt><dd>{game.repacker}</dd>{/if}
       {#if game.steamAppId}<dt>Steam app</dt><dd>{game.steamAppId}</dd>{/if}
       {#if game.installed}
         <dt>Folder</dt>

@@ -15,9 +15,11 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
- * InstallSyncer installs Syncer, or updates it, from its latest release:
- * the installer is checked against the SHA-256 GitHub published for it
- * and runs silently, for this Windows account only (no administrator).
+ * InstallSyncer installs Syncer, or updates it, from its latest release,
+ * for this Windows account only (no administrator). Never over the same
+ * or a newer version; see syncerInstallPlan for when it asks first. It
+ * returns once the installer has exited; the interface shows it as
+ * installing until then. Closing the installer isn't an error.
  */
 export function InstallSyncer(): $CancellablePromise<void> {
     return $Call.ByID(2508183485);
