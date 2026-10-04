@@ -8,7 +8,7 @@
 
 ---
 
-**[Download Seaglass](https://github.com/ApolloF/Seaglass/releases/latest/download/Seaglass-setup.exe)** for Windows 10 and 11 (64-bit). It installs for your account only, without administrator rights, and keeps itself up to date. Release notes are on the [Releases](https://github.com/ApolloF/Seaglass/releases) page; the plan is in [docs/PLAN.md](docs/PLAN.md).
+**[Download Seaglass](https://github.com/ApolloF/Seaglass/releases/latest/download/Seaglass-setup.exe)** for Windows 10 and 11 (64-bit). It installs for your account only, without administrator rights, and keeps itself up to date. Release notes are on the [Releases](https://github.com/ApolloF/Seaglass/releases) page; what changed in each version is in [docs/CHANGELOG.md](docs/CHANGELOG.md), and what's next in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 - Finds Steam, Epic, GOG, EA, Ubisoft, Battle.net and Xbox installs, plus games installed outside a store launcher (*external copies*, such as standalone and DRM-free installers, backups or games set up with a Steam API emulator) and plain game folders, and works out which game each one is.
 - Desktop mode for mouse and keyboard, and a big picture mode for controllers with three layouts to choose from (Deck, Console, Orbit).
@@ -34,7 +34,7 @@ Seaglass is an independent project and is not affiliated with, endorsed by or sp
 - **Games started elsewhere:** start a library game from Steam or a shortcut and Seaglass still counts its playtime and lets go of the controller (*Settings → Big picture → While playing*).
 - **Command line:** `--play <id>` starts a game without the interface (for shortcuts), `--tray` starts in the tray, `--quit` closes a running Seaglass, `--diagnostics` writes a report to the desktop.
 - **Something wrong?** *Settings → About → Copy diagnostics*, then *Report a problem*. If the interface won't open: `Seaglass.exe --diagnostics`.
-- **Your data:** `%APPDATA%\Seaglass` (library, settings, encrypted keys, log) and `%LOCALAPPDATA%\Seaglass` (art, the game database, updates).
+- **Your data:** `%APPDATA%\Seaglass` (library, settings, encrypted keys, log) and `%LOCALAPPDATA%\Seaglass` (art, the game database, updates). Seaglass has no telemetry; [PRIVACY.md](PRIVACY.md) lists what it stores and which services it contacts.
 
 Builds aren't code-signed yet, so SmartScreen may warn the first time: *More info → Run anyway*. See [SECURITY.md](SECURITY.md) for how Seaglass keeps you safe.
 
@@ -58,3 +58,5 @@ The DLSS Updater add-on host lives on the [`feature/dlss-addon`](https://github.
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE). Releases up to 1.4 (as WaterLauncher) were MIT licensed.
+
+Seaglass includes third-party code and fonts under their own licenses (MIT, BSD, ISC, zlib and the SIL Open Font License for Barlow); see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt), which the installer also puts next to `Seaglass.exe`. After changing dependencies, regenerate it with `go run ./tools/notices` (CI checks that it is up to date).

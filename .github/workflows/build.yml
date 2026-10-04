@@ -90,6 +90,10 @@ jobs:
         working-directory: frontend
         run: npm test
 
+      - name: Third-party notices up to date
+        # Fails when a dependency changed without regenerating the file.
+        run: go run ./tools/notices -check
+
       - name: Sign
         if: env.SIGNPATH != 'true'
         run: ./build/windows/sign.ps1 bin/Seaglass.exe
@@ -267,3 +271,5 @@ jobs:
             bin/Seaglass-setup.exe.sha256
             bin/Seaglass.exe
             bin/Seaglass.exe.sha256
+            LICENSE
+            THIRD_PARTY_NOTICES.txt
