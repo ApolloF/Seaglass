@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ApolloF/Seaglass/internal/logx"
 )
 
 // Shared owns what was played while no Syncer account was in use.
@@ -150,22 +152,52 @@ func (s *Store) Fresh() bool {
 
 func (s *Store) path(owner string) string { return filepath.Join(s.dir, owner, s.pc+".json") }
 
+// loadMineLocked reads this PC's file for owner. A damaged file (a write
+// cut short by a power cut) is moved aside and the copy kept from the last
+// good write (.bak) is used instead, or, without one, an empty file: one
+// bad write must not stop this PC from recording for good. A file it
+// can't open, or one from a newer Seaglass, is left alone and nothing is
+// written over it.
 func (s *Store) loadMineLocked(owner string) {
 	s.owner, s.mine, s.err, s.dirty = owner, newFile(s.pcName), nil, false
-	b, err := os.ReadFile(s.path(owner))
+	p := s.path(owner)
+	b, err := os.ReadFile(p)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
+		return
 	case err != nil:
 		s.err = err
-	default:
-		f, err := decode(b)
-		if err != nil {
-			s.err = err
-			return
-		}
+		return
+	}
+	f, err := decode(b)
+	if err == nil {
 		s.mine = f
+		return
+	}
+	if errors.Is(err, errNewer) {
+		s.err = err
+		return
+	}
+	if rerr := os.Rename(p, p+".corrupt-"+time.Now().Format("20060102-150405")); rerr != nil {
+		s.err = err // can't keep it for inspection: don't write over it either
+		return
+	}
+	bak, berr := os.ReadFile(p + ".bak")
+	if berr != nil {
+		return
+	}
+	f, err = decode(bak)
+	switch {
+	case errors.Is(err, errNewer):
+		s.err = err
+	case err == nil:
+		s.mine, s.dirty = f, true
+		_ = s.flushLocked() // put the good copy back where other PCs read it
 	}
 }
+
+// errNewer means a file was written by a newer Seaglass.
+var errNewer = errors.New("profile: written by a newer Seaglass")
 
 func newFile(pcName string) *File {
 	return &File{Version: fileVersion, PC: pcName, Games: map[string]*Game{}}
@@ -177,7 +209,7 @@ func decode(b []byte) (*File, error) {
 		return nil, err
 	}
 	if f.Version > fileVersion {
-		return nil, errors.New("profile: written by a newer Seaglass")
+		return nil, errNewer
 	}
 	if f.Games == nil {
 		f.Games = map[string]*Game{}
@@ -394,10 +426,26 @@ func (s *Store) change(fn func(f *File) bool) {
 		return
 	}
 	s.dirty = true
+	s.scheduleLocked(saveDelay)
+}
+
+// saveDelay gathers changes into one write; retryDelay is how long a
+// failed write waits to be tried again (Syncthing or a virus scanner can
+// hold the file open for a while).
+var saveDelay, retryDelay = 2 * time.Second, 30 * time.Second
+
+func (s *Store) scheduleLocked(d time.Duration) {
 	if s.saveT != nil {
 		s.saveT.Stop()
 	}
-	s.saveT = time.AfterFunc(2*time.Second, func() { _ = s.Flush() })
+	s.saveT = time.AfterFunc(d, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err := s.flushLocked(); err != nil {
+			logx.Printf("saving profile: %v", err)
+			s.scheduleLocked(retryDelay)
+		}
+	})
 }
 
 // Flush writes this PC's file now.
@@ -416,19 +464,38 @@ func (s *Store) flushLocked() error {
 	if err != nil {
 		return err
 	}
-	if err := writeAtomic(s.path(s.owner), b); err != nil {
+	p := s.path(s.owner)
+	if err := writeAtomic(p, b); err != nil {
 		return err
 	}
 	s.dirty = false
+	// The spare loadMineLocked falls back to, written after the file itself
+	// so one of the two is always whole. Not a ".json": other PCs skip it.
+	_ = writeAtomic(p+".bak", b)
 	return nil
 }
 
+// writeAtomic replaces path with b: written to a temporary file and
+// flushed to disk before the rename, so a power cut leaves the old file or
+// the new one, never a torn one.
 func writeAtomic(path string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)

@@ -283,6 +283,7 @@ export interface PadState {
   battery: number; // -1 unknown
   wireless: boolean;
   error?: string;
+  slow?: boolean; // Windows took seconds to answer about the controller
 }
 
 export type Phase = "preparing" | "starting" | "running" | "finishing" | "ended" | "failed" | "cancelled" | "";

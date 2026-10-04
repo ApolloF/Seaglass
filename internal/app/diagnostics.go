@@ -200,6 +200,9 @@ func (c *Core) diagnostics() string {
 		in, running := m.InMode()
 		line("Controller layer: %s, SDL %s", in, map[bool]string{true: "running", false: "not running"}[running])
 	}
+	if c.padState().Slow {
+		line("Controller: slow to answer Windows (SDL calls took seconds)")
+	}
 	ses := c.Launch.Current()
 	if ses.ID > 0 {
 		line("Last session: %q, %s via %s, %d s played %s %s", ses.Title, ses.Phase, orUnknown(ses.Route), ses.Seconds, ses.Error, ses.Note)

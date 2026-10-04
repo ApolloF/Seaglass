@@ -277,9 +277,9 @@ func sourceLabel(g scan.Candidate) string {
 	case g.Source.Store():
 		return storeLabels[g.Source]
 	case g.Emulator != "":
-		return "External · " + g.Emulator
+		return "External copy"
 	case g.Repacker != "":
-		return "Repack · " + g.Repacker
+		return "External copy"
 	case g.DRMFree != "":
 		return "DRM-free · " + g.DRMFree
 	}
