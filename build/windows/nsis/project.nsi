@@ -174,6 +174,9 @@ Section
 
     SetOutPath $INSTDIR
     !insertmacro wails.files
+    # The license and the third-party notices go with the program.
+    File "/oname=LICENSE.txt" "..\..\..\LICENSE"
+    File "..\..\..\THIRD_PARTY_NOTICES.txt"
     # Left behind by an update of a copy that wasn't installed.
     Delete "$INSTDIR\${PRODUCT_EXECUTABLE}.old"
 
@@ -231,6 +234,8 @@ Section "uninstall"
     Delete "$INSTDIR\${PRODUCT_EXECUTABLE}"
     Delete "$INSTDIR\${PRODUCT_EXECUTABLE}.old"
     Delete "$INSTDIR\${PRODUCT_EXECUTABLE}.new"
+    Delete "$INSTDIR\LICENSE.txt"
+    Delete "$INSTDIR\THIRD_PARTY_NOTICES.txt"
     Delete "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk"
     Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
 
