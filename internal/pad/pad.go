@@ -56,6 +56,10 @@ type State struct {
 	Battery   int    `json:"battery"` // percent, -1 unknown
 	Wireless  bool   `json:"wireless"`
 	Error     string `json:"error,omitempty"`
+	// Slow: Windows took seconds to answer SDL about the controllers.
+	// A controller can get into a state where every question to it waits
+	// for a timeout; reconnecting it ends that.
+	Slow bool `json:"slow,omitempty"`
 }
 
 // SDL3 constants used here.
@@ -131,7 +135,20 @@ const (
 	pollIdle    = 16 * time.Millisecond  // connected, untouched for a few seconds
 	pollPassive = 33 * time.Millisecond  // a game runs: only the PS button matters
 	pollNoPad   = 250 * time.Millisecond // nothing connected: only hotplug
+
+	// slowCall is how long one SDL call may take before the controller
+	// counts as slow to answer; a healthy start takes well under a second.
+	slowCall = 5 * time.Second
 )
+
+// slowNote is the log line for an SDL call that took d, or "" when that
+// is normal.
+func slowNote(what string, d time.Duration) string {
+	if d < slowCall {
+		return ""
+	}
+	return "controller: SDL took " + d.Round(100*time.Millisecond).String() + " " + what + "; Windows is slow to answer a controller (reconnecting it usually fixes this)"
+}
 
 // Manager owns the SDL thread.
 type Manager struct {
@@ -165,6 +182,19 @@ type Manager struct {
 	// Why SDL didn't start on the last mode change, kept in every state
 	// until a mode change works; only touched on the SDL thread.
 	padErr string
+	// Whether an SDL call was slow since SDL last started quickly; only
+	// touched on the SDL thread.
+	slow bool
+}
+
+// timed runs an SDL call and notes when it was slow.
+func (m *Manager) timed(what string, call func()) {
+	t := time.Now()
+	call()
+	if note := slowNote(what, time.Since(t)); note != "" {
+		logx.Printf("%s", note)
+		m.slow = true
+	}
 }
 
 // Start loads SDL and begins reading controllers. onAction gets every
@@ -476,7 +506,7 @@ func (m *Manager) loop() {
 		}
 		if !off {
 			m.closeAll(s)
-			s.quit.Call()
+			m.timed("to stop", func() { s.quit.Call() })
 		}
 		clear(held)
 		clear(axes)
@@ -486,8 +516,11 @@ func (m *Manager) loop() {
 		m.pulses = nil
 		off, passive, applied, failed = true, want == Passive, want, false
 		m.padErr = ""
+		m.slow = false
 		if want != Off {
-			if err := m.start(s, want == Passive); err != nil {
+			var err error
+			m.timed("to start", func() { err = m.start(s, want == Passive) })
+			if err != nil {
 				m.padErr = "controller support unavailable: " + err.Error()
 				failed = true
 			} else {
@@ -590,8 +623,12 @@ func (m *Manager) loop() {
 		stickMoved := false
 		var hatNow map[uint32]uint8 // hat positions reported in this batch
 		rawBefore := Raw{Buttons: rawButtons, Axes: [6]int16{axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]}}
+		wasSlow := m.slow
 		for {
-			r, _, _ := s.pollEvent.Call(uintptr(unsafe.Pointer(&ev[0])))
+			// SDL looks for new controllers inside this call, so a
+			// controller that is slow to answer holds it up.
+			var r uintptr
+			m.timed("to look for controllers", func() { r, _, _ = s.pollEvent.Call(uintptr(unsafe.Pointer(&ev[0]))) })
 			if !ok(r) {
 				break
 			}
@@ -664,6 +701,9 @@ func (m *Manager) loop() {
 				}
 			case evQuit:
 			}
+		}
+		if m.slow && !wasSlow {
+			m.refreshState(s)
 		}
 		if stickMoved {
 			stick()
@@ -788,7 +828,7 @@ func (m *Manager) refreshState(s *sdl) {
 	gp := pads[current]
 	padsMu.Unlock()
 	m.setState(func(st *State) {
-		*st = State{Battery: -1, Error: m.padErr}
+		*st = State{Battery: -1, Error: m.padErr, Slow: m.slow}
 		if gp == nil {
 			return
 		}

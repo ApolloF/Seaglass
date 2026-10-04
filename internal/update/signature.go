@@ -23,7 +23,17 @@ const (
 // SignedMessage is what a release signature covers: the tag as well as the
 // hashes, so an old release can't be passed off under a newer tag.
 func SignedMessage(tag string, sums []byte) []byte {
-	return append([]byte("Seaglass release "+tag+"\n"), sums...)
+	return ProductMessage(defaultProduct, tag, sums)
+}
+
+// defaultProduct names Seaglass's own releases in their signatures.
+const defaultProduct = "Seaglass"
+
+// ProductMessage is what a signature of one of product's releases covers.
+// The name keeps a signed release of one product from passing for
+// another's under the same tag.
+func ProductMessage(product, tag string, sums []byte) []byte {
+	return append([]byte(product+" release "+tag+"\n"), sums...)
 }
 
 // FormatSums writes name → hash as sha256sum does, sorted by name.
@@ -75,17 +85,22 @@ func DecodeSig(b []byte) ([]byte, error) {
 // VerifySums checks a release's SHA256SUMS against its signature with any
 // of keys, and returns the hashes it lists.
 func VerifySums(keys []ed25519.PublicKey, tag string, sums, sigFile []byte) (map[string]string, error) {
+	return VerifyProductSums(defaultProduct, keys, tag, sums, sigFile)
+}
+
+// VerifyProductSums is VerifySums for product's releases.
+func VerifyProductSums(product string, keys []ed25519.PublicKey, tag string, sums, sigFile []byte) (map[string]string, error) {
 	sig, err := DecodeSig(sigFile)
 	if err != nil {
 		return nil, err
 	}
-	msg := SignedMessage(tag, sums)
+	msg := ProductMessage(product, tag, sums)
 	for _, k := range keys {
 		if len(k) == ed25519.PublicKeySize && ed25519.Verify(k, msg, sig) {
 			return ParseSums(sums)
 		}
 	}
-	return nil, errors.New("the release isn't signed with Seaglass's release key")
+	return nil, errors.New("the release isn't signed with " + product + "'s release key")
 }
 
 // ParseKey reads a base64 public key.

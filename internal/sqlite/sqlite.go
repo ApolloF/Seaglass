@@ -308,6 +308,12 @@ func (db *DB) payload(p []byte, off, size int) ([]byte, error) {
 	if off+local > len(p) {
 		return nil, errors.New("payload past the page")
 	}
+	// Every overflow page holds u-4 bytes, so a payload can't be larger
+	// than the pages there are: a damaged size can't reserve more memory
+	// than the file has.
+	if size-local > (db.pages()+len(db.wal))*(u-4) {
+		return nil, errors.New("bad payload size")
+	}
 	out := make([]byte, 0, size)
 	out = append(out, p[off:off+local]...)
 	if local == size {

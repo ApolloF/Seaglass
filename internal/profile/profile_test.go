@@ -1,10 +1,12 @@
 package profile
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func open(t *testing.T, dir, pc string) *Store {
@@ -114,20 +116,94 @@ func TestBadFilesAreSkipped(t *testing.T) {
 	}
 }
 
-func TestUnreadableOwnFileIsNotOverwritten(t *testing.T) {
+// A file from a newer Seaglass is never written over.
+func TestNewerOwnFileIsNotOverwritten(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, Shared, "desk.json")
 	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	_ = os.WriteFile(p, []byte(`{broken`), 0o644)
+	const newer = `{"version":99,"games":{"k":{"playtime":500}}}`
+	_ = os.WriteFile(p, []byte(newer), 0o644)
 	s, err := Open(dir, "desk", "desk")
 	if err == nil || s.Healthy() {
-		t.Fatal("broken file accepted")
+		t.Fatal("file from a newer Seaglass accepted")
 	}
 	s.AddPlaytime("k", "", 10)
 	_ = s.Flush()
-	if b, _ := os.ReadFile(p); string(b) != `{broken` {
+	if b, _ := os.ReadFile(p); string(b) != newer {
 		t.Fatalf("overwritten: %s", b)
 	}
+}
+
+// A file torn by a power cut (zeros) is kept aside, and recording goes on
+// instead of stopping on this PC for good.
+func TestTornOwnFileDoesNotStopRecording(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, Shared, "desk.json")
+	_ = os.MkdirAll(filepath.Dir(p), 0o755)
+	_ = os.WriteFile(p, make([]byte, 64), 0o644)
+	s, err := Open(dir, "desk", "desk")
+	if err != nil || !s.Healthy() {
+		t.Fatalf("store disabled by a torn file: %v", err)
+	}
+	s.AddPlaytime("steam:1", "", 100)
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); !bytes.Contains(b, []byte("steam:1")) {
+		t.Fatalf("not recorded: %q", b)
+	}
+	if aside, _ := filepath.Glob(p + ".corrupt-*"); len(aside) != 1 {
+		t.Errorf("torn file not kept aside: %v", aside)
+	}
+}
+
+// After a torn write, what was saved last comes back from the spare copy.
+func TestTornOwnFileRecoversFromBackup(t *testing.T) {
+	dir := t.TempDir()
+	s := open(t, dir, "desk")
+	s.AddPlaytime("k", "Game", 300)
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, Shared, "desk.json")
+	_ = os.WriteFile(p, []byte(`{"version":1,"games":{"k":{"play`), 0o644)
+	s = open(t, dir, "desk")
+	if !s.Healthy() {
+		t.Fatal("store disabled by a torn file")
+	}
+	if g := s.Merged().Games["k"]; g.Playtime != 300 {
+		t.Fatalf("playtime %d after recovery, want 300", g.Playtime)
+	}
+	if b, _ := os.ReadFile(p); !json.Valid(b) {
+		t.Fatalf("recovered copy not written back: %q", b)
+	}
+}
+
+// A timed write that fails (the file held open by Syncthing or a virus
+// scanner) is tried again instead of waiting for the next change.
+func TestFailedTimedFlushIsRetried(t *testing.T) {
+	defer func(a, b time.Duration) { saveDelay, retryDelay = a, b }(saveDelay, retryDelay)
+	saveDelay, retryDelay = 20*time.Millisecond, 50*time.Millisecond
+	dir := t.TempDir()
+	s := open(t, dir, "desk")
+	p := filepath.Join(dir, Shared, "desk.json")
+	// A folder where the temporary file goes makes every write fail.
+	if err := os.MkdirAll(p+".tmp", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s.AddPlaytime("k", "", 501)
+	time.Sleep(200 * time.Millisecond) // the first timed write has failed
+	if err := os.Remove(p + ".tmp"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if b, _ := os.ReadFile(p); bytes.Contains(b, []byte("501")) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("the failed write was never tried again")
 }
 
 // What was played before the first account is merged into it once, even

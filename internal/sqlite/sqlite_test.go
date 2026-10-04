@@ -2,8 +2,10 @@ package sqlite
 
 import (
 	"bytes"
+	"encoding/binary"
 	"math"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -110,4 +112,40 @@ func FuzzDB(f *testing.F) {
 			}
 		}
 	})
+}
+
+// sqliteVarint encodes v as SQLite's big-endian varint (v < 2^56).
+func sqliteVarint(v uint64) []byte {
+	b := []byte{byte(v & 0x7f)}
+	for v >>= 7; v > 0; v >>= 7 {
+		b = append([]byte{byte(v&0x7f) | 0x80}, b...)
+	}
+	return b
+}
+
+// A tiny damaged file whose one cell claims a huge payload must not make
+// the reader reserve that much memory before it finds the chain is broken.
+func TestHugePayloadSizeInTinyFile(t *testing.T) {
+	db := make([]byte, 512)
+	copy(db, "SQLite format 3\x00")
+	binary.BigEndian.PutUint16(db[16:], 512)
+	db[100] = 0x0d                            // leaf table page
+	binary.BigEndian.PutUint16(db[103:], 1)   // one cell
+	binary.BigEndian.PutUint16(db[108:], 200) // at 200
+	cell := append(sqliteVarint(500<<20), sqliteVarint(1)...)
+	copy(db[200:], cell)
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	d, err := parse(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.loadSchema() == nil {
+		t.Error("a cell claiming 500 MB in a 512-byte file was accepted")
+	}
+	runtime.ReadMemStats(&after)
+	if grew := after.TotalAlloc - before.TotalAlloc; grew > 64<<20 {
+		t.Fatalf("allocated %d MB reading a 512-byte file", grew>>20)
+	}
 }

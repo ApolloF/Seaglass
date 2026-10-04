@@ -38,6 +38,19 @@ type Feed struct {
 	// Keys are the release keys; with any, only files listed in a signed
 	// SHA256SUMS are accepted.
 	Keys []ed25519.PublicKey
+	// Product is the name signed into each release ("Seaglass" when empty).
+	Product string
+}
+
+// Signed reports whether the feed's downloads are checked against signed
+// releases, not only against checksums GitHub serves beside them.
+func (f Feed) Signed() bool { return len(f.Keys) > 0 }
+
+func (f Feed) product() string {
+	if f.Product == "" {
+		return defaultProduct
+	}
+	return f.Product
 }
 
 // GitHub is Seaglass's own release feed.
@@ -118,6 +131,9 @@ const maxNotes = 4000
 
 // Latest asks GitHub for the newest release.
 func (f Feed) Latest(ctx context.Context) (Release, error) {
+	if u, err := url.Parse(f.LatestURL); err != nil || u.Scheme != "https" || u.User != nil {
+		return Release{}, errors.New("refusing to ask for releases over anything but HTTPS")
+	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.LatestURL, nil)
