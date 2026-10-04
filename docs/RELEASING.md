@@ -34,6 +34,6 @@ From v1.1, every release is signed with Seaglass's **release key**, an ed25519 k
    Then it commits "Version X.Y.Z" (`build/windows/info.json`), pushes, tags, checks the tag on GitHub, waits for CI to build, test (including an install/uninstall smoke test) and code-sign the tag into a **draft** release, and runs `publish` (below). `--dry-run` does the checks only.
 3. `publish` downloads the draft's files, checks them against the `.sha256` CI made, prints the hashes, writes `SHA256SUMS` and `SHA256SUMS.sig`, uploads them, publishes the release (as *latest* unless it's a preview like `v1.2.0-beta.1`), and verifies the published signature. It can also be run on its own: `go run ./tools/release publish vX.Y.Z`.
 4. Optional: compare the printed hashes with the CI run's *Checksums* step. The signature says "the maintainer approved exactly these files"; it can't tell whether CI built the right thing.
-5. Update the status line in `docs/PLAN.md`.
+5. Check that `docs/CHANGELOG.md` has the version and `docs/ROADMAP.md` no longer lists what it finished (both belong in the release's pull request).
 
 `go run ./tools/release verify vX.Y.Z` checks any published release.

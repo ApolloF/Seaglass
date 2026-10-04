@@ -8,7 +8,7 @@
 
 ---
 
-**[Download Seaglass](https://github.com/ApolloF/Seaglass/releases/latest/download/Seaglass-setup.exe)** for Windows 10 and 11 (64-bit). It installs for your account only, without administrator rights, and keeps itself up to date. Release notes are on the [Releases](https://github.com/ApolloF/Seaglass/releases) page; the plan is in [docs/PLAN.md](docs/PLAN.md).
+**[Download Seaglass](https://github.com/ApolloF/Seaglass/releases/latest/download/Seaglass-setup.exe)** for Windows 10 and 11 (64-bit). It installs for your account only, without administrator rights, and keeps itself up to date. Release notes are on the [Releases](https://github.com/ApolloF/Seaglass/releases) page; what changed in each version is in [docs/CHANGELOG.md](docs/CHANGELOG.md), and what's next in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 - Finds Steam, Epic, GOG, EA, Ubisoft, Battle.net and Xbox installs, plus games installed outside a store launcher (*external copies*, such as standalone and DRM-free installers, backups or games set up with a Steam API emulator) and plain game folders, and works out which game each one is.
 - Desktop mode for mouse and keyboard, and a big picture mode for controllers with three layouts to choose from (Deck, Console, Orbit).
