@@ -172,8 +172,9 @@ const badge = (seed: number, gray = false) => {
 
 const achNames = ["First Steps", "Into the Fire", "Crownless", "Ashen Knight", "No Rest", "Cartographer", "Hoarder", "Untouchable", "Secret Ending", "Completionist", "Old Friend", "Night Owl"];
 
-function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: boolean; rarity?: boolean } = {}): Achievement[] {
+function achItems(n: number, upTo: number, opts: { names?: boolean; icons?: boolean; rarity?: boolean } = {}): Achievement[] {
   const { names = true, icons = true, rarity = true } = opts;
+  const unlocked = Math.min(upTo, n);
   return Array.from({ length: n }, (_, i) => {
     const id = `ACH_${String(i + 1).padStart(2, "0")}`;
     const on = i < unlocked;
