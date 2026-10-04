@@ -39,4 +39,6 @@ jobs:
 
       - name: Tests (informational; many fixtures assume Windows paths)
         continue-on-error: true
-        run: go test ./... 2>&1 | tail -n 200
+        run: |
+          set -o pipefail
+          go test -timeout 3m ./... 2>&1 | tail -n 200
