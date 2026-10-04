@@ -58,8 +58,20 @@ const mockParams = new URLSearchParams(typeof location !== "undefined" ? locatio
 }
 
 // ?art=steam gives the made-up games real art from Steam's CDN (straight
-// from the browser), to judge the layouts with real pictures.
-if (mockParams.get("art") === "steam") {
+// from the browser), to judge the layouts with real pictures. Any other
+// ?art=<base URL> takes each game's art from <base>/<slug>/cover.jpg,
+// hero.jpg, backdrop.jpg and logo.png (the marketing screenshots serve
+// their own there); games that need a check keep the generated art, like
+// in the app.
+const artBase = mockParams.get("art");
+if (artBase && artBase !== "steam") {
+  for (const g of games) {
+    if (g.needsReview) continue;
+    const dir = `${artBase.replace(/\/$/, "")}/${g.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    g.meta = { ...g.meta, cover: `${dir}/cover.jpg`, hero: `${dir}/hero.jpg`, backdrop: `${dir}/backdrop.jpg`, logo: `${dir}/logo.png` };
+  }
+}
+if (artBase === "steam") {
   const ids = [1245620, 413150, 1086940, 620, 1145360, 504230, 1091500, 2358720, 1623730, 292030, 1174180, 271590, 374320, 814380, 105600, 367520, 400, 220, 2050650, 883710, 782330, 379720, 1817070, 1593500, 2215430, 1151640, 990080, 252490, 1966720, 534380, 1716740, 1551360, 2379780, 1794680, 646570, 250900, 1057090, 976730, 1196590, 239140];
   const cdn = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/";
   games.forEach((g, k) => {
