@@ -2,7 +2,12 @@
 
 ## Reporting a problem
 
-Please report security problems privately through GitHub: **Security → Report a vulnerability** on this repository. Don't open a public issue for them.
+Please report security problems privately. Don't put details in a public issue.
+
+- **GitHub:** on this repository, *Security → Report a vulnerability*, when that button is shown.
+- **Otherwise:** open an issue titled "Security contact", without any details, and the maintainer will get in touch to arrange a private channel.
+
+Fixes ship in the latest release only. Seaglass updates itself, so with automatic updates on (the default, *Settings → General*) a fix reaches installed copies on their next start.
 
 ## What Seaglass does to stay safe
 
