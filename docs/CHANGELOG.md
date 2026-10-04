@@ -4,6 +4,12 @@ What each version of Seaglass (WaterLauncher until 1.4) changed and why, newest 
 
 Alongside Seaglass: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.15.0 and DLSS Updater 1.4.1.
 
+## 1.11.0 (unreleased): a controller slow to answer
+
+The DualSense was found 25 to 300 s late after Seaglass started, and again after games, from 2026-10-03 on (it had been instant every time before, and `internal/pad` hadn't changed). It reproduced with SDL alone: with HIDAPI on, `SDL_Init` took 17 to 30 s and the pad was added up to 61 s later; with HIDAPI off, the RawInput and GameInput backends took 30 s or never reported it. After a replug, both took 0.15 s, 48 times out of 48. So the controller (or Windows' HID stack for it) answered every request only after a timeout, and Seaglass's controller thread waited through each SDL restart: at start, when a game starts and when it ends. Switching HIDAPI at runtime instead of restarting doesn't work: SDL removes the pad, and no other backend picks it up, so the PS button would stop working while a game runs.
+
+- `pad.Manager` times `SDL_Init`, `SDL_Quit` and each `SDL_PollEvent` (SDL looks for new controllers inside it). A call over 5 s is logged with its duration and sets `State.Slow` until SDL next starts. The interface shows a note telling the person to reconnect the controller (`lib/padstate.ts`), and diagnostics flag it.
+
 ## 1.10.0 (2026-10-03): controller and audit fixes
 
 A DualSense stopped being detected, and the mouse wheel did nothing in big picture. No cause could be reproduced without the controller, but the controller layer had three ways to stay released: mode switches from two places at once reaching the SDL thread in the wrong order (after which `SetMode` ignored the fix-up), an SDL start that failed and was never tried again, and the controller coming back only after the steps after a game. `pad.Manager` now signals a mode change and the SDL thread reads the newest mode itself; failed starts are retried every 30 s; the controller is active again at `Finishing`. An `SDL_OpenGamepad` failure is logged with SDL's error, and diagnostics show the mode SDL is really in (`Manager.InMode`).
