@@ -506,6 +506,12 @@ A DualSense stopped being detected, and the mouse wheel did nothing in big pictu
 - **Mouse wheel** (`lib/wheel.ts`): big picture's screens move a selection, so the wheel dispatches direction steps; a list that really scrolls keeps the wheel.
 - **Audit**: settings saved through a flushed file with a backup (a damaged file falls back to it); exe lookups retried for processes that couldn't be read yet; Epic/GOG refreshes without a new token keep the old one; secrets written through a flushed file; art temp files unique per fetch; a Syncer write cut short closes the pipe; interface fixes (settings saves applied at once and ordered, the welcome keeps the controller, Quick access closes the game page, overlay pad state, shrinking lists, Esc in dialogs) and library search without re-sorting.
 
+## 29. A controller slow to answer (v1.11)
+
+The DualSense was found 25 to 300 s late after Seaglass started, and again after games, from 2026-10-03 on (it had been instant every time before, and `internal/pad` hadn't changed). It reproduced with SDL alone: with HIDAPI on, `SDL_Init` took 17 to 30 s and the pad was added up to 61 s later; with HIDAPI off, the RawInput and GameInput backends took 30 s or never reported it. After a replug, both took 0.15 s, 48 times out of 48. So the controller (or Windows' HID stack for it) answered every request only after a timeout, and Seaglass's controller thread waited through each SDL restart: at start, when a game starts and when it ends. Switching HIDAPI at runtime instead of restarting doesn't work: SDL removes the pad, and no other backend picks it up, so the PS button would stop working while a game runs.
+
+- `pad.Manager` times `SDL_Init`, `SDL_Quit` and each `SDL_PollEvent` (SDL looks for new controllers inside it). A call over 5 s is logged with its duration and sets `State.Slow` until SDL next starts. The interface shows a note telling the person to reconnect the controller (`lib/padstate.ts`), and diagnostics flag it.
+
 ## To-do (maintainer)
 
 - [x] **Back up the release key** (backed up 2026-09-27; made 2026-09-27 on the dev PC; WaterLauncher's was never backed up and is lost): `go run ./tools/release backup <file>` in a terminal (it asks for a password). Keep the file offline and the password elsewhere. Without it, losing this PC strands v1.1+ users on their version ([RELEASING.md](RELEASING.md)).

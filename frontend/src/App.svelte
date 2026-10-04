@@ -6,6 +6,7 @@
   import { api } from "./lib/api";
   import { desktopPad } from "./lib/desknav";
   import { dispatchFrom, pad, type Intent } from "./lib/input.svelte";
+  import { slowPadNotice } from "./lib/padstate";
   import { errText, lib } from "./lib/store.svelte";
   import { sessionActive } from "./lib/types";
 
@@ -65,7 +66,10 @@
   $effect(() =>
     api.pad.onState((s) => {
       const wasConnected = pad.connected;
-      Object.assign(pad, s);
+      const slow = slowPadNotice(pad, s);
+      // slow is left out when false, so it's cleared first.
+      Object.assign(pad, { slow: false }, s);
+      if (slow) lib.toast(slow, "error");
       // Not during the welcome: big picture's screens would take the
       // controller from it.
       if (s.connected && !wasConnected && !welcome && lib.settings?.openBigPictureOnController && !sessionActive(lib.session) && performance.now() > padQuietUntil) enterBigPicture();

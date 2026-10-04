@@ -1,6 +1,7 @@
 package pad
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -67,5 +68,17 @@ func TestQuickModeSwitchesEndInTheLastMode(t *testing.T) {
 			}
 			time.Sleep(20 * time.Millisecond)
 		}
+	}
+}
+
+// A start or controller lookup counts as slow only once it takes seconds,
+// so normal starts (well under a second) never warn.
+func TestSlowNoteOnlyForSlowCalls(t *testing.T) {
+	if n := slowNote("to start", 900*time.Millisecond); n != "" {
+		t.Errorf("a normal start is noted: %q", n)
+	}
+	n := slowNote("to start", 25300*time.Millisecond)
+	if n == "" || !strings.Contains(n, "25.3s to start") || !strings.Contains(n, "reconnecting") {
+		t.Errorf("a 25 s start: %q", n)
 	}
 }

@@ -1,7 +1,7 @@
 // Made-up library for `npm run dev:mock`: the games from the design canvas,
 // covering every way a game can be found.
 import type { Api } from "./api";
-import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
+import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
 import { sessionActive } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -620,7 +620,10 @@ export const mockApi: Api = {
       (window as unknown as { mockPad: (a: string, repeat?: boolean) => void }).mockPad = (a, repeat = false) => padListeners.forEach((f) => f(a, repeat));
       return () => padListeners.delete(cb);
     },
-    onState() {
+    onState(cb) {
+      // window.mockPadState({ slow: true }) changes the controller state, for trying things out.
+      (window as unknown as { mockPadState: (s: Partial<PadState>) => void }).mockPadState = (s) =>
+        cb({ connected: true, name: "DualSense Wireless Controller", kind: "playstation", dualSense: true, battery: 82, wireless: true, ...s });
       return () => {};
     },
   },

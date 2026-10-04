@@ -42,4 +42,11 @@ export interface State {
     "battery": number;
     "wireless": boolean;
     "error"?: string;
+
+    /**
+     * Slow: Windows took seconds to answer SDL about the controllers.
+     * A controller can get into a state where every question to it waits
+     * for a timeout; reconnecting it ends that.
+     */
+    "slow"?: boolean;
 }
