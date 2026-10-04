@@ -363,7 +363,7 @@ On `fix/controller-and-polish`, from the maintainer's own list after section 20.
 7. **Orbit**: bubbles are the game's key art with its logo (a new `tile`, 384² made from the hero and logo; put together in the interface until it's fetched), drawn at their largest size and scaled down so they stay sharp; the selected game's backdrop fills the screen behind them. Opening a game grows its bubble into sharp full-size art while the rest fly out, instead of fading to ghosts behind the details. A class name clash that squashed the open view is gone.
 8. **Backdrops**: Steam screenshots as uploaded (often 4K) rather than the 1920 copies, stored at 2560 wide. A game without a backdrop gets its hero or cover blurred into a soft background instead of a small picture stretched over the screen. `meta.Version` 3 fetches metadata once more.
 9. **Metadata for well-known games** (`TestMatchAudit` runs 75 real names through the real game database and store search: 68 matched before, 73 now):
-   - Scene folder names lose their version before the dots become spaces ("Elden.Ring.v1.10-FitGirl" → "Elden Ring"), and "version 1.0.3179" goes too.
+   - Dotted folder names lose their version before the dots become spaces ("Game.Name.v1.10-GROUP" → "Game Name"), and "version 1.0.3179" goes too.
    - Brand prefixes ("Marvel's", "Tom Clancy's") and well-known abbreviations ("GTA V", "RDR2") are understood; editions are stripped for store titles too.
    - The Steam store search tries the name without its edition and with the abbreviation written out.
    - Steam's CDN art files are tried when its store API lists nothing (delisted games).
