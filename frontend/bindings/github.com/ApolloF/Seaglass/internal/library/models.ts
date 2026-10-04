@@ -21,7 +21,7 @@ export interface Game {
     "source": string;
 
     /**
-     * "Steam", "External · RUNE", "Repack · DODI", …
+     * "Steam", "External copy", "DRM-free · GOG", …
      */
     "sourceLabel": string;
     "external": boolean;

@@ -26,7 +26,7 @@ type Game struct {
 	SortTitle   string `json:"sortTitle"`
 
 	Source      string `json:"source"`      // steam, epic, gog, ea, ubisoft, battlenet, xbox, installer, shortcut, folder
-	SourceLabel string `json:"sourceLabel"` // "Steam", "External · RUNE", "Repack · DODI", …
+	SourceLabel string `json:"sourceLabel"` // "Steam", "External copy", "DRM-free · GOG", …
 	External    bool   `json:"external"`
 	Emulator    string `json:"emulator,omitempty"`
 	EmuDir      string `json:"emuDir,omitempty"` // where the emulator sits, relative to Dir
@@ -214,8 +214,8 @@ func (s *Store) migrateExternal(b []byte) {
 		}
 	}
 	for _, g := range s.games {
-		if rest, ok := strings.CutPrefix(g.SourceLabel, "Unofficial · "); ok {
-			g.SourceLabel = "External · " + rest
+		if strings.HasPrefix(g.SourceLabel, "Unofficial · ") {
+			g.SourceLabel = "External copy"
 		}
 	}
 }

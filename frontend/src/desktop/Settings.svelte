@@ -129,7 +129,7 @@
                 {#each autoFolders as f (f)}<li><Icon name="folder" size={16} /><span>{f}</span></li>{/each}
               </ul>
             {/if}
-            <Toggle checked={s.detectExternal} title="Recognise external copies" detail="Games from outside a store launcher, such as portable copies or ones from another installer, matched to the right game by their Steam AppID." onchange={(v) => set({ detectExternal: v })} />
+            <Toggle checked={s.detectExternal} title="Recognise external copies" detail="Games from outside a store launcher, such as standalone installs and portable copies, matched to the right game." onchange={(v) => set({ detectExternal: v })} />
             <Toggle checked={s.reviewUncertain} title="Let me check uncertain matches" detail="Games matched only by folder name wait in New on this PC." onchange={(v) => set({ reviewUncertain: v })} />
             <Toggle checked={s.showNotInstalled} title="Show games you uninstalled" detail="They stay listed with their playtime." onchange={(v) => set({ showNotInstalled: v })} />
           </div>

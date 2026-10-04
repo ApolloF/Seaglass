@@ -62,7 +62,7 @@ try {
       version: 1, nextId: 2,
       games: [{
         id: 1, key: game.toLowerCase(), title: "Fake Goldberg", sortTitle: "fake goldberg", source: "folder",
-        sourceLabel: "External · Goldberg", external: true, emulator: "Goldberg", emuDir: ".", steamAppId: APP,
+        sourceLabel: "External copy", external: true, emulator: "Goldberg", emuDir: ".", steamAppId: APP,
         installed: true, dir: game, exe: path.join(game, "FakeGame.exe"), workDir: game, how: "Game folder (test)",
         matchHow: "Test game", confidence: 100, needsReview: false, addedAt: now - 86400, initial: true, seenAt: now, padMode: "native",
       }],

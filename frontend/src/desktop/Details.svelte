@@ -363,7 +363,7 @@
           <Icon name="trophy" size={22} stroke={1.8} />
           <span class="grow">Achievements</span>
           {#if ach?.fix === "uplay-ini"}
-            <button type="button" class="btn small" disabled={enablingAch} title="Sets Achievements = 1 in the emulator's ini (a copy of the old one is kept)" onclick={enableUplay}
+            <button type="button" class="btn small" disabled={enablingAch} title="Sets Achievements = 1 in this copy's ini (a copy of the old one is kept)" onclick={enableUplay}
               >{enablingAch ? "Turning on…" : "Turn on"}</button
             >
           {/if}
