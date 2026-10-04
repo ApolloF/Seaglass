@@ -323,6 +323,45 @@ func TestSignedRelease(t *testing.T) {
 	}
 }
 
+// A feed for another product (Syncer) checks signatures made for that
+// product, so a signed release of one can't pass for the other's.
+func TestSignatureIsBoundToProduct(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	f, feed := newFake(t)
+	feed.Keys, feed.Product = []ed25519.PublicKey{pub}, "Syncer"
+	const name = "Syncer-amd64-installer.exe"
+	body := []byte("MZ syncer installer")
+	h := sha256.Sum256(body)
+	sums := FormatSums(map[string]string{name: hex.EncodeToString(h[:])})
+	ctx := context.Background()
+	try := func(msg []byte) error {
+		f.publish("v1.3.0", map[string][]byte{name: body, SumsAsset: sums, SigAsset: EncodeSig(ed25519.Sign(priv, msg))})
+		rel, err := feed.Latest(ctx)
+		if err != nil {
+			return err
+		}
+		_, _, err = feed.Download(ctx, rel, name, t.TempDir(), nil)
+		return err
+	}
+	if err := try(ProductMessage("Syncer", "v1.3.0", sums)); err != nil {
+		t.Fatalf("Syncer-signed release refused: %v", err)
+	}
+	if err := try(SignedMessage("v1.3.0", sums)); err == nil {
+		t.Error("a signature over a Seaglass release was accepted for Syncer")
+	}
+}
+
+func TestLatestRefusesPlainHTTP(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"tag_name": "v9.0.0"})
+	}))
+	t.Cleanup(srv.Close)
+	feed := Feed{LatestURL: srv.URL + "/latest", AssetPrefix: srv.URL + "/download/"}
+	if _, err := feed.Latest(context.Background()); err == nil {
+		t.Fatal("asked for releases over plain HTTP")
+	}
+}
+
 // Releases without checksum files (like Syncer's) are checked against the
 // SHA-256 GitHub computed on upload.
 func TestDownloadUsesGitHubDigest(t *testing.T) {
