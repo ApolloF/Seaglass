@@ -30,18 +30,18 @@ function game(p: Partial<Game> & { title: string }): Game {
 }
 
 let games: Game[] = [
-  game({ meta: { description: "A fallen knight climbs a burning mountain to take back a crown that was never theirs. Brutal, fair combat and a world that remembers every choice.", developers: ["Ashgrove"], publishers: ["Ashgrove"], genres: ["Action", "RPG"], releaseYear: 2026, dualSense: "yes", accent: "#e8894a" }, title: "Ember Crown", source: "installer", sourceLabel: "External · Goldberg", external: true, emulator: "Goldberg", steamAppId: 1245620, how: "Game folder in D:\\Games (Steam emulator)", matchHow: "Steam AppID read from steam_settings", confidence: 95, playtime: 18 * 3600, lastPlayed: now - 3600, favorite: true, exe: "D:\\Games\\Ember Crown\\EmberCrown.exe", sizeBytes: 54e9 }),
+  game({ meta: { description: "A fallen knight climbs a burning mountain to take back a crown that was never theirs. Brutal, fair combat and a world that remembers every choice.", developers: ["Ashgrove"], publishers: ["Ashgrove"], genres: ["Action", "RPG"], releaseYear: 2026, dualSense: "yes", accent: "#e8894a" }, title: "Ember Crown", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 1245620, how: "Game folder in D:\\Games", matchHow: "Matched by title", confidence: 95, playtime: 18 * 3600, lastPlayed: now - 3600, favorite: true, exe: "D:\\Games\\Ember Crown\\EmberCrown.exe", sizeBytes: 54e9 }),
   game({ title: "Hollow Tide", steamAppId: 413150, launchUri: "steam://rungameid/413150", playtime: 42 * 3600, lastPlayed: now - day, favorite: true, dir: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hollow Tide", sizeBytes: 64e9 }),
-  game({ title: "Neon Meridian", source: "installer", sourceLabel: "Repack · DODI", external: true, repacker: "DODI", how: "Installed by a DODI repack", matchHow: "Matched by title", confidence: 85, playtime: 7 * 3600, lastPlayed: now - 3 * day, padMode: "steam", sizeBytes: 21e9 }),
+  game({ title: "Neon Meridian", source: "installer", sourceLabel: "Standalone", external: true, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 7 * 3600, lastPlayed: now - 3 * day, padMode: "steam", sizeBytes: 21e9 }),
   game({ title: "Starfall Protocol", source: "epic", sourceLabel: "Epic", how: "Epic Games library", matchHow: "Epic Games library", playtime: 64 * 3600, lastPlayed: now - 8 * day, sizeBytes: 38e9 }),
-  game({ title: "Grimwald", source: "installer", sourceLabel: "External · EMPRESS", external: true, emulator: "EMPRESS", steamAppId: 1149460, how: "Installer entry in Windows", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, playtime: 88 * 3600, lastPlayed: now - 15 * day, favorite: true, sizeBytes: 47e9 }),
+  game({ title: "Grimwald", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 1149460, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 95, playtime: 88 * 3600, lastPlayed: now - 15 * day, favorite: true, sizeBytes: 47e9 }),
   game({ title: "Quiet Harbor", source: "gog", sourceLabel: "GOG", gogId: "1207658924", how: "GOG Galaxy library", matchHow: "GOG Galaxy library", playtime: 12 * 3600, lastPlayed: now - 34 * day, sizeBytes: 9e9 }),
   game({ title: "Frostline", source: "xbox", sourceLabel: "Xbox", how: "Xbox app library", matchHow: "Xbox app library", playtime: 9 * 3600, lastPlayed: now - 40 * day, sizeBytes: 88e9 }),
-  game({ title: "Iron Veil", source: "installer", sourceLabel: "External · RUNE", external: true, emulator: "RUNE", repacker: "FitGirl", steamAppId: 1086940, how: "Installed by a FitGirl repack", matchHow: "Steam AppID read from steam_emu.ini", confidence: 95, addedAt: now - 3600, sizeBytes: 71e9 }),
+  game({ title: "Iron Veil", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 1086940, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 95, addedAt: now - 3600, sizeBytes: 71e9 }),
   game({ title: "Sable Run", source: "folder", sourceLabel: "Folder", how: "Game folder in D:\\Games (Unity)", matchHow: "Not matched to a known game", confidence: 40, needsReview: true, addedAt: now - 2 * 3600, padMode: "steam", sizeBytes: 3e9 }),
   game({ title: "Lumen Drift", steamAppId: 620, launchUri: "steam://rungameid/620", addedAt: now - day, sizeBytes: 6e9 }),
   game({ title: "Kestrel", source: "steam", installed: false, playtime: 6 * 3600, lastPlayed: now - 400 * day }),
-  game({ title: "Tidebreaker", source: "installer", sourceLabel: "External · VOICES38", external: true, emulator: "VOICES38", steamAppId: 2840770, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 2 * 3600, lastPlayed: now - 2 * day, sizeBytes: 90e9 }),
+  game({ title: "Tidebreaker", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 2840770, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 2 * 3600, lastPlayed: now - 2 * day, sizeBytes: 90e9 }),
   game({ title: "Copper Fields", source: "gog", sourceLabel: "GOG", installed: false, playtime: 21 * 3600, lastPlayed: now - 700 * day }),
 ];
 
@@ -54,6 +54,27 @@ const mockParams = new URLSearchParams(typeof location !== "undefined" ? locatio
   for (let k = 0; k < more; k++) {
     const t = `${words[k % words.length]} ${words[(k * 7 + 3) % words.length]} ${Math.floor(k / words.length) + 1}`;
     games.push(game({ title: t, playtime: (k % 5) * 3600, lastPlayed: k % 3 ? now - (k + 2) * day : undefined, addedAt: now - (k + 30) * day, sizeBytes: (k % 9) * 7e9 }));
+  }
+}
+
+// Each made-up game plays a part (a Steam favourite, a game that needs a
+// check, …); the per-game states below go by that part, not the title, so
+// a game can be shown under another name.
+const part = new Map(games.map((g) => [g.id, g.title]));
+const partOf = (g: Game) => part.get(g.id) ?? g.title;
+
+// A real library for screenshots: window.mockLibrary (set before the app
+// loads, from Seaglass tools/mockmeta) gives games real titles, metadata
+// and art, keyed by the part they play; achievements likewise.
+type RealGame = { title: string; steamAppId?: number; meta: Game["meta"]; game?: Partial<Game> };
+type RealAchievements = { items: { name: string; desc: string; icon: string; percent: number }[] };
+const real = (globalThis as { mockLibrary?: { games: Record<string, RealGame>; achievements?: Record<string, RealAchievements> } }).mockLibrary;
+if (real) {
+  for (const g of games) {
+    const r = real.games[g.title];
+    if (!r) continue;
+    const dir = `D:\\Games\\${r.title.replace(/[:'"]/g, "")}`;
+    Object.assign(g, { dir, ...r.game, title: r.title, sortTitle: r.title.toLowerCase().replace(/^the /, ""), steamAppId: r.steamAppId, meta: r.meta });
   }
 }
 
@@ -124,7 +145,7 @@ function mockSaves(g: Game | undefined): Saves {
     id: g.key, label: g.title, path: "C:\\Users\\you\\AppData\\Roaming\\" + g.title, sync: true, backup: true, state: "idle",
     needBytes: 0, errors: 0, conflicts: 0, exists: true, modified: iso(now - 5 * hour), backedUp: iso(now - 2 * hour), newerOn: "", newerAt: "", ...p,
   });
-  switch (g.title) {
+  switch (partOf(g)) {
     case "Ember Crown":
       return { ...base, known: true, folders: [folder({})] };
     case "Hollow Tide":
@@ -151,8 +172,9 @@ const badge = (seed: number, gray = false) => {
 
 const achNames = ["First Steps", "Into the Fire", "Crownless", "Ashen Knight", "No Rest", "Cartographer", "Hoarder", "Untouchable", "Secret Ending", "Completionist", "Old Friend", "Night Owl"];
 
-function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: boolean; rarity?: boolean } = {}): Achievement[] {
+function achItems(n: number, upTo: number, opts: { names?: boolean; icons?: boolean; rarity?: boolean } = {}): Achievement[] {
   const { names = true, icons = true, rarity = true } = opts;
+  const unlocked = Math.min(upTo, n);
   return Array.from({ length: n }, (_, i) => {
     const id = `ACH_${String(i + 1).padStart(2, "0")}`;
     const on = i < unlocked;
@@ -163,6 +185,19 @@ function achItems(n: number, unlocked: number, opts: { names?: boolean; icons?: 
     if (on) a.unlockedAt = now - (unlocked - i) * 3 * day;
     if (i === n - 2) a.hidden = true;
     if (!on && i === n - 1) (a.progress = 7), (a.max = 20);
+    return a;
+  });
+}
+
+// A real game's achievements, rarest last as Steam lists them: the most
+// common ones unlocked, hidden ones without a description (as Steam has them).
+function realItems(r: RealAchievements, upTo: number): Achievement[] {
+  const unlocked = Math.min(upTo, r.items.length);
+  return r.items.map((x, i) => {
+    const on = i < unlocked;
+    const a: Achievement = { id: `ACH_${i + 1}`, name: x.name, desc: x.desc, icon: x.icon, unlocked: on, percent: x.percent };
+    if (!x.desc) a.hidden = true;
+    if (on) a.unlockedAt = now - (unlocked - i) * 2 * day;
     return a;
   });
 }
@@ -202,26 +237,31 @@ const uplayOn = new Set<number>(); // games whose pretend Uplay ini has Achievem
 function mockAchievements(g: Game | undefined): Achievements {
   if (!g) return { gameId: 0, source: "", total: 0, unlocked: 0, items: [], updatedAt: now };
   const more = extraUnlocks.get(g.id) ?? 0;
-  switch (g.title) {
+  // A real game shows its own achievements wherever the scenario has names.
+  const realAch = real?.achievements?.[partOf(g)];
+  const items = (n: number, unlocked: number, opts: Parameters<typeof achItems>[2] = {}) =>
+    realAch && opts.names !== false ? realItems(realAch, unlocked) : achItems(n, unlocked, opts);
+  switch (partOf(g)) {
     case "Ember Crown": // full schema, rarity, a hidden one, progress
-      return achList(g, "Goldberg", achItems(40, 12 + more));
+      return achList(g, "Local", items(40, 12 + more));
     case "Iron Veil": // unlock ids only: no schema, no key
-      return achList(g, "RUNE", achItems(6, 4 + more, { names: false, icons: false, rarity: false }), "Add a Steam Web API key in Settings → Accounts to see names and icons.");
+      return achList(g, "Local", achItems(6, 4 + more, { names: false, icons: false, rarity: false }), "Add a Steam Web API key in Settings → Accounts to see names and icons.");
     case "Starfall Protocol": // Epic, not signed in
-      return achList(g, "epic", achItems(24, 0, { rarity: true }), "Sign in to Epic in Settings → Accounts to see your progress.");
+      return achList(g, "epic", items(24, 0, { rarity: true }), "Sign in to Epic in Settings → Accounts to see your progress.");
     case "Hollow Tide": // everything unlocked
-      return achList(g, "steam", achItems(18, 18));
+      return achList(g, "steam", items(18, Infinity));
     case "Frostline":
       return achList(g, "", [], "Seaglass can't read achievements from the Xbox app yet.");
     case "Tidebreaker": // Uplay emulator: off in its ini, then on and waiting for a play
+      if (g.source !== "installer") break;
       if (uplayOn.has(g.id))
-        return achList(g, "VOICES38", [], "Achievements are turned on in upc_r2.ini. Play the game and they'll show up here; if it still saves none, this card goes away.");
+        return achList(g, "Local", [], "Achievements are turned on in the game config. Play the game and they'll show up here; if it still saves none, this card goes away.");
       return {
-        ...achList(g, "VOICES38", [], "No achievement file found. Uplay emulators save achievements only when their ini has Achievements = 1, and VOICES38's own loader may not save them at all."),
+        ...achList(g, "Local", [], "No achievement file found. Games save achievements only when their ini has Achievements = 1, and some may not save them."),
         fix: "uplay-ini",
       };
   }
-  return achList(g, g.source === "steam" ? "steam" : "", achItems(10, 3 + more));
+  return achList(g, g.source === "steam" ? "steam" : "", items(10, 3 + more));
 }
 
 let sgdb = false;
@@ -266,6 +306,9 @@ let session: Session = { id: 0, gameId: 0, title: "", phase: "", route: "", befo
 const sessionListeners = new Set<(s: Session) => void>();
 let skipStep = "";
 let answerWith: ((o: string) => void) | null = null;
+// Like the Go side, a session remembers the mode it was started from, so big
+// picture shows its launch sequence.
+let uiMode: "desktop" | "bigpicture" = "desktop";
 
 function setSession(p: Partial<Session>) {
   session = { ...session, ...p };
@@ -275,7 +318,7 @@ function setSession(p: Partial<Session>) {
 async function runMockSession(g: Game) {
   const steam = g.padMode === "steam" && !g.launchUri;
   setSession({
-    id: session.id + 1, gameId: g.id, title: g.customTitle || g.title, phase: "preparing",
+    id: session.id + 1, gameId: g.id, title: g.customTitle || g.title, phase: "preparing", from: uiMode,
     route: "", before: steam ? [{ id: "steamInput", label: "Steam Input", status: "running" }] : [],
     after: [], seconds: 0, startedAt: 0, error: "", note: "", question: undefined,
   });
@@ -386,7 +429,7 @@ export const mockApi: Api = {
     return clone(settings);
   },
   async autoFolders() {
-    return ["C:\\Program Files (x86)\\DODI-Repacks", "D:\\Games"];
+    return ["C:\\Program Files (x86)\\Games", "D:\\Games"];
   },
   async info(): Promise<AppInfo> {
     return { version: "mock", dataDir: "C:\\Users\\you\\AppData\\Roaming\\Seaglass", logFile: "seaglass.log", crashedLastTime: false };
@@ -587,7 +630,9 @@ export const mockApi: Api = {
         if (fresh.length) setTimeout(() => sessionAchListeners.forEach((cb) => cb(clone({ gameId: g.id, title: session.title, unlocked: fresh }))), 1200);
       }
     },
-    setUIMode() {},
+    setUIMode(mode) {
+      uiMode = mode;
+    },
     closeOverlay() {},
     openMain() {},
     onSession(cb) {
