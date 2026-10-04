@@ -217,13 +217,15 @@ func (s *SavesService) SyncerProject() error { return platform.OpenWebPage(synce
 
 // InstallSyncer installs Syncer, or updates it, from its latest release,
 // for this Windows account only (no administrator). Never over the same
-// or a newer version; see syncerInstallPlan for when it asks first.
+// or a newer version; see syncerInstallPlan for when it asks first. It
+// returns once the installer has exited; the interface shows it as
+// installing until then. Closing the installer isn't an error.
 func (s *SavesService) InstallSyncer() error {
 	if !s.installing.TryLock() {
 		return errors.New("Syncer is being installed already")
 	}
 	defer s.installing.Unlock()
-	ctx, cancel := context.WithTimeout(s.c.ctx, 10*time.Minute)
+	ctx, cancel := context.WithTimeout(s.c.ctx, syncerDownloadLimit)
 	defer cancel()
 	rel, err := syncerFeed.Latest(ctx)
 	if err != nil {
@@ -245,14 +247,18 @@ func (s *SavesService) InstallSyncer() error {
 	}
 	defer os.Remove(file)
 	logx.Printf("installing Syncer %s (signed: %v)", rel.Tag, syncerFeed.Signed())
-	cmd := exec.CommandContext(ctx, file, plan.args...)
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Syncer's installer failed: %w", err)
+	err = runSyncerInstaller(s.c.ctx, file, plan.args, dir, plan.limit())
+	if errors.Is(err, errInstallerClosed) {
+		logx.Printf("Syncer %s not installed: the installer was closed", rel.Tag)
+		return nil
+	}
+	if err != nil {
+		return err
 	}
 	if _, ok := syncer.Find(); !ok {
 		if !plan.silent() {
-			return nil // the person may have closed the installer
+			logx.Printf("Syncer %s not installed: the installer finished without it", rel.Tag)
+			return nil
 		}
 		return errors.New("Syncer's installer finished, but Syncer isn't there")
 	}
@@ -263,6 +269,50 @@ func (s *SavesService) InstallSyncer() error {
 	return nil
 }
 
+// syncerDownloadLimit bounds finding and downloading a release, and
+// syncerSilentLimit a silent install, which nobody is there to finish.
+// An installer with windows has no limit: it is the person's to finish or
+// close, however long they take.
+const (
+	syncerDownloadLimit = 10 * time.Minute
+	syncerSilentLimit   = 10 * time.Minute
+)
+
+// nsisCancelled is the exit code of an NSIS installer (Syncer's is one)
+// that the person cancelled or closed.
+const nsisCancelled = 1
+
+var errInstallerClosed = errors.New("Syncer's installer was closed before it finished")
+
+// runSyncerInstaller runs exe from dir and waits for it to exit. With a
+// limit it runs silently: it is stopped after limit, or when ctx ends.
+// Without one the person is using its windows, so nothing stops it (not
+// even Seaglass quitting, which would leave a half-done install), and
+// cancelling it gives errInstallerClosed.
+func runSyncerInstaller(ctx context.Context, exe string, args []string, dir string, limit time.Duration) error {
+	var cmd *exec.Cmd
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, exe, args...)
+	} else {
+		cmd = exec.Command(exe, args...)
+	}
+	cmd.Dir = dir
+	err := cmd.Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return nil
+	case limit > 0 && errors.Is(ctx.Err(), context.DeadlineExceeded):
+		return fmt.Errorf("Syncer's installer didn't finish within %v", limit)
+	case limit == 0 && errors.As(err, &exit) && exit.ExitCode() == nsisCancelled:
+		return errInstallerClosed
+	}
+	return fmt.Errorf("Syncer's installer failed: %w", err)
+}
+
 // syncerPlan is how a Syncer release gets installed.
 type syncerPlan struct {
 	args []string // for the installer
@@ -270,6 +320,15 @@ type syncerPlan struct {
 }
 
 func (p syncerPlan) silent() bool { return len(p.args) > 0 }
+
+// limit is how long the installer may run: a silent one is stopped after
+// syncerSilentLimit, one with windows never (0).
+func (p syncerPlan) limit() time.Duration {
+	if p.silent() {
+		return syncerSilentLimit
+	}
+	return 0
+}
 
 // syncerInstallPlan decides how release tag may be installed over the
 // Syncer this PC has (inst, when installed). It refuses the same or an
