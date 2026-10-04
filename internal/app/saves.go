@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/ApolloF/Seaglass/internal/platform"
 	"github.com/ApolloF/Seaglass/internal/syncer"
 	"github.com/ApolloF/Seaglass/internal/update"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // syncerProject is Syncer's home page.
@@ -27,7 +29,18 @@ var syncerFeed = update.Feed{
 	LatestURL:   "https://api.github.com/repos/ApolloF/syncer/releases/latest",
 	AssetPrefix: syncerProject + "/releases/download/",
 	Hosts:       update.GitHub.Hosts,
+	Keys:        syncerReleaseKeys,
+	Product:     "Syncer",
 }
+
+// syncerReleaseKeys verify Syncer's releases once they're signed the way
+// Seaglass's are: SHA256SUMS and SHA256SUMS.sig, an ed25519 signature
+// over "Syncer release <tag>\n" and SHA256SUMS, made with a key kept away
+// from GitHub. Until then a download is only checked against the SHA-256
+// GitHub serves beside it, which someone who can publish a release can
+// replace too; so the person confirms each install and sees Syncer's own
+// installer instead of it running silently.
+var syncerReleaseKeys []ed25519.PublicKey
 
 const syncerInstaller = "Syncer-amd64-installer.exe"
 
@@ -116,6 +129,7 @@ type SavesService struct {
 	installing sync.Mutex // InstallSyncer runs
 	mu         sync.Mutex
 	cache      map[int64]cachedSaves
+	confirm    func(title, message string) bool // asks the person yes or no
 }
 
 type cachedSaves struct {
@@ -125,7 +139,7 @@ type cachedSaves struct {
 
 // NewSavesService binds Syncer to core.
 func NewSavesService(c *Core) *SavesService {
-	return &SavesService{c: c, cache: map[int64]cachedSaves{}}
+	return &SavesService{c: c, cache: map[int64]cachedSaves{}, confirm: askYesNo}
 }
 
 // Saves returns what Syncer knows about a game's saves. Syncer is started
@@ -201,9 +215,9 @@ func (s *SavesService) OpenSyncer() error {
 // SyncerProject opens Syncer's home page.
 func (s *SavesService) SyncerProject() error { return platform.OpenWebPage(syncerProject) }
 
-// InstallSyncer installs Syncer, or updates it, from its latest release:
-// the installer is checked against the SHA-256 GitHub published for it
-// and runs silently, for this Windows account only (no administrator).
+// InstallSyncer installs Syncer, or updates it, from its latest release,
+// for this Windows account only (no administrator). Never over the same
+// or a newer version; see syncerInstallPlan for when it asks first.
 func (s *SavesService) InstallSyncer() error {
 	if !s.installing.TryLock() {
 		return errors.New("Syncer is being installed already")
@@ -215,19 +229,31 @@ func (s *SavesService) InstallSyncer() error {
 	if err != nil {
 		return fmt.Errorf("couldn't find Syncer's latest release: %w", err)
 	}
+	inst, installed := syncer.Find()
+	plan, err := syncerInstallPlan(rel.Tag, inst, installed, syncerFeed.Signed())
+	if err != nil {
+		return err
+	}
+	if plan.ask != "" && !s.confirm("Install Syncer", plan.ask) {
+		logx.Printf("Syncer %s not installed: the person said no", rel.Tag)
+		return nil
+	}
 	dir := platform.CacheDir("syncer")
 	file, _, err := syncerFeed.Download(ctx, rel, syncerInstaller, dir, nil)
 	if err != nil {
 		return fmt.Errorf("couldn't download Syncer: %w", err)
 	}
 	defer os.Remove(file)
-	logx.Printf("installing Syncer %s", rel.Tag)
-	cmd := exec.CommandContext(ctx, file, "/S")
+	logx.Printf("installing Syncer %s (signed: %v)", rel.Tag, syncerFeed.Signed())
+	cmd := exec.CommandContext(ctx, file, plan.args...)
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Syncer's installer failed: %w", err)
 	}
 	if _, ok := syncer.Find(); !ok {
+		if !plan.silent() {
+			return nil // the person may have closed the installer
+		}
 		return errors.New("Syncer's installer finished, but Syncer isn't there")
 	}
 	s.mu.Lock()
@@ -235,6 +261,56 @@ func (s *SavesService) InstallSyncer() error {
 	s.mu.Unlock()
 	logx.Printf("installed Syncer %s", rel.Tag)
 	return nil
+}
+
+// syncerPlan is how a Syncer release gets installed.
+type syncerPlan struct {
+	args []string // for the installer
+	ask  string   // the question to confirm first ("": none)
+}
+
+func (p syncerPlan) silent() bool { return len(p.args) > 0 }
+
+// syncerInstallPlan decides how release tag may be installed over the
+// Syncer this PC has (inst, when installed). It refuses the same or an
+// older version, so an old release with a known flaw can't be pushed back
+// on. A signed release installs silently, as Seaglass's own updates do;
+// anything else (or an update over a Syncer of unknown version) needs a
+// yes first and runs Syncer's installer with its windows.
+func syncerInstallPlan(tag string, inst syncer.Install, installed, signed bool) (syncerPlan, error) {
+	if !update.Valid(tag) {
+		return syncerPlan{}, fmt.Errorf("Syncer's latest release has an unexpected version %q", tag)
+	}
+	known := installed && update.Valid(inst.Version)
+	if known && !update.Newer(tag, inst.Version) {
+		return syncerPlan{}, fmt.Errorf("Syncer %s is installed, and the latest release is %s: nothing newer to install", inst.Version, tag)
+	}
+	if signed && (known || !installed) {
+		return syncerPlan{args: []string{"/S"}}, nil
+	}
+	var ask string
+	switch {
+	case !signed:
+		ask = fmt.Sprintf("Install Syncer %s from github.com/ApolloF/syncer?\n\nThis release isn't signed, so Seaglass can only check that the download arrived whole, not who made it. Syncer's installer opens next.", tag)
+	default:
+		ask = fmt.Sprintf("Install Syncer %s? Seaglass can't tell which version is installed now, so this could replace a newer one. Syncer's installer opens next.", tag)
+	}
+	return syncerPlan{ask: ask}, nil
+}
+
+// askYesNo asks the person a question in a Windows dialog over every
+// window, and reports whether they said yes.
+func askYesNo(title, message string) bool {
+	app := application.Get()
+	if app == nil {
+		return false
+	}
+	yes := false
+	d := app.Dialog.Question().SetTitle(title).SetMessage(message)
+	d.AddButton("Yes").OnClick(func() { yes = true })
+	d.SetDefaultButton(d.AddButton("No"))
+	d.Show()
+	return yes
 }
 
 // syncerGame describes a game to Syncer.

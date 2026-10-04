@@ -80,7 +80,7 @@ func (f Feed) expected(ctx context.Context, rel Release, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	list, err := VerifySums(f.Keys, rel.Tag, sums, sig)
+	list, err := VerifyProductSums(f.product(), f.Keys, rel.Tag, sums, sig)
 	if err != nil {
 		return "", err
 	}
