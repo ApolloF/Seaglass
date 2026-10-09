@@ -9,3 +9,11 @@ build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 tools/harness/node_modules
 # Builds go to bin/; a built exe never belongs in the repository.
 /*.exe
+
+# Secrets (safety baseline)
+.env
+.env.*
+!.env.example
+!frontend/.env.mock
+*.token
+*.pem
