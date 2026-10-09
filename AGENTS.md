@@ -22,6 +22,10 @@ A Windows game launcher that finds installed games on its own (stores, external 
 - End-to-end: `tools/harness/*.mjs` drive a dev build through `\\.\pipe\seaglass-dev` (see `tools/harness/README.md`).
 - Releases: `go run ./tools/release cut vX.Y.Z` after the PR is merged ([docs/RELEASING.md](docs/RELEASING.md)); only the maintainer tags.
 
+## Check command
+`go test ./internal/... && npm --prefix frontend run check && npm --prefix frontend test && go run ./tools/notices -check`
+Run `npm --prefix frontend ci` once first. About 1 minute. It skips the root package (`go test ./...` needs `frontend/dist` from a build, because `main.go` embeds it) and the `-race` run; CI (`.github/workflows/build.yml`, job `windows`) does the full build, `go test ./...`, the race detector and the installer smoke tests. Keep it fast and keep it passing.
+
 ## Layout
 - `main.go` — single instance, Wails app, service registration, tray.
 - `internal/app` — services the interface calls (`services.go`, `launch.go`, …), `Core` (background loops, `emit` events), windows and tray, dev flags (`dev.go`).
@@ -41,3 +45,13 @@ A Windows game launcher that finds installed games on its own (stores, external 
 
 ## Definition of done
 `go test -race ./...`, `cd frontend && npm run check` and `npm test` pass; bindings regenerated if Go APIs changed; UI checked in mock mode (`npm run dev:mock`) in both themes and at narrow width.
+
+## Git workflow
+- Remote: GitHub `ApolloF/Seaglass` (public).
+- Branch, then PR, then CI (`build`, job `windows`), then merge only when the user says "ship it" (squash).
+- Releases: `go run ./tools/release cut vX.Y.Z` after the PR is merged; only the maintainer tags ([docs/RELEASING.md](docs/RELEASING.md)).
+
+## Secrets
+- No `.env` is needed to build or run. The only tracked env file is `frontend/.env.mock` (no secrets; `.gitignore` allows it on purpose).
+- Signing material (`SIGN_PFX_BASE64`, `SIGN_PFX_PASSWORD`, `SIGNPATH_API_TOKEN`) lives only in GitHub Actions secrets; the release signing key is offline with the maintainer.
+- Never commit real values. gitleaks runs on every commit; `.gitleaksignore` lists two known false positives (GOG Galaxy's public client secret).
