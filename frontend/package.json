@@ -15,7 +15,7 @@
   "dependencies": {
     "@fontsource/barlow": "^5.2.8",
     "@fontsource/barlow-condensed": "^5.2.8",
-    "@wailsio/runtime": "3.0.0-beta.26"
+    "@wailsio/runtime": "3.0.0-beta.28"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
