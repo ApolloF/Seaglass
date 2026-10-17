@@ -100,20 +100,6 @@ func TestMultiSZ(t *testing.T) {
 	}
 }
 
-func TestVersionCompare(t *testing.T) {
-	v, ok := parseVersion("1.5.230.0")
-	if !ok || !older(v, hidHideSessionList) {
-		t.Errorf("1.5.230.0: %v %v", v, ok)
-	}
-	v, _ = parseVersion("1.7.333.0")
-	if older(v, hidHideSessionList) {
-		t.Error("1.7.333.0 counted as too old")
-	}
-	if _, ok := parseVersion(""); ok {
-		t.Error("empty version parsed")
-	}
-}
-
 func TestInstallersArePinnedToOfficialReleases(t *testing.T) {
 	if len(Installers) != 2 {
 		t.Fatalf("%d installers", len(Installers))

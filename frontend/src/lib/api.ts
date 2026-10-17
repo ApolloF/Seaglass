@@ -72,6 +72,8 @@ export interface Api {
     status(): Promise<ControllerStatus>;
     /** Downloads and runs the driver installers; resolves with the status when they're done. */
     setUp(): Promise<ControllerStatus>;
+    /** Shows every controller Seaglass hid from games again. */
+    unhide(): Promise<ControllerStatus>;
   };
 
   saves: {

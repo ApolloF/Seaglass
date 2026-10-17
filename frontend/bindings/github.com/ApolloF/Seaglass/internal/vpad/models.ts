@@ -31,10 +31,15 @@ export interface Status {
     "hidHideActive": boolean;
 
     /**
-     * CanHide: HidHide is new enough for the per-process list Seaglass
-     * hides controllers with (1.7.333 or later), and switched on.
+     * CanHide: HidHide answers and its hiding is switched on.
      */
     "canHide": boolean;
+
+    /**
+     * Hidden: Seaglass left controllers on HidHide's saved block list (a
+     * game is running, or Seaglass didn't get to show them again).
+     */
+    "hidden": boolean;
 
     /**
      * Restart: a driver is installed but doesn't answer yet; Windows has to

@@ -15,7 +15,9 @@ Seaglass also got its own Xbox controller, so Xbox-only games no longer need Ste
 - **Seaglass's Xbox controller**: a virtual Xbox controller (ViGEmBus) that plays what the real controller does, with HidHide hiding the real one from the game. Settings → Xbox controller for games sets up both drivers: Seaglass downloads the official releases, checks them against hashes pinned in Seaglass and runs the installers (Windows asks for permission for each).
 - **Steam stays**: Settings has a choice of what turns a PlayStation controller into an Xbox one in Auto, Seaglass (default) or Steam (`padTranslator`, per PC). Games set to Steam Input still use Steam.
 - **New per-game mode, Xbox controller**: always starts with Seaglass's Xbox controller (`padMode` `xbox`). Without the drivers the game starts directly, and the launch says how to set them up.
-- **The real controller is hidden only while the game runs** (`hidePadWhilePlaying`, on, per PC), so games that also read it directly don't see every press twice.
+- **The real controller is hidden only while the game runs** (`hidePadWhilePlaying`, on, per PC), so games that also read it directly don't see every press twice. HidHide's released versions (up to 1.5.230) only have the block list saved with its settings, so Seaglass writes each controller it adds there to `hidden-controllers.json` first. It takes exactly those off again when the game ends, when Seaglass starts or quits (so a crash is undone at the next start), and from **Unhide controller** in Settings. A HidHide with the per-process list (1.7, unreleased so far) is used instead when it's there.
+- **Without ViGEmBus, Auto starts Xbox-only games directly** with a hint to set it up, instead of going through Steam Input, which worked badly. Steam can still be chosen in Settings or per game.
+- ViGEmBus results are handled as ViGEmClient does: a report submit only fails on "access denied" (the live test against ViGEmBus 1.22 found the bus ends good submits with other errors).
 
 ## 1.10.0 (2026-10-03): controller and audit fixes
 

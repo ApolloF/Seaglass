@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { controllerSummary } from "./controller";
 import type { ControllerStatus } from "./types";
 
-const none: ControllerStatus = { viGEm: false, hidHide: false, hidHideActive: false, canHide: false, restart: false };
+const none: ControllerStatus = { viGEm: false, hidHide: false, hidHideActive: false, canHide: false, restart: false, hidden: false };
 
 describe("controllerSummary", () => {
   it("waits for the status", () => {
@@ -25,15 +25,15 @@ describe("controllerSummary", () => {
     });
   });
 
-  it("is ready without hiding when HidHide is too old or switched off, with nothing to install", () => {
+  it("is ready and done when the controller can be hidden too", () => {
+    expect(controllerSummary({ ...none, viGEm: true, hidHide: true, hidHideActive: true, canHide: true })).toEqual({ detail: "Ready.", ok: true, canSetUp: false });
+  });
+
+  it("says how to switch hiding on when HidHide is there but off", () => {
     expect(controllerSummary({ ...none, viGEm: true, hidHide: true })).toEqual({
-      detail: "Ready. Your controller can't be hidden from games yet.",
+      detail: "Ready. Turn on hiding in HidHide so games don't see your controller twice.",
       ok: true,
       canSetUp: false,
     });
-  });
-
-  it("is ready and done when the controller can be hidden too", () => {
-    expect(controllerSummary({ ...none, viGEm: true, hidHide: true, hidHideActive: true, canHide: true })).toEqual({ detail: "Ready.", ok: true, canSetUp: false });
   });
 });

@@ -31,7 +31,3 @@ var ErrNoViGEm = errors.New("ViGEmBus isn't installed")
 
 // ErrNoHidHide means HidHide isn't installed (or doesn't answer).
 var ErrNoHidHide = errors.New("HidHide isn't installed")
-
-// ErrOldHidHide means HidHide is too old for the per-process list
-// Seaglass hides controllers with (it came in 1.7.333).
-var ErrOldHidHide = errors.New("HidHide is too old to hide a controller only while a game runs")

@@ -1,8 +1,10 @@
 package vpad
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf16"
@@ -25,6 +27,8 @@ func hidHideIoctl(n uint32) uint32 {
 var (
 	ioctlGetWhitelist  = hidHideIoctl(2048)
 	ioctlSetWhitelist  = hidHideIoctl(2049)
+	ioctlGetBlacklist  = hidHideIoctl(2050)
+	ioctlSetBlacklist  = hidHideIoctl(2051)
 	ioctlGetActive     = hidHideIoctl(2052)
 	ioctlGetInverse    = hidHideIoctl(2054)
 	ioctlAddSessionBL  = hidHideIoctl(2056)
@@ -94,21 +98,28 @@ func parseMultiSZ(b []uint16) []string {
 	return out
 }
 
-// Hider hides physical controllers from games through HidHide's session
-// block list: entries live only in the driver's memory and belong to this
-// process, so they go when Seaglass exits, even if it crashes.
+// Hider hides physical controllers from games. A HidHide with the
+// per-process (session) block list gets them there: entries live only in
+// the driver's memory and go when Seaglass exits, even if it crashes.
+// Older ones (every release up to 1.5) only have the block list saved with
+// HidHide's settings. Seaglass then notes each controller it adds in a
+// ledger file before adding it, and takes exactly those off again when the
+// game ends, when Seaglass starts or quits, or from Settings.
 type Hider struct {
-	mu sync.Mutex
-	h  windows.Handle
+	mu     sync.Mutex
+	h      windows.Handle
+	ledger string // the file listing what Seaglass put on the saved block list
 }
 
 // OpenHider opens HidHide. It fails with ErrNoHidHide when it isn't there.
-func OpenHider() (*Hider, error) {
+// ledger is the file that remembers the controllers Seaglass hid through
+// the saved block list.
+func OpenHider(ledger string) (*Hider, error) {
 	h, err := openHidHide()
 	if err != nil {
 		return nil, ErrNoHidHide
 	}
-	return &Hider{h: h}, nil
+	return &Hider{h: h, ledger: ledger}, nil
 }
 
 func openHidHide() (windows.Handle, error) {
@@ -130,6 +141,11 @@ func syncIoctl(h windows.Handle, code uint32, in []uint16, out []byte) (uint32, 
 	return n, err
 }
 
+// unsupported reports whether HidHide refused a request it doesn't know.
+func unsupported(err error) bool {
+	return errors.Is(err, windows.ERROR_INVALID_PARAMETER) || errors.Is(err, windows.ERROR_INVALID_FUNCTION)
+}
+
 // Active reports whether HidHide's hiding is switched on. Its block lists
 // only take effect while it is.
 func (d *Hider) Active() (bool, error) {
@@ -142,11 +158,10 @@ func (d *Hider) Active() (bool, error) {
 	return out[0] != 0, nil
 }
 
-// Hide adds controllers (by device instance id) to the session block list.
-// Opening a hidden device fails for every app not on HidHide's allow list,
-// this one included, so Seaglass then puts itself on it (see allowSelf).
-// Handles open already keep working meanwhile. An older HidHide refuses
-// the request, and its allow list is left alone then.
+// Hide puts controllers (by device instance id) on a block list. Opening
+// a hidden device fails for every app not on HidHide's allow list, this
+// one included, so Seaglass then puts itself on it (see allowSelf).
+// Handles open already keep working meanwhile.
 func (d *Hider) Hide(ids []string) error {
 	if len(ids) == 0 {
 		return nil
@@ -154,8 +169,8 @@ func (d *Hider) Hide(ids []string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, err := syncIoctl(d.h, ioctlAddSessionBL, multiSZ(ids), nil)
-	if errors.Is(err, windows.ERROR_INVALID_PARAMETER) || errors.Is(err, windows.ERROR_INVALID_FUNCTION) {
-		return ErrOldHidHide
+	if unsupported(err) {
+		err = d.hideSaved(ids)
 	}
 	if err != nil {
 		return err
@@ -163,29 +178,79 @@ func (d *Hider) Hide(ids []string) error {
 	if err := d.allowSelf(); err != nil {
 		// Hidden from Seaglass too, it would lose the controller the next
 		// time SDL looks for devices: better not to hide it at all.
-		_, _ = syncIoctl(d.h, ioctlClearSessionB, nil, nil)
+		_ = d.clear()
 		return err
 	}
 	return nil
 }
 
-// Clear takes every controller this process hid off the list.
-func (d *Hider) Clear() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	_, err := syncIoctl(d.h, ioctlClearSessionB, nil, nil)
-	if errors.Is(err, windows.ERROR_INVALID_PARAMETER) || errors.Is(err, windows.ERROR_INVALID_FUNCTION) {
-		return ErrOldHidHide
+// hideSaved adds controllers to the saved block list. It notes them in the
+// ledger first, so that a crash right after still leaves a record to undo.
+// Entries the person had on the list already stay out of the ledger, so
+// they stay hidden after the game.
+func (d *Hider) hideSaved(ids []string) error {
+	list, err := d.readList(ioctlGetBlacklist)
+	if err != nil {
+		return err
 	}
+	mine := readLedger(d.ledger)
+	var add []string
+	for _, id := range ids {
+		if containsFold(list, id) {
+			continue
+		}
+		add = append(add, id)
+		if !containsFold(mine, id) {
+			mine = append(mine, id)
+		}
+	}
+	if len(add) == 0 {
+		return nil
+	}
+	if err := writeLedger(d.ledger, mine); err != nil {
+		return err
+	}
+	_, err = syncIoctl(d.h, ioctlSetBlacklist, multiSZ(append(list, add...)), nil)
 	return err
 }
 
-// Close clears the list and lets go of HidHide.
-func (d *Hider) Close() error {
-	err := d.Clear()
-	if errors.Is(err, ErrOldHidHide) {
+// Clear shows every controller Seaglass hid again.
+func (d *Hider) Clear() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.clear()
+}
+
+func (d *Hider) clear() error {
+	_, err := syncIoctl(d.h, ioctlClearSessionB, nil, nil)
+	if unsupported(err) {
 		err = nil
 	}
+	return errors.Join(err, d.clearSaved())
+}
+
+// clearSaved takes the controllers in the ledger off the saved block list.
+func (d *Hider) clearSaved() error {
+	mine := readLedger(d.ledger)
+	if len(mine) == 0 {
+		return nil
+	}
+	list, err := d.readList(ioctlGetBlacklist)
+	if err != nil {
+		return err
+	}
+	keep := slices.DeleteFunc(slices.Clone(list), func(e string) bool { return containsFold(mine, e) })
+	if len(keep) != len(list) {
+		if _, err := syncIoctl(d.h, ioctlSetBlacklist, multiSZ(keep), nil); err != nil {
+			return err
+		}
+	}
+	return removeLedger(d.ledger)
+}
+
+// Close shows the controllers again and lets go of HidHide.
+func (d *Hider) Close() error {
+	err := d.Clear()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.h != 0 {
@@ -193,6 +258,61 @@ func (d *Hider) Close() error {
 		d.h = 0
 	}
 	return err
+}
+
+// Unhide shows every controller Seaglass left on HidHide's saved block
+// list, for example after a crash. With an empty ledger there is nothing
+// to do. Without HidHide nothing can be hidden, so the ledger goes.
+func Unhide(ledger string) error {
+	if !Hidden(ledger) {
+		return nil
+	}
+	d, err := OpenHider(ledger)
+	if err != nil {
+		return removeLedger(ledger)
+	}
+	return d.Close()
+}
+
+// Hidden reports whether the ledger lists controllers Seaglass hid.
+func Hidden(ledger string) bool { return len(readLedger(ledger)) > 0 }
+
+func containsFold(list []string, s string) bool {
+	return slices.ContainsFunc(list, func(e string) bool { return strings.EqualFold(e, s) })
+}
+
+// readLedger lists the controllers in the ledger. A missing or unreadable
+// file lists none.
+func readLedger(path string) []string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	if json.Unmarshal(b, &ids) != nil {
+		return nil
+	}
+	return ids
+}
+
+// writeLedger saves the ledger atomically (tmp, then rename).
+func writeLedger(path string, ids []string) error {
+	b, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+func removeLedger(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // allowSelf puts Seaglass's exe on HidHide's allow list, the only way for
@@ -214,7 +334,7 @@ func (d *Hider) allowSelf() error {
 	if err != nil {
 		return err
 	}
-	list, err := d.whitelist()
+	list, err := d.readList(ioctlGetWhitelist)
 	if err != nil {
 		return err
 	}
@@ -227,9 +347,10 @@ func (d *Hider) allowSelf() error {
 	return err
 }
 
-func (d *Hider) whitelist() ([]string, error) {
+// readList reads one of HidHide's lists (allow or block).
+func (d *Hider) readList(code uint32) ([]string, error) {
 	// Asked without a buffer, HidHide says how many bytes the list takes.
-	n, err := syncIoctl(d.h, ioctlGetWhitelist, nil, nil)
+	n, err := syncIoctl(d.h, code, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +358,7 @@ func (d *Hider) whitelist() ([]string, error) {
 		n = 4
 	}
 	buf := make([]byte, n)
-	got, err := syncIoctl(d.h, ioctlGetWhitelist, nil, buf)
+	got, err := syncIoctl(d.h, code, nil, buf)
 	if err != nil {
 		return nil, err
 	}

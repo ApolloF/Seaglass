@@ -3,7 +3,7 @@
   // left/right or ✕ to change it. The list scrolls to keep the row in view.
   import { api } from "../lib/api";
   import { feedback, useInput } from "../lib/input.svelte";
-  import { controllerSummary } from "../lib/controller";
+  import { controllerSummary, UNHIDE_DETAIL } from "../lib/controller";
   import { syncerSummary } from "../lib/saves";
   import { lib } from "../lib/store.svelte";
   import type { Settings, SyncerStatus } from "../lib/types";
@@ -16,7 +16,7 @@
     | { key: keyof Settings; title: string; detail: string; kind: "choice"; options: [string | number, string][]; group?: string }
     | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string }
     | { key: "xbox"; title: string; detail: string; kind: "xboxStatus"; group?: string }
-    | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string }
+    | { key: "padtest" | "unhide"; title: string; detail: string; kind: "action"; group?: string }
     | { key: `library:${string}`; source: string; title: string; detail: string; kind: "library"; group?: string };
 
   const fixed: Row[] = [
@@ -78,6 +78,7 @@
       detail: "So games that also read it directly don't see every press twice. Needs HidHide.",
       kind: "toggle",
     },
+    { key: "unhide", title: "Unhide controller", detail: UNHIDE_DETAIL, kind: "action" },
     { group: "Saves", key: "syncer", title: "Syncer", detail: "", kind: "status" },
     { key: "syncSavesBefore", title: "Sync saves before playing", detail: "Saves come up to date from your other PCs first.", kind: "toggle" },
     {
@@ -168,7 +169,8 @@
     if (!s || !row) return;
     if (row.kind === "action") {
       feedback.confirm();
-      onpadtest();
+      if (row.key === "unhide") lib.unhideController();
+      else onpadtest();
       return;
     }
     if (row.kind === "xboxStatus") {
@@ -239,7 +241,7 @@
         {:else}
           <span class="text"><span class="t">{row.title}</span><span class="d">{row.detail}</span></span>
           {#if row.kind === "action"}
-            <span class="act">Open</span>
+            <span class="act">{row.key === "unhide" ? "Unhide" : "Open"}</span>
           {:else if row.kind === "library"}
             <span class="track" class:yes={!s?.hiddenSources.includes(row.source)}><span class="knob"></span></span>
           {:else if row.kind === "toggle"}

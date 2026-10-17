@@ -262,6 +262,13 @@ class LibraryStore {
     return !!status;
   }
 
+  /** Shows every controller Seaglass hid from games again. */
+  async unhideController() {
+    const status = await this.run(() => api.controller.unhide());
+    if (status) this.controller = status;
+    else await this.refreshController();
+  }
+
   /** Says so once after Seaglass was updated. */
   private announceVersion(version: string) {
     try {

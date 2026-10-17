@@ -81,7 +81,7 @@ describe("translatorOf", () => {
   });
 
   it("reads the driver and the chosen tool", () => {
-    const status = { viGEm: true, hidHide: false, hidHideActive: false, canHide: false, restart: false };
+    const status = { viGEm: true, hidHide: false, hidHideActive: false, canHide: false, restart: false, hidden: false };
     expect(translatorOf(status, { padTranslator: "steam" } as never)).toEqual({ viGEm: true, steam: true });
     expect(translatorOf(status, { padTranslator: "seaglass" } as never)).toEqual({ viGEm: true, steam: false });
   });

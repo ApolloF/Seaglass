@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -41,6 +42,13 @@ func (s *ControllerService) SetUpDrivers() (vpad.Status, error) {
 	return s.c.ctl.setUp(s.c.ctx)
 }
 
+// UnhideControllers shows every controller Seaglass hid from games again,
+// including during a game (which then may see it twice).
+func (s *ControllerService) UnhideControllers() (vpad.Status, error) {
+	err := s.c.ctl.unhide()
+	return s.c.ctl.deps.status(), err
+}
+
 // hider hides physical controllers from games (HidHide).
 type hider interface {
 	Active() (bool, error)
@@ -54,17 +62,24 @@ type bridgeDeps struct {
 	status    func() vpad.Status
 	newBridge func() (vpad.Bridge, error)
 	newHider  func() (hider, error)
+	// unhide shows the controllers a session left hidden (a crash, say).
+	unhide func() error
 	// install downloads one installer and runs it; restart reports that
 	// it asked for Windows to restart, cancelled that it was closed.
 	install func(ctx context.Context, in vpad.Installer) (restart, cancelled bool, err error)
 }
 
 var realBridgeDeps = bridgeDeps{
-	status:    vpad.GetStatus,
+	status:    func() vpad.Status { return vpad.GetStatus(hiddenLedger()) },
 	newBridge: func() (vpad.Bridge, error) { return vpad.NewX360() },
-	newHider:  func() (hider, error) { return vpad.OpenHider() },
+	newHider:  func() (hider, error) { return vpad.OpenHider(hiddenLedger()) },
+	unhide:    func() error { return vpad.Unhide(hiddenLedger()) },
 	install:   installDriver,
 }
+
+// hiddenLedger is the file listing the controllers Seaglass put on
+// HidHide's saved block list, so they can be shown again after a crash.
+func hiddenLedger() string { return filepath.Join(platform.AppDir(), "hidden-controllers.json") }
 
 // controllerState is the controller bridge of the game being played.
 type controllerState struct {
@@ -261,6 +276,27 @@ func (cs *controllerState) end() {
 		}
 	}
 	cs.handled()
+}
+
+// unhide shows every controller Seaglass hid again: the ones hidden for
+// the game being played (which stay visible until it ends) and any a
+// session left on HidHide's saved block list.
+func (cs *controllerState) unhide() error {
+	cs.mu.Lock()
+	h := cs.hider
+	cs.hider = nil
+	cs.mu.Unlock()
+	var err error
+	if h != nil {
+		err = h.Close()
+	}
+	if cs.deps.unhide != nil {
+		err = errors.Join(err, cs.deps.unhide())
+	}
+	if err != nil {
+		logx.Printf("controller bridge: showing the controller again: %v", err)
+	}
+	return err
 }
 
 // controllerStep starts the virtual controller before the game, since some

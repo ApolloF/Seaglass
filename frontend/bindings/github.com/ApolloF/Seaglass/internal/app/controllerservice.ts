@@ -32,3 +32,11 @@ export function SetUpDrivers(): $CancellablePromise<vpad$0.Status> {
 export function Status(): $CancellablePromise<vpad$0.Status> {
     return $Call.ByID(2836154352);
 }
+
+/**
+ * UnhideControllers shows every controller Seaglass hid from games again,
+ * including during a game (which then may see it twice).
+ */
+export function UnhideControllers(): $CancellablePromise<vpad$0.Status> {
+    return $Call.ByID(2946532150);
+}

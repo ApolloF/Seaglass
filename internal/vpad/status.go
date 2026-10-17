@@ -19,19 +19,19 @@ type Status struct {
 	// HidHideVersion is its driver's version, when known.
 	HidHideVersion string `json:"hidHideVersion,omitempty"`
 	HidHideActive  bool   `json:"hidHideActive"` // its hiding is switched on (block lists only work then)
-	// CanHide: HidHide is new enough for the per-process list Seaglass
-	// hides controllers with (1.7.333 or later), and switched on.
+	// CanHide: HidHide answers and its hiding is switched on.
 	CanHide bool `json:"canHide"`
+	// Hidden: Seaglass left controllers on HidHide's saved block list (a
+	// game is running, or Seaglass didn't get to show them again).
+	Hidden bool `json:"hidden"`
 	// Restart: a driver is installed but doesn't answer yet; Windows has to
 	// restart first.
 	Restart bool `json:"restart"`
 }
 
-// hidHideSessionList is the first HidHide with the session block list.
-var hidHideSessionList = [4]uint16{1, 7, 333, 0}
-
-// GetStatus looks at both drivers. It only reads; nothing changes.
-func GetStatus() Status {
+// GetStatus looks at both drivers and the ledger of controllers Seaglass
+// hid (see Hider). It only reads; nothing changes.
+func GetStatus(ledger string) Status {
 	var s Status
 	if paths, err := viGEmBusPaths(); err == nil && len(paths) > 0 {
 		s.ViGEm = true
@@ -44,8 +44,8 @@ func GetStatus() Status {
 		windows.CloseHandle(h)
 	}
 	s.HidHideVersion = driverVersion("HidHide.sys")
-	v, known := parseVersion(s.HidHideVersion)
-	s.CanHide = s.HidHide && s.HidHideActive && (!known || !older(v, hidHideSessionList))
+	s.CanHide = s.HidHide && s.HidHideActive
+	s.Hidden = Hidden(ledger)
 	s.Restart = !s.ViGEm && serviceInstalled("ViGEmBus") || !s.HidHide && serviceInstalled("HidHide")
 	return s
 }
@@ -99,23 +99,4 @@ func fileVersion(path string) ([4]uint16, error) {
 		uint16(fixed.FileVersionMS >> 16), uint16(fixed.FileVersionMS),
 		uint16(fixed.FileVersionLS >> 16), uint16(fixed.FileVersionLS),
 	}, nil
-}
-
-// parseVersion reads "1.7.333.0".
-func parseVersion(s string) ([4]uint16, bool) {
-	var v [4]uint16
-	if s == "" {
-		return v, false
-	}
-	n, err := fmt.Sscanf(s, "%d.%d.%d.%d", &v[0], &v[1], &v[2], &v[3])
-	return v, err == nil && n == 4
-}
-
-func older(a, b [4]uint16) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return a[i] < b[i]
-		}
-	}
-	return false
 }

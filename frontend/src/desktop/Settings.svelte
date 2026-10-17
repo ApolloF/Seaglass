@@ -5,7 +5,7 @@
   import SyncerSettings from "./SyncerSettings.svelte";
   import UpdateStatus from "./UpdateStatus.svelte";
   import { api } from "../lib/api";
-  import { controllerSummary, SET_UP_DETAIL } from "../lib/controller";
+  import { controllerSummary, SET_UP_DETAIL, UNHIDE_DETAIL } from "../lib/controller";
   import { lib } from "../lib/store.svelte";
   import type { Settings, Startup } from "../lib/types";
 
@@ -260,6 +260,15 @@
               detail="So games that also read it directly don't see every press twice. Needs HidHide."
               onchange={(v) => set({ hidePadWhilePlaying: v })}
             />
+            {#if lib.controller?.hidHide || lib.controller?.hidden}
+              <div class="xstatus">
+                <span class="xtext">
+                  <span class="xtitle">Show my controller again</span>
+                  <span class="xdetail">{lib.controller?.hidden ? "Seaglass is hiding your controller from games right now." : UNHIDE_DETAIL}</span>
+                </span>
+                <button type="button" class="btn" onclick={() => lib.unhideController()}>Unhide controller</button>
+              </div>
+            {/if}
           </div>
         {:else if tab === "saves"}
           <SyncerSettings />

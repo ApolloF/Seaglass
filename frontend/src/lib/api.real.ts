@@ -120,6 +120,7 @@ export const realApi: Api = {
   controller: {
     status: () => ControllerService.Status() as Promise<unknown> as Promise<ControllerStatus>,
     setUp: () => ControllerService.SetUpDrivers() as Promise<unknown> as Promise<ControllerStatus>,
+    unhide: () => ControllerService.UnhideControllers() as Promise<unknown> as Promise<ControllerStatus>,
   },
 
   pad: {

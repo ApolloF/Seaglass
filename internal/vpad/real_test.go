@@ -2,6 +2,7 @@ package vpad
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 	"unsafe"
@@ -24,7 +25,7 @@ func TestRealViGEm(t *testing.T) {
 	if os.Getenv("WL_REAL_VIGEM") == "" {
 		t.Skip("set WL_REAL_VIGEM=1 to plug a virtual controller into this PC's ViGEmBus")
 	}
-	t.Logf("status: %+v", GetStatus())
+	t.Logf("status: %+v", GetStatus(filepath.Join(t.TempDir(), "hidden-controllers.json")))
 	x, err := NewX360()
 	if err != nil {
 		t.Fatal(err)

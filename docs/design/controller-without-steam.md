@@ -149,7 +149,9 @@ Why A over B now: it is the setup that DS4Windows users have run for years on Wi
 
 - **Without ViGEmBus:** Auto falls back as described (Steam or direct), and `xbox` mode shows the setup notice instead of failing the launch.
 - **Without HidHide**, or if hiding fails: the game still starts with the virtual pad, and the launch panel warns "Some games may see your controller twice." Most XInput-only games ignore the DualSense anyway, which is why they need the bridge.
-- **If Seaglass crashes mid-game**, the drivers clean up. HidHide drops session entries when the process dies. ViGEmBus removes targets when the owning handle closes (this needs confirming on a real PC).
+- **If Seaglass crashes mid-game**, ViGEmBus removes the virtual pad when the owning handle closes (verified on claude-dev with ViGEmBus 1.22).
+- **Built differently (2026-10-17):** no HidHide release has the session block list (it is only in the unreleased 1.7 tags). Seaglass therefore uses HidHide's saved block list. It notes each controller it adds in `%APPDATA%\Seaglass\hidden-controllers.json` before adding it, and takes exactly those off at game end, at every start and quit, and from **Unhide controller** in Settings. It also puts its own exe on HidHide's allow list, since HidHide blocks the hiding app too. A HidHide with the session list is used when present.
+- **Auto without ViGEmBus** starts the game directly with the setup hint. The maintainer chose this over falling back to Steam, which works badly.
 
 **Licences:** nothing third-party is bundled.
 

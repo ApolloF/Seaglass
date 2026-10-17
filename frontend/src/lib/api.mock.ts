@@ -318,11 +318,17 @@ function setSession(p: Partial<Session>) {
   sessionListeners.forEach((cb) => cb(clone(session)));
 }
 
-// ?controller=ready|restart|missing sets how Seaglass's Xbox controller starts.
-const NO_DRIVERS: ControllerStatus = { viGEm: false, hidHide: false, hidHideActive: false, canHide: false, restart: false };
-const READY: ControllerStatus = { viGEm: true, viGEmVersion: "1.22.0", hidHide: true, hidHideVersion: "1.5.230", hidHideActive: true, canHide: true, restart: false };
+// ?controller=ready|hidden|restart|missing sets how Seaglass's Xbox controller starts.
+const NO_DRIVERS: ControllerStatus = { viGEm: false, hidHide: false, hidHideActive: false, canHide: false, restart: false, hidden: false };
+const READY: ControllerStatus = { viGEm: true, viGEmVersion: "1.22.0", hidHide: true, hidHideVersion: "1.5.230", hidHideActive: true, canHide: true, restart: false, hidden: false };
 let controllerStatus: ControllerStatus =
-  mockParams.get("controller") === "ready" ? READY : mockParams.get("controller") === "restart" ? { ...NO_DRIVERS, restart: true } : NO_DRIVERS;
+  mockParams.get("controller") === "ready"
+    ? READY
+    : mockParams.get("controller") === "hidden"
+      ? { ...READY, hidden: true }
+      : mockParams.get("controller") === "restart"
+        ? { ...NO_DRIVERS, restart: true }
+        : NO_DRIVERS;
 
 async function runMockSession(g: Game) {
   const steam = g.padMode === "steam" && !g.launchUri;
@@ -527,6 +533,10 @@ export const mockApi: Api = {
     async setUp() {
       await wait(1500);
       controllerStatus = READY;
+      return clone(controllerStatus);
+    },
+    async unhide() {
+      controllerStatus = { ...controllerStatus, hidden: false };
       return clone(controllerStatus);
     },
   },

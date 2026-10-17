@@ -310,3 +310,31 @@ func TestSetUpDrivers(t *testing.T) {
 		t.Errorf("closed installer: status %+v, ran %v, err %v", st, ran, err)
 	}
 }
+
+// Unhide from Settings shows the controller at once, even mid-game, and
+// a later change of controllers doesn't hide it again; leftovers from a
+// crash are shown too.
+func TestUnhideShowsTheControllerAgain(t *testing.T) {
+	b, h := &fakeBridge{}, &fakeHider{active: true}
+	c := ctlTestCore(t, true, b, h)
+	leftovers := 0
+	c.ctl.deps.unhide = func() error { leftovers++; return nil }
+	if _, err := c.ctl.begin(true); err != nil {
+		t.Fatal(err)
+	}
+	c.ctl.hidePads([]string{dsPath})
+	if err := c.ctl.unhide(); err != nil {
+		t.Fatal(err)
+	}
+	if h.closedCount() != 1 || leftovers != 1 {
+		t.Fatalf("hider closed %d, leftovers shown %d", h.closedCount(), leftovers)
+	}
+	c.ctl.hidePads([]string{dsPath}) // the controller reconnects mid-game
+	if len(h.hidden) != 0 {
+		t.Errorf("hidden again after unhiding: %q", h.hidden)
+	}
+	if !c.ctl.active() {
+		t.Error("unhiding ended the virtual controller")
+	}
+	c.ctl.end()
+}

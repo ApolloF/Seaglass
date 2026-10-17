@@ -414,4 +414,6 @@ export interface ControllerStatus {
   canHide: boolean;
   /** A driver is installed, but Windows must restart first. */
   restart: boolean;
+  /** Seaglass has controllers on HidHide's saved block list right now. */
+  hidden: boolean;
 }
