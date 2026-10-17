@@ -65,7 +65,7 @@
     const known = lib.collections.find((c) => c.name.toLowerCase() === name.toLowerCase())?.name ?? name;
     setColl([...(game.collections ?? []), known]);
   }
-  const padNote = $derived(padExplain(game, pad).long);
+  const padNote = $derived(padExplain(game, pad, lib.translator).long);
 
   // Saves, from Syncer: fetched when the game is shown and after it was played.
   let saves = $state<Saves | null>(null);
@@ -329,7 +329,7 @@
           <Icon name="pad" size={22} stroke={1.8} />
           <span class="grow">Controller</span>
           <div class="seg" role="group" aria-label="Controller mode">
-            {#each [["auto", "Auto"], ["native", "Native"], ["steam", "Steam Input"]] as [id, label] (id)}
+            {#each [["auto", "Auto"], ["native", "Native"], ["xbox", "Xbox controller"], ["steam", "Steam Input"]] as [id, label] (id)}
               <button type="button" class:on={padMode === id} aria-pressed={padMode === id} onclick={() => lib.run(() => api.setPadMode(game.id, id))}>{label}</button>
             {/each}
           </div>

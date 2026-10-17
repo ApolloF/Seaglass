@@ -162,6 +162,8 @@
       <div class="bar"><span></span></div>
       {#if phase === "starting" && session.route === "steamInput"}
         <p>Starting through Steam Input, so the controller works as an Xbox controller.</p>
+      {:else if phase === "starting" && session.route === "bridge"}
+        <p>Your controller works as an Xbox controller in this game.</p>
       {:else if phase === "starting" && session.route === "store"}
         <p>Handed to its store. The game can take a moment to appear.</p>
       {/if}

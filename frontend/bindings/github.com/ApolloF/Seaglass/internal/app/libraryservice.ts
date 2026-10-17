@@ -160,7 +160,8 @@ export function SetMatch(id: number, steamAppID: number, name: string): $Cancell
 }
 
 /**
- * SetPadMode picks how a controller reaches the game: "" (auto), "native" or "steam".
+ * SetPadMode picks how a controller reaches the game: "" (auto), "native",
+ * "xbox" (Seaglass's virtual Xbox controller) or "steam" (Steam Input).
  */
 export function SetPadMode(id: number, mode: string): $CancellablePromise<library$0.Game> {
     return $Call.ByID(880089469, id, mode);

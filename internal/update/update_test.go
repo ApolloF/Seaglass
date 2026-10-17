@@ -405,3 +405,30 @@ func TestLongNotesStayValidUTF8(t *testing.T) {
 		t.Errorf("notes end in %q", rel.Notes[len(rel.Notes)-8:])
 	}
 }
+
+// A pinned download keeps a file only when it matches the hash in the code,
+// and never fetches from outside the feed's prefix.
+func TestDownloadPinned(t *testing.T) {
+	f, feed := newFake(t)
+	body := []byte("MZ driver installer")
+	f.files["Driver_1.0_x64.exe"] = body
+	sum := sha256.Sum256(body)
+	dir := t.TempDir()
+	p, err := feed.DownloadPinned(context.Background(), f.srv.URL+"/download/Driver_1.0_x64.exe", hex.EncodeToString(sum[:]), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != string(body) || filepath.Base(p) != "Driver_1.0_x64.exe" {
+		t.Errorf("saved %s: %q", p, b)
+	}
+	other := sha256.Sum256([]byte("something else"))
+	if _, err := feed.DownloadPinned(context.Background(), f.srv.URL+"/download/Driver_1.0_x64.exe", hex.EncodeToString(other[:]), t.TempDir()); err == nil {
+		t.Error("a file that doesn't match its pinned hash was accepted")
+	}
+	if _, err := feed.DownloadPinned(context.Background(), "https://example.com/x.exe", hex.EncodeToString(sum[:]), t.TempDir()); err == nil {
+		t.Error("a file outside the feed was fetched")
+	}
+	if _, err := feed.DownloadPinned(context.Background(), f.srv.URL+"/download/Driver_1.0_x64.exe", "", t.TempDir()); err == nil {
+		t.Error("a download without a pinned hash was accepted")
+	}
+}

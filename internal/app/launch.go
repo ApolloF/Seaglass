@@ -36,6 +36,7 @@ const (
 	RouteDirect     = "direct"     // its exe, by Seaglass
 	RouteStore      = "store"      // handed to its store (Steam, Epic, …)
 	RouteSteamInput = "steamInput" // a non-Steam shortcut, so Steam Input handles the controller
+	RouteBridge     = "bridge"     // its exe, with Seaglass's virtual Xbox controller standing in for the real one
 )
 
 // LaunchService starts games and follows them while they run.
@@ -109,21 +110,29 @@ func (s *LaunchService) OpenMain() {
 	s.c.shell.OpenMain()
 }
 
-// Route tells how a game would start now: direct, store or steamInput.
+// Route tells how a game would start now: direct, store, steamInput or bridge.
 func (s *LaunchService) Route(id int64) string {
 	g, ok := s.c.Lib.Get(id)
 	if !ok {
 		return RouteDirect
 	}
-	return route(g, s.c.padState())
+	return route(g, s.c.padState(), s.c.translator())
+}
+
+// translator is what can turn a PlayStation controller into an Xbox one.
+type translator struct {
+	viGEm bool // Seaglass's virtual Xbox controller is set up (ViGEmBus)
+	steam bool // the person chose Steam Input for it
 }
 
 // route picks how a game starts. Store games go through their store
-// (Steam applies Steam Input to its own games). Other games go through
-// Steam Input when the user chose it, or in auto mode when a PlayStation
-// controller is in use and the game is known to support controllers but
-// not PlayStation ones.
-func route(g library.Game, ps pad.State) string {
+// (Steam applies Steam Input to its own games). Other games get an Xbox
+// controller when the user chose that for the game, or in auto mode when
+// a PlayStation controller is in use and the game is known to support
+// controllers but not PlayStation ones: Steam Input when the user chose
+// Steam for that, else Seaglass's own virtual controller once it's set up.
+// Without either the game starts directly (with a hint to set it up).
+func route(g library.Game, ps pad.State, tr translator) string {
 	if g.LaunchURI != "" {
 		return RouteStore
 	}
@@ -132,24 +141,54 @@ func route(g library.Game, ps pad.State) string {
 		return RouteDirect
 	case "steam":
 		return RouteSteamInput
-	}
-	if !ps.Connected || ps.Kind != pad.PlayStation || g.PadHint != "" || g.Meta == nil {
+	case "xbox":
+		if tr.viGEm {
+			return RouteBridge
+		}
 		return RouteDirect
 	}
-	if g.Meta.DualSense != "" && g.Meta.DualSense != "no" {
+	if !wantsXbox(g, ps) {
 		return RouteDirect
 	}
-	if c := strings.ToLower(g.Meta.Controller); c == "full" || c == "partial" {
+	switch {
+	case tr.steam:
 		return RouteSteamInput
+	case tr.viGEm:
+		return RouteBridge
 	}
 	return RouteDirect
+}
+
+// wantsXbox reports whether auto mode would hand the game an Xbox
+// controller: a PlayStation controller is in use, and the game is known to
+// support controllers but not PlayStation ones.
+func wantsXbox(g library.Game, ps pad.State) bool {
+	if !ps.Connected || ps.Kind != pad.PlayStation || g.PadHint != "" || g.Meta == nil {
+		return false
+	}
+	if g.Meta.DualSense != "" && g.Meta.DualSense != "no" {
+		return false
+	}
+	c := strings.ToLower(g.Meta.Controller)
+	return c == "full" || c == "partial"
+}
+
+// needsSetup reports whether the game would get Seaglass's Xbox controller
+// if it were set up, so the launch can say how to get it.
+func needsSetup(g library.Game, ps pad.State, tr translator) bool {
+	if g.LaunchURI != "" || tr.viGEm {
+		return false
+	}
+	return g.PadMode == "xbox" || g.PadMode == "" && !tr.steam && wantsXbox(g, ps)
 }
 
 // plan builds the launch of one game.
 func (c *Core) plan(g library.Game) launch.Plan {
 	title := g.DisplayTitle()
-	r := route(g, c.padState())
+	ps, tr := c.padState(), c.translator()
+	r := route(g, ps, tr)
 	var steamURI string
+	bridged := false
 	var before, after []launch.Step
 	cfg := c.Settings.Get()
 	if _, ok := syncer.Installed(); ok {
@@ -168,15 +207,20 @@ func (c *Core) plan(g library.Game) launch.Plan {
 			after = append(after, c.savesAfterStep(g, &known, true))
 		}
 	}
-	if r == RouteSteamInput {
+	switch {
+	case r == RouteSteamInput:
 		before = append(before, c.steamInputStep(g, &steamURI))
+	case r == RouteBridge:
+		before = append(before, c.controllerStep(&bridged))
+	case needsSetup(g, ps, tr):
+		before = append(before, setupStep())
 	}
 	dirs := []string{g.Dir}
 	if g.Exe != "" && !platform.Within(g.Dir, g.Exe) {
 		dirs = append(dirs, filepath.Dir(g.Exe))
 	}
 	detect := 2 * time.Minute // a UAC prompt can wait a while
-	if r != RouteDirect {
+	if r == RouteStore || r == RouteSteamInput {
 		detect = 5 * time.Minute // stores update, sign in, build shader caches
 	}
 	return launch.Plan{
@@ -193,6 +237,9 @@ func (c *Core) plan(g library.Game) launch.Plan {
 				err = platform.OpenURI(g.LaunchURI)
 			default:
 				used = RouteDirect
+				if bridged {
+					used = RouteBridge
+				}
 				pid, err = platform.StartProcess(g.Exe, g.Args, g.WorkDir)
 			}
 			if err != nil {
@@ -231,15 +278,19 @@ func (c *Core) plan(g library.Game) launch.Plan {
 	}
 }
 
-// padForGame steps the controller layer back while a game runs.
+// padForGame steps the controller layer back while a game runs, or keeps
+// feeding Seaglass's virtual controller when the game plays through it.
 func (c *Core) padForGame() {
 	m := c.padManager()
 	if m == nil {
 		return
 	}
-	if c.Settings.Get().PadWhilePlaying == "off" {
+	switch {
+	case c.ctl != nil && c.ctl.active():
+		m.SetMode(pad.Bridge)
+	case c.Settings.Get().PadWhilePlaying == "off":
 		m.SetMode(pad.Off)
-	} else {
+	default:
 		m.SetMode(pad.Passive)
 	}
 }
@@ -250,6 +301,11 @@ func (c *Core) onSession(s launch.Session) {
 	c.emit(EventSession, s)
 	// The game has exited: the controller comes back now, not after the
 	// steps that follow it (a save backup can take minutes).
+	// The virtual controller goes first, so the layer coming back doesn't
+	// pick it up as a controller.
+	if c.ctl != nil && (s.Phase == launch.Finishing || s.Phase.Done()) {
+		c.ctl.end()
+	}
 	if s.Phase == launch.Finishing {
 		if m := c.padManager(); m != nil {
 			m.SetMode(pad.Active)

@@ -90,6 +90,20 @@ export interface Settings {
     "noticeExternal": boolean;
 
     /**
+     * PadTranslator turns a PlayStation controller into an Xbox one for
+     * games that only know Xbox controllers: "seaglass" (its own virtual
+     * controller, once ViGEmBus is set up) or "steam" (Steam Input). Per PC,
+     * like the drivers it depends on.
+     */
+    "padTranslator": string;
+
+    /**
+     * HidePadWhilePlaying hides the real controller from the game while
+     * Seaglass's virtual one stands in for it (needs HidHide). Per PC.
+     */
+    "hidePadWhilePlaying": boolean;
+
+    /**
      * Saves, through Syncer
      * sync a game's saves before it starts
      */

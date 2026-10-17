@@ -43,6 +43,14 @@ type Settings struct {
 	CloseWhilePlaying bool   `json:"closeWhilePlaying"` // close the interface while a game runs (frees its memory)
 	PadWhilePlaying   string `json:"padWhilePlaying"`   // listen (PS button opens the overlay), off (release the controller)
 	NoticeExternal    bool   `json:"noticeExternal"`    // follow games started outside Seaglass (playtime, controller)
+	// PadTranslator turns a PlayStation controller into an Xbox one for
+	// games that only know Xbox controllers: "seaglass" (its own virtual
+	// controller, once ViGEmBus is set up) or "steam" (Steam Input). Per PC,
+	// like the drivers it depends on.
+	PadTranslator string `json:"padTranslator"`
+	// HidePadWhilePlaying hides the real controller from the game while
+	// Seaglass's virtual one stands in for it (needs HidHide). Per PC.
+	HidePadWhilePlaying bool `json:"hidePadWhilePlaying"`
 
 	// Saves, through Syncer
 	SyncSavesBefore  bool `json:"syncSavesBefore"`  // sync a game's saves before it starts
@@ -78,6 +86,7 @@ func Defaults() Settings {
 		Theme: "system", BigPictureLayout: "deck",
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
+		PadTranslator: "seaglass", HidePadWhilePlaying: true,
 		SyncSavesBefore: true, BackupSavesAfter: true, SyncWait: 60, StartSyncer: true,
 		SyncProfile: true, SameSettings: true,
 		AutoUpdate: true, Achievements: true,
@@ -274,6 +283,11 @@ func normalize(v Settings) Settings {
 	case "listen", "off":
 	default:
 		v.PadWhilePlaying = "listen"
+	}
+	switch v.PadTranslator {
+	case "seaglass", "steam":
+	default:
+		v.PadTranslator = "seaglass"
 	}
 	switch v.Glyphs {
 	case "auto", "playstation", "xbox":

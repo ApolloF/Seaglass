@@ -1,6 +1,6 @@
 # Controller support without Steam
 
-Status: proposal (phase 1). Nothing here is built yet.
+Status: built (phase 1).
 
 ## Problem
 

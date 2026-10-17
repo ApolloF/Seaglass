@@ -117,7 +117,7 @@ export interface Game {
     "hidden"?: boolean;
 
     /**
-     * "" = auto, "native", "steam"
+     * "" = auto, "native", "xbox", "steam"
      */
     "padMode"?: string;
 

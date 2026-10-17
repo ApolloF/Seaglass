@@ -67,7 +67,7 @@ export interface Game {
   /** The user's own groups the game is in ("Co-op", "Finished"). */
   collections?: string[];
   hidden?: boolean;
-  padMode?: string; // "" | "native" | "steam"
+  padMode?: string; // "" | "native" | "xbox" | "steam"
   meta?: Meta;
 }
 
@@ -94,6 +94,10 @@ export interface Settings {
   glyphs: "auto" | "playstation" | "xbox";
   closeWhilePlaying: boolean;
   padWhilePlaying: "listen" | "off";
+  /** Which tool turns a PlayStation controller into an Xbox one in Auto (per PC). */
+  padTranslator: "seaglass" | "steam";
+  /** Hide the real controller from games while one plays; needs HidHide (per PC). */
+  hidePadWhilePlaying: boolean;
   noticeExternal: boolean;
   syncSavesBefore: boolean;
   backupSavesAfter: boolean;
@@ -308,7 +312,7 @@ export interface Session {
   title: string;
   phase: Phase;
   /** "external": started outside Seaglass and noticed. */
-  route: "direct" | "store" | "steamInput" | "external" | "";
+  route: "direct" | "store" | "steamInput" | "bridge" | "external" | "";
   before: StepState[];
   after: StepState[];
   question?: Question;
@@ -397,3 +401,17 @@ export const played = (g: Game) => Math.max(g.playtime ?? 0, g.storePlaytime ?? 
 
 /** When the game was last played, by Seaglass or the store. */
 export const lastPlayed = (g: Game) => Math.max(g.lastPlayed ?? 0, g.storeLastPlayed ?? 0);
+
+/** What Seaglass's Xbox controller (two drivers) can do on this PC. */
+export interface ControllerStatus {
+  /** The virtual Xbox controller works. */
+  viGEm: boolean;
+  viGEmVersion?: string;
+  hidHide: boolean;
+  hidHideVersion?: string;
+  hidHideActive: boolean;
+  /** The real controller can be hidden while playing. */
+  canHide: boolean;
+  /** A driver is installed, but Windows must restart first. */
+  restart: boolean;
+}

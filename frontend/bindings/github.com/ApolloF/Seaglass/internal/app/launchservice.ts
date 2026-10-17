@@ -66,7 +66,7 @@ export function QuitGame(): $CancellablePromise<void> {
 }
 
 /**
- * Route tells how a game would start now: direct, store or steamInput.
+ * Route tells how a game would start now: direct, store, steamInput or bridge.
  */
 export function Route(id: number): $CancellablePromise<string> {
     return $Call.ByID(468420342, id);

@@ -1,7 +1,8 @@
 import { api } from "./api";
-import type { Achievement, AppInfo, Game, MetaState, Profile, ScanState, Session, SessionAchievements, Settings, UpdateState } from "./types";
+import type { Achievement, AppInfo, ControllerStatus, Game, MetaState, Profile, ScanState, Session, SessionAchievements, Settings, UpdateState } from "./types";
 import { unlockedText } from "./achievements";
 import { lastPlayed, ownedOnly, played, title } from "./types";
+import { translatorOf } from "./route";
 
 export type FilterKind = "all" | "installed" | "notinstalled" | "favorites" | "recent" | "found" | "hidden";
 export type Filter = { kind: FilterKind } | { kind: "source"; source: string } | { kind: "collection"; name: string };
@@ -67,6 +68,10 @@ class LibraryStore {
   achSession = $state<SessionAchievements | null>(null);
   /** Who's playing on this PC (Syncer's accounts). */
   profile = $state<Profile | null>(null);
+  /** What Seaglass's Xbox controller can do on this PC (null until read). */
+  controller = $state<ControllerStatus | null>(null);
+  /** The tools that can turn a PlayStation controller into an Xbox one. */
+  translator = $derived(translatorOf(this.controller, this.settings));
 
   filter = $state<Filter>({ kind: "all" });
   sort = $state<Sort>("title");
@@ -214,7 +219,7 @@ class LibraryStore {
       this.achSession = s;
       if (s.unlocked.length) this.toast(`${s.title}: ${unlockedText(s.unlocked.length)}`, "info", s.unlocked.slice(0, 5));
     });
-    const [games, settings, scan, info, meta, session, update, profile] = await Promise.all([
+    const [games, settings, scan, info, meta, session, update, profile, controller] = await Promise.all([
       api.games(),
       api.settings(),
       api.scanState(),
@@ -223,7 +228,9 @@ class LibraryStore {
       api.launch.session(),
       api.updates.state(),
       api.profile.get(),
+      api.controller.status().catch(() => null),
     ]);
+    this.controller = controller;
     if (!fresh.has("profile")) this.profile = profile;
     if (!fresh.has("update")) this.update = update;
     this.announceVersion(info.version);
@@ -236,6 +243,23 @@ class LibraryStore {
     if (!fresh.has("scan")) this.scan = scan;
     this.info = info;
     this.loaded = true;
+  }
+
+  /** Reads the drivers' state again (after a setup, or when Settings opens). */
+  async refreshController() {
+    try {
+      this.controller = await api.controller.status();
+    } catch (e) {
+      this.toast(errText(e), "error");
+    }
+  }
+
+  /** Downloads and runs the driver installers. */
+  async setUpController() {
+    const status = await this.run(() => api.controller.setUp());
+    if (status) this.controller = status;
+    else await this.refreshController();
+    return !!status;
   }
 
   /** Says so once after Seaglass was updated. */

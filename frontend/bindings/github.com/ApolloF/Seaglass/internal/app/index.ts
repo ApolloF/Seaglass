@@ -3,6 +3,7 @@
 
 import * as AccountsService from "./accountsservice.js";
 import * as AchievementsService from "./achievementsservice.js";
+import * as ControllerService from "./controllerservice.js";
 import * as LaunchService from "./launchservice.js";
 import * as LibraryService from "./libraryservice.js";
 import * as PadService from "./padservice.js";
@@ -13,6 +14,7 @@ import * as UpdateService from "./updateservice.js";
 export {
     AccountsService,
     AchievementsService,
+    ControllerService,
     LaunchService,
     LibraryService,
     PadService,

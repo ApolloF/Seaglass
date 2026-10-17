@@ -69,8 +69,9 @@ type Core struct {
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
-	lastSession int64       // the last session whose end was handled
-	registered  atomic.Bool // the game list reached Syncer
+	ctl         *controllerState // Seaglass's virtual Xbox controller for games
+	lastSession int64            // the last session whose end was handled
+	registered  atomic.Bool      // the game list reached Syncer
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -105,6 +106,7 @@ func NewCore(version string) (*Core, error) {
 	c.updates = newUpdater(c)
 	c.ach = newAchState(c, c.owned.client, c.meta.client)
 	c.profile = newProfileState(c)
+	c.ctl = newControllerState(c)
 	return c, nil
 }
 

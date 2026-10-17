@@ -1,7 +1,7 @@
 import { Events, Window } from "@wailsio/runtime";
-import { AccountsService, AchievementsService, LaunchService, LibraryService, PadService, ProfileService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
+import { AccountsService, AchievementsService, ControllerService, LaunchService, LibraryService, PadService, ProfileService, SavesService, SettingsService, UpdateService } from "../../bindings/github.com/ApolloF/Seaglass/internal/app";
 import type { Api } from "./api";
-import type { Accounts, Achievements, AppInfo, ArtChoice, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, ControllerStatus, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 
 // The generated bindings return the Go structs; their JSON matches ./types.
 const g = (p: Promise<unknown>) => p as Promise<Game>;
@@ -115,6 +115,11 @@ export const realApi: Api = {
     toggleMaximise: () => void Window.ToggleMaximise(),
     close: () => void Window.Close(),
     fullscreen: (on) => void (on ? Window.Fullscreen() : Window.UnFullscreen()),
+  },
+
+  controller: {
+    status: () => ControllerService.Status() as Promise<unknown> as Promise<ControllerStatus>,
+    setUp: () => ControllerService.SetUpDrivers() as Promise<unknown> as Promise<ControllerStatus>,
   },
 
   pad: {

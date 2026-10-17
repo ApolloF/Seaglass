@@ -31,6 +31,7 @@
   const waiting = $derived.by(() => {
     if (s?.phase !== "starting") return "";
     if (s.route === "steamInput") return "Waiting for the game to open through Steam…";
+    if (s.route === "bridge") return "Your controller works as an Xbox controller in this game.";
     if (s.route === "store") return "Waiting for the game to open through its store…";
     return "Waiting for the game to open…";
   });

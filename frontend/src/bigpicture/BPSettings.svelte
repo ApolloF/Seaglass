@@ -3,6 +3,7 @@
   // left/right or ✕ to change it. The list scrolls to keep the row in view.
   import { api } from "../lib/api";
   import { feedback, useInput } from "../lib/input.svelte";
+  import { controllerSummary } from "../lib/controller";
   import { syncerSummary } from "../lib/saves";
   import { lib } from "../lib/store.svelte";
   import type { Settings, SyncerStatus } from "../lib/types";
@@ -14,6 +15,7 @@
     | { key: keyof Settings; title: string; detail: string; kind: "toggle"; group?: string }
     | { key: keyof Settings; title: string; detail: string; kind: "choice"; options: [string | number, string][]; group?: string }
     | { key: "syncer"; title: string; detail: string; kind: "status"; group?: string }
+    | { key: "xbox"; title: string; detail: string; kind: "xboxStatus"; group?: string }
     | { key: "padtest"; title: string; detail: string; kind: "action"; group?: string }
     | { key: `library:${string}`; source: string; title: string; detail: string; kind: "library"; group?: string };
 
@@ -58,6 +60,23 @@
         ["listen", "Listen"],
         ["off", "Off"],
       ],
+    },
+    { group: "Xbox controller", key: "xbox", title: "Xbox controller for games", detail: "", kind: "xboxStatus" },
+    {
+      key: "padTranslator",
+      title: "Turn PlayStation controllers into Xbox ones with",
+      detail: "What Auto uses for a game that supports Xbox controllers but not PlayStation ones.",
+      kind: "choice",
+      options: [
+        ["seaglass", "Seaglass"],
+        ["steam", "Steam"],
+      ],
+    },
+    {
+      key: "hidePadWhilePlaying",
+      title: "Hide the controller from games while playing",
+      detail: "So games that also read it directly don't see every press twice. Needs HidHide.",
+      kind: "toggle",
     },
     { group: "Saves", key: "syncer", title: "Syncer", detail: "", kind: "status" },
     { key: "syncSavesBefore", title: "Sync saves before playing", detail: "Saves come up to date from your other PCs first.", kind: "toggle" },
@@ -107,6 +126,18 @@
   });
   const s = $derived(lib.settings);
 
+  $effect(() => {
+    void lib.refreshController();
+  });
+  const xbox = $derived(controllerSummary(lib.controller));
+  let settingUp = $state(false);
+  async function setUpController() {
+    if (settingUp) return;
+    settingUp = true;
+    await lib.setUpController();
+    settingUp = false;
+  }
+
   let syncer = $state<SyncerStatus | null>(null);
   let checking = $state(false);
   async function check(start: boolean) {
@@ -140,7 +171,9 @@
       onpadtest();
       return;
     }
-    if (row.kind === "status") {
+    if (row.kind === "xboxStatus") {
+      if (xbox.canSetUp) setUpController();
+    } else if (row.kind === "status") {
       // ✕ on Syncer: start it (or look again), or open it to sort things out.
       if (syncerSum?.action === "open") lib.run(() => api.saves.openSyncer());
       else if (syncerSum?.action === "get" || syncerSum?.action === "update") install();
@@ -177,7 +210,7 @@
   );
 
   function valueLabel(row: Row): string {
-    if (!s || row.kind === "status" || row.kind === "action" || row.kind === "library") return "";
+    if (!s || row.kind === "status" || row.kind === "xboxStatus" || row.kind === "action" || row.kind === "library") return "";
     if (row.kind === "toggle") return s[row.key] ? "On" : "Off";
     return row.options.find((o) => String(o[0]) === String(s[row.key]))?.[1] ?? "";
   }
@@ -189,7 +222,11 @@
     {#each rows as row, k (row.key)}
       {#if row.group}<span class="group">{row.group}</span>{/if}
       <button type="button" class="row" class:on={k === i} data-row={k} tabindex="-1" onclick={() => ((i = k), change(1))}>
-        {#if row.kind === "status"}
+        {#if row.kind === "xboxStatus"}
+          <span class="dot" class:ok={xbox.ok}></span>
+          <span class="text"><span class="t">{row.title}</span><span class="d">{xbox.detail}{xbox.canSetUp ? " Downloads the official installers. Windows asks for permission for each." : ""}</span></span>
+          {#if xbox.canSetUp}<span class="act">{settingUp ? "Setting up…" : "Set up"}</span>{/if}
+        {:else if row.kind === "status"}
           <span class="dot" class:ok={syncerSum?.tone === "ok"} class:warn={syncerSum?.tone === "warn"}></span>
           <span class="text"
             ><span class="t">Syncer: {checking && !syncerSum ? "Checking…" : (syncerSum?.title ?? "Checking…")}</span><span class="d">{syncerSum?.detail ?? ""}</span></span

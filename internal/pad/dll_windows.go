@@ -37,6 +37,13 @@ type sdl struct {
 	setGamepadLED          *windows.Proc
 	gamepadPowerInfo       *windows.Proc
 	gamepadConnectionState *windows.Proc
+	// For the controller bridge: reading a gamepad's whole state, its
+	// device path (to hide it) and its ids before opening it.
+	gamepadAxis         *windows.Proc
+	gamepadButton       *windows.Proc
+	gamepadPath         *windows.Proc
+	gamepadVendorForID  *windows.Proc
+	gamepadProductForID *windows.Proc
 }
 
 // loadSDL writes the embedded DLL to Seaglass's own folder (once),
@@ -80,6 +87,8 @@ func loadSDL() (*sdl, error) {
 		{"SDL_GetGamepadName", &s.gamepadName}, {"SDL_GetGamepadNameForID", &s.gamepadNameForID}, {"SDL_GetGamepadType", &s.gamepadType},
 		{"SDL_RumbleGamepad", &s.rumbleGamepad}, {"SDL_SetGamepadLED", &s.setGamepadLED},
 		{"SDL_GetGamepadPowerInfo", &s.gamepadPowerInfo}, {"SDL_GetGamepadConnectionState", &s.gamepadConnectionState},
+		{"SDL_GetGamepadAxis", &s.gamepadAxis}, {"SDL_GetGamepadButton", &s.gamepadButton}, {"SDL_GetGamepadPath", &s.gamepadPath},
+		{"SDL_GetGamepadVendorForID", &s.gamepadVendorForID}, {"SDL_GetGamepadProductForID", &s.gamepadProductForID},
 	} {
 		p, err := d.FindProc(f.name)
 		if err != nil {
