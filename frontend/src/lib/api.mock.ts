@@ -354,7 +354,7 @@ async function runMockSession(g: Game) {
     setSession({
       before: bridge
         ? xboxStep("done", "Your controller works as an Xbox controller in this game.")
-        : xboxStep("skipped", "Set up Seaglass's Xbox controller in Settings to play this game with your DualSense."),
+        : xboxStep("skipped", "Set up Seaglass's Xbox controller in Settings to play this game with your controller."),
     });
   }
   const cur = () => session; // read fresh after each await

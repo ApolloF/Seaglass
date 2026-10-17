@@ -18,7 +18,7 @@ import (
 
 // Texts shown in the launch panel.
 const (
-	setupNotice  = "Set up Seaglass's Xbox controller in Settings to play this game with your DualSense."
+	setupNotice  = "Set up Seaglass's Xbox controller in Settings to play this game with your controller."
 	twiceWarning = "Some games may see your controller twice."
 )
 

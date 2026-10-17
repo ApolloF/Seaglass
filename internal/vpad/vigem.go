@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -103,6 +105,7 @@ type X360 struct {
 	rumbleMu sync.Mutex
 	rumble   func(large, small uint8)
 	notify   chan struct{} // closed when the rumble loop has ended
+	closing  atomic.Bool   // Close has begun; the rumble loop stops
 }
 
 var _ Bridge = (*X360)(nil)
@@ -189,7 +192,8 @@ func (x *X360) Plug() error {
 			continue // that slot is taken (by another app's controller)
 		}
 		w := &sizeAndSerial{Size: uint32(unsafe.Sizeof(sizeAndSerial{})), SerialNo: serial}
-		if err = ioctl(x.h, ioctlWaitReady, unsafe.Pointer(w), w.Size, nil, 0); err != nil {
+		// Older buses don't know the wait request (ViGEmClient carries on then).
+		if err = ioctl(x.h, ioctlWaitReady, unsafe.Pointer(w), w.Size, nil, 0); err != nil && !errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
 			u := &sizeAndSerial{Size: uint32(unsafe.Sizeof(sizeAndSerial{})), SerialNo: serial}
 			_ = ioctl(x.h, ioctlUnplug, unsafe.Pointer(u), u.Size, nil, 0)
 			return fmt.Errorf("the virtual controller didn't start: %w", err)
@@ -211,7 +215,14 @@ func (x *X360) Send(r Report) error {
 		return errors.New("the virtual controller isn't plugged in")
 	}
 	x.submit.Report = r
-	return ioctlWith(x.h, x.ev, ioctlXUSBSubmit, unsafe.Pointer(x.submit), x.submit.Size, nil, 0)
+	// The bus takes the report even when it ends the request with another
+	// error (for instance while no game reads the controller yet), so only
+	// "access denied", a controller that's gone, counts, as in ViGEmClient.
+	err := ioctlWith(x.h, x.ev, ioctlXUSBSubmit, unsafe.Pointer(x.submit), x.submit.Size, nil, 0)
+	if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
+		return errors.New("the virtual controller is gone")
+	}
+	return nil
 }
 
 // Rumble sets where the game's rumble goes.
@@ -222,7 +233,8 @@ func (x *X360) Rumble(fn func(large, small uint8)) {
 }
 
 // rumbleLoop waits for the game to change the rumble, until the controller
-// is unplugged (the pending request then ends with an error).
+// is unplugged or Close cancels the request. Other errors only mean asking
+// again, as in ViGEmClient.
 func (x *X360) rumbleLoop(serial uint32, done chan struct{}) {
 	defer close(done)
 	ev, err := windows.CreateEvent(nil, 0, 0, nil)
@@ -233,8 +245,13 @@ func (x *X360) rumbleLoop(serial uint32, done chan struct{}) {
 	n := &xusbNotification{Size: uint32(unsafe.Sizeof(xusbNotification{})), SerialNo: serial}
 	for {
 		err := ioctlWith(x.h, ev, ioctlXUSBNotify, unsafe.Pointer(n), n.Size, unsafe.Pointer(n), n.Size)
+		if x.closing.Load() || errors.Is(err, windows.ERROR_ACCESS_DENIED) || errors.Is(err, windows.ERROR_OPERATION_ABORTED) {
+			return
+		}
 		if err != nil {
-			return // unplugged, cancelled or the bus went away
+			n.Size, n.SerialNo = uint32(unsafe.Sizeof(xusbNotification{})), serial
+			time.Sleep(10 * time.Millisecond) // no busy loop if the bus keeps refusing
+			continue
 		}
 		x.rumbleMu.Lock()
 		fn := x.rumble
@@ -266,6 +283,7 @@ func (x *X360) Close() error {
 	if x.h == 0 {
 		return nil
 	}
+	x.closing.Store(true)
 	var err error
 	if x.serial != 0 {
 		u := &sizeAndSerial{Size: uint32(unsafe.Sizeof(sizeAndSerial{})), SerialNo: x.serial}

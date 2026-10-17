@@ -119,7 +119,7 @@ Why A over B now: it is the setup that DS4Windows users have run for years on Wi
 - **Auto:** where today's logic picks Steam Input, it picks the global *translator* instead:
   - Seaglass's bridge when ViGEmBus is installed;
   - otherwise Steam if the user chose it as the fallback;
-  - otherwise direct, with a one-line notice: "Set up Seaglass's Xbox controller in Settings to play this game with your DualSense."
+  - otherwise direct, with a one-line notice: "Set up Seaglass's Xbox controller in Settings to play this game with your controller."
 
 **Settings** (`internal/settings`, per PC because drivers are per PC):
 
