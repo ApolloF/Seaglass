@@ -439,8 +439,25 @@ func otherComponents() ([]component, error) {
 		sdl.Version = string(m[1])
 	}
 	sdl.Name, sdl.Where = "SDL 3", "Seaglass.exe (embedded SDL3.dll)"
+	// The controller bridge talks to ViGEmBus and HidHide with request
+	// codes and structures ported from their sources. The drivers
+	// themselves aren't shipped: Seaglass downloads their official
+	// installers when the person asks for it.
+	vigem, err := componentFromDir(filepath.Join("internal", "vpad", "third_party", "ViGEmClient"))
+	if err != nil {
+		return nil, fmt.Errorf("ViGEmClient: %w", err)
+	}
+	vigem.Name, vigem.Where = "ViGEmClient (ported protocol definitions)", "Seaglass.exe (internal/vpad)"
+	vigem.Note = "The ViGEmBus client protocol (IOCTL codes, XUSB report and request structures) is ported to Go " +
+		"from https://github.com/nefarius/ViGEmClient (include/ViGEm/km/BusShared.h, include/ViGEm/Common.h, src/ViGEmClient.cpp)."
+	hidhide, err := componentFromDir(filepath.Join("internal", "vpad", "third_party", "HidHide"))
+	if err != nil {
+		return nil, fmt.Errorf("HidHide: %w", err)
+	}
+	hidhide.Name, hidhide.Where = "HidHide (ported IOCTL definitions)", "Seaglass.exe (internal/vpad)"
+	hidhide.Note = "HidHide's control IOCTL codes are ported to Go from https://github.com/nefarius/HidHide (Shared/HidHideIoctlContract.h)."
 	return []component{
-		sdl,
+		sdl, vigem, hidhide,
 		{
 			Name: "Microsoft Edge WebView2 Runtime bootstrapper", License: "Microsoft redistributable",
 			Where: "Seaglass-setup.exe",

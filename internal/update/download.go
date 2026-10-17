@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -53,6 +54,36 @@ func (f Feed) Download(ctx context.Context, rel Release, name, dir string, progr
 		return "", "", err
 	}
 	return dst, got, nil
+}
+
+// DownloadPinned fetches one file from a known URL below the feed's prefix
+// into dir and checks it against a SHA-256 written into Seaglass's code,
+// for third-party files whose release is fixed (driver installers). It
+// returns the file's path.
+func (f Feed) DownloadPinned(ctx context.Context, rawURL, sha256Hex, dir string) (string, error) {
+	if !isSHA256(sha256Hex) {
+		return "", errors.New("no pinned SHA-256")
+	}
+	name := safeName(path.Base(rawURL))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	dst := filepath.Join(dir, name)
+	part := dst + ".part"
+	got, err := f.fetch(ctx, Asset{Name: name, URL: rawURL}, part, nil)
+	if err != nil {
+		_ = os.Remove(part)
+		return "", err
+	}
+	if !strings.EqualFold(got, sha256Hex) {
+		_ = os.Remove(part)
+		return "", fmt.Errorf("%s doesn't match the SHA-256 Seaglass expects", name)
+	}
+	if err := os.Rename(part, dst); err != nil {
+		_ = os.Remove(part)
+		return "", err
+	}
+	return dst, nil
 }
 
 // expected is the SHA-256 the release promises for name.

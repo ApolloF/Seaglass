@@ -5,6 +5,7 @@
   import SyncerSettings from "./SyncerSettings.svelte";
   import UpdateStatus from "./UpdateStatus.svelte";
   import { api } from "../lib/api";
+  import { controllerSummary, SET_UP_DETAIL, UNHIDE_DETAIL } from "../lib/controller";
   import { lib } from "../lib/store.svelte";
   import type { Settings, Startup } from "../lib/types";
 
@@ -33,7 +34,16 @@
     api.autoFolders().then((f) => (autoFolders = f));
     api.hasSteamGridDBKey().then((k) => (hasKey = k));
     api.startWithWindows().then((v) => (startup = v));
+    void lib.refreshController();
   });
+
+  const xbox = $derived(controllerSummary(lib.controller));
+  let settingUp = $state(false);
+  async function setUpController() {
+    settingUp = true;
+    await lib.setUpController();
+    settingUp = false;
+  }
 
   async function copyDiagnostics() {
     const ok = await lib.run(() => api.copyDiagnostics().then(() => true));
@@ -224,6 +234,42 @@
             <Toggle checked={s.noticeExternal} title="Notice games started elsewhere" detail="A game from your library started from Steam or a desktop shortcut counts its playtime here too, and Seaglass lets go of the controller while it runs." onchange={(v) => set({ noticeExternal: v })} />
             <Toggle checked={s.padWhilePlaying === "listen"} title="Listen for the PS / Xbox button in games" detail="Opens the overlay. Seaglass only listens: it never writes to the controller or changes its mode while a game has it. Turn off to let go of the controller completely." onchange={(v) => set({ padWhilePlaying: v ? "listen" : "off" })} />
           </div>
+          <div class="group">
+            <span class="glabel">Xbox controller</span>
+            <div class="xstatus">
+              <span class="dot" class:ok={xbox.ok} aria-hidden="true"></span>
+              <span class="xtext">
+                <span class="xtitle">Xbox controller for games</span>
+                <span class="xdetail">{xbox.detail}</span>
+              </span>
+              {#if xbox.canSetUp}
+                <button type="button" class="btn" disabled={settingUp} onclick={setUpController}>{settingUp ? "Setting up…" : "Set up"}</button>
+              {/if}
+            </div>
+            {#if xbox.canSetUp}<p class="hint">{SET_UP_DETAIL}</p>{/if}
+            <span class="xtitle">Turn PlayStation controllers into Xbox ones with</span>
+            <div class="seg" role="group" aria-label="Turn PlayStation controllers into Xbox ones with">
+              {#each [["seaglass", "Seaglass"], ["steam", "Steam"]] as [id, label] (id)}
+                <button type="button" class:on={s.padTranslator === id} aria-pressed={s.padTranslator === id} onclick={() => set({ padTranslator: id as Settings["padTranslator"] })}>{label}</button>
+              {/each}
+            </div>
+            <Toggle
+              checked={s.hidePadWhilePlaying}
+              disabled={!lib.controller?.hidHide}
+              title="Hide the controller from games while playing"
+              detail="So games that also read it directly don't see every press twice. Needs HidHide."
+              onchange={(v) => set({ hidePadWhilePlaying: v })}
+            />
+            {#if lib.controller?.hidHide || lib.controller?.hidden}
+              <div class="xstatus">
+                <span class="xtext">
+                  <span class="xtitle">Show my controller again</span>
+                  <span class="xdetail">{lib.controller?.hidden ? "Seaglass is hiding your controller from games right now." : UNHIDE_DETAIL}</span>
+                </span>
+                <button type="button" class="btn" onclick={() => lib.unhideController()}>Unhide controller</button>
+              </div>
+            {/if}
+          </div>
         {:else if tab === "saves"}
           <SyncerSettings />
         {:else}
@@ -353,6 +399,37 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .xstatus {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+  }
+  .xtext {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .xtitle {
+    font-weight: 600;
+  }
+  .xdetail {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex: none;
+  }
+  .dot.ok {
+    background: var(--accent);
   }
   .glabel {
     font-size: 14px;

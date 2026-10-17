@@ -137,3 +137,34 @@ func TestDamagedFileFallsBackToBackup(t *testing.T) {
 		t.Errorf("the damaged file wasn't set aside: %v", broken)
 	}
 }
+
+// The controller translator and hiding are per PC (the drivers are), on
+// for settings saved before they existed, and an unknown translator falls
+// back to Seaglass's own.
+func TestControllerTranslatorSettings(t *testing.T) {
+	old := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(old, []byte(`{"theme":"dark","padTranslator":"ds4windows"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if v := Open(old).Get(); v.PadTranslator != "seaglass" || !v.HidePadWhilePlaying {
+		t.Errorf("translator %q, hide %v", v.PadTranslator, v.HidePadWhilePlaying)
+	}
+	a := Defaults()
+	a.PadTranslator, a.HidePadWhilePlaying = "steam", false
+	b, err := json.Marshal(a.Portable())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Defaults().WithPortable(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PadTranslator != "seaglass" || !got.HidePadWhilePlaying {
+		t.Errorf("another PC's controller settings were taken: %q %v", got.PadTranslator, got.HidePadWhilePlaying)
+	}
+	steam := Defaults()
+	steam.PadTranslator = "steam"
+	if normalize(steam).PadTranslator != "steam" {
+		t.Error("steam isn't kept")
+	}
+}

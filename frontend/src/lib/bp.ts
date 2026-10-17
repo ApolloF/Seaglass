@@ -1,6 +1,6 @@
 // Game lists and helpers shared by the big picture layouts.
 import { artFor } from "./art";
-import { isFresh } from "./store.svelte";
+import { isFresh, lib } from "./store.svelte";
 import { lastPlayed, played, title, type Game } from "./types";
 import { playtime, ago } from "./format";
 import { pad } from "./input.svelte";
@@ -60,5 +60,5 @@ export { title };
 
 /** What the controller mode will do, in words, for the big picture cards. */
 export function padSummary(g: Game): { short: string; long: string } {
-  return padExplain(g, pad);
+  return padExplain(g, pad, lib.translator);
 }

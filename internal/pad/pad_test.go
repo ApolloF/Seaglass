@@ -82,3 +82,60 @@ func TestSlowNoteOnlyForSlowCalls(t *testing.T) {
 		t.Errorf("a 25 s start: %q", n)
 	}
 }
+
+// Bridge mode runs SDL and hands the controller's state to the sink at
+// least once (at rest when no controller is connected), so the virtual
+// controller never keeps a stale press.
+func TestBridgeModeFeedsTheSink(t *testing.T) {
+	m := Start(func(string, bool) {}, func(State) {})
+	defer m.Stop()
+	got := make(chan Raw, 64)
+	m.SetBridge(func(r Raw) {
+		select {
+		case got <- r:
+		default:
+		}
+	}, func([]string) {})
+	m.SetMode(Bridge)
+	select {
+	case <-got:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the bridge sink never heard from the controller layer")
+	}
+	if in, running := m.InMode(); in != Bridge || !running {
+		t.Errorf("in %s, running %v", in, running)
+	}
+	m.BridgeRumble(200, 100) // no controller: nothing to do, but it mustn't block
+	m.SetMode(Active)
+	m.BridgeRumble(200, 100) // ignored outside Bridge mode
+}
+
+func TestVirtualX360IsNotBridged(t *testing.T) {
+	if !isVirtualX360(0x045E, 0x028E) {
+		t.Error("the Xbox 360 ids ViGEmBus reports aren't recognised")
+	}
+	for _, ids := range [][2]uint16{{0x054C, 0x0CE6}, {0x045E, 0x0B13}, {0x057E, 0x2009}} {
+		if isVirtualX360(ids[0], ids[1]) {
+			t.Errorf("%04x:%04x counted as the virtual controller", ids[0], ids[1])
+		}
+	}
+	if Bridge.String() != "bridge" {
+		t.Errorf("Bridge.String() = %q", Bridge.String())
+	}
+}
+
+// Active and Bridge read controllers alike, so switching between them
+// keeps SDL running; every other switch starts it over.
+func TestSameHints(t *testing.T) {
+	for _, c := range []struct {
+		a, b Mode
+		want bool
+	}{
+		{Active, Bridge, true}, {Bridge, Active, true}, {Active, Passive, false},
+		{Passive, Bridge, false}, {Bridge, Off, false}, {Off, Active, false},
+	} {
+		if got := sameHints(c.a, c.b); got != c.want {
+			t.Errorf("sameHints(%s, %s) = %v", c.a, c.b, got)
+		}
+	}
+}

@@ -134,6 +134,7 @@ const (
 	pollActive  = 8 * time.Millisecond   // a controller is in use
 	pollIdle    = 16 * time.Millisecond  // connected, untouched for a few seconds
 	pollPassive = 33 * time.Millisecond  // a game runs: only the PS button matters
+	pollBridge  = 4 * time.Millisecond   // a game reads the controller through Seaglass: latency counts
 	pollNoPad   = 250 * time.Millisecond // nothing connected: only hotplug
 
 	// slowCall is how long one SDL call may take before the controller
@@ -185,6 +186,21 @@ type Manager struct {
 	// Whether an SDL call was slow since SDL last started quickly; only
 	// touched on the SDL thread.
 	slow bool
+
+	// The controller bridge (Bridge mode): bridgeSink gets the state of
+	// the controller in use whenever it changes, bridgePads the device
+	// paths of the controllers SDL has open. Set under mu.
+	bridgeSink func(Raw)
+	bridgePads func([]string)
+	// Only touched on the SDL thread: whether SDL runs in Bridge mode, the
+	// state last handed to the sink, and the game's rumble.
+	bridging   bool
+	bridgeLast Raw
+	bridgeSent bool
+	padsDirty  bool
+	rumbleLo   uint16
+	rumbleHi   uint16
+	rumbleAt   time.Time
 }
 
 // timed runs an SDL call and notes when it was slow.
@@ -265,6 +281,12 @@ const (
 	Passive
 	// Off releases controllers completely.
 	Off
+	// Bridge reads the controller for a game that sees it through
+	// Seaglass's virtual Xbox controller: like Active (SDL's HIDAPI drivers
+	// on, so a DualSense works fully), polled often, its whole state handed
+	// to the bridge sink, and the game's rumble passed on to it. Actions
+	// keep coming (the PS button opens the overlay).
+	Bridge
 )
 
 func (m Mode) String() string {
@@ -273,6 +295,8 @@ func (m Mode) String() string {
 		return "active"
 	case Passive:
 		return "passive"
+	case Bridge:
+		return "bridge"
 	}
 	return "off"
 }
@@ -399,6 +423,9 @@ type gamepad struct {
 	name string
 	kind Kind
 	ds   bool
+	// virtual: it has the ids of ViGEmBus's virtual Xbox 360 controller
+	// (see isVirtualX360).
+	virtual bool
 }
 
 var (
@@ -482,6 +509,8 @@ func (m *Manager) loop() {
 			return time.Hour // nothing to read
 		case n == 0:
 			return pollNoPad
+		case m.bridging:
+			return pollBridge
 		case passive:
 			return pollPassive
 		case time.Since(lastInput) < 5*time.Second || len(held) > 0 || len(m.pulses) > 0 || m.rawListener() != nil:
@@ -504,6 +533,18 @@ func (m *Manager) loop() {
 		if want == applied && !failed {
 			return
 		}
+		// Active and Bridge read controllers the same way, so SDL keeps
+		// running between them: a start can take many seconds with a
+		// controller that is slow to answer, and the game is waiting.
+		if !off && !failed && sameHints(applied, want) {
+			m.switchBridge(s, want == Bridge)
+			applied = want
+			m.mu.Lock()
+			m.inMode = want
+			m.mu.Unlock()
+			retune()
+			return
+		}
 		if !off {
 			m.closeAll(s)
 			m.timed("to stop", func() { s.quit.Call() })
@@ -515,6 +556,8 @@ func (m *Manager) loop() {
 		clear(hats)
 		m.pulses = nil
 		off, passive, applied, failed = true, want == Passive, want, false
+		m.bridging, m.bridgeSent, m.padsDirty = want == Bridge, false, want == Bridge
+		m.rumbleLo, m.rumbleHi = 0, 0
 		m.padErr = ""
 		m.slow = false
 		if want != Off {
@@ -705,6 +748,9 @@ func (m *Manager) loop() {
 		if m.slow && !wasSlow {
 			m.refreshState(s)
 		}
+		if m.bridging {
+			m.feedBridge(s)
+		}
 		if stickMoved {
 			stick()
 		}
@@ -749,6 +795,15 @@ func (m *Manager) loop() {
 }
 
 func (m *Manager) open(s *sdl, id uint32) {
+	vid, _, _ := s.gamepadVendorForID.Call(uintptr(id))
+	pid, _, _ := s.gamepadProductForID.Call(uintptr(id))
+	virtual := isVirtualX360(uint16(vid), uint16(pid))
+	if m.bridging {
+		if virtual {
+			return // most likely the virtual controller itself; reading it back would loop
+		}
+		m.padsDirty = true
+	}
 	r, _, _ := s.openGamepad.Call(uintptr(id))
 	if r == 0 {
 		// Usually another program holds the controller for itself
@@ -759,7 +814,7 @@ func (m *Manager) open(s *sdl, id uint32) {
 	}
 	name, _, _ := s.gamepadName.Call(r)
 	t, _, _ := s.gamepadType.Call(r)
-	gp := &gamepad{ptr: r, name: gostr(name)}
+	gp := &gamepad{ptr: r, name: gostr(name), virtual: virtual}
 	switch int32(t) {
 	case typePS3, typePS4, typePS5:
 		gp.kind = PlayStation
@@ -796,6 +851,7 @@ func (m *Manager) close(s *sdl, id uint32) {
 	padsMu.Unlock()
 	if gp != nil {
 		s.closeGamepad.Call(gp.ptr)
+		m.padsDirty = m.padsDirty || m.bridging
 	}
 	m.refreshState(s)
 }

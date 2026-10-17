@@ -63,12 +63,13 @@ func (s *LibraryService) SetHidden(id int64, on bool) (library.Game, error) {
 	return s.update(id, func(g *library.Game) { g.Hidden = on })
 }
 
-// SetPadMode picks how a controller reaches the game: "" (auto), "native" or "steam".
+// SetPadMode picks how a controller reaches the game: "" (auto), "native",
+// "xbox" (Seaglass's virtual Xbox controller) or "steam" (Steam Input).
 func (s *LibraryService) SetPadMode(id int64, mode string) (library.Game, error) {
 	switch mode {
 	case "", "auto":
 		mode = ""
-	case "native", "steam":
+	case "native", "xbox", "steam":
 	default:
 		return library.Game{}, errors.New("unknown controller mode")
 	}

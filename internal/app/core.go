@@ -69,8 +69,9 @@ type Core struct {
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
-	lastSession int64       // the last session whose end was handled
-	registered  atomic.Bool // the game list reached Syncer
+	ctl         *controllerState // Seaglass's virtual Xbox controller for games
+	lastSession int64            // the last session whose end was handled
+	registered  atomic.Bool      // the game list reached Syncer
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -105,6 +106,7 @@ func NewCore(version string) (*Core, error) {
 	c.updates = newUpdater(c)
 	c.ach = newAchState(c, c.owned.client, c.meta.client)
 	c.profile = newProfileState(c)
+	c.ctl = newControllerState(c)
 	return c, nil
 }
 
@@ -118,6 +120,9 @@ func (c *Core) Start() {
 		c.setState(func(s *ScanState) { s.LastScan, s.Games = time.Now().Unix(), len(c.Lib.Games()) })
 		return
 	}
+	// A crash while a game ran can leave the controller hidden from
+	// every other app; show it again before anything else uses it.
+	_ = c.ctl.unhide() // only reads a file when nothing was left hidden
 	go c.scanLoop()
 	c.profile.start()
 	heapDiag("idle")
@@ -164,6 +169,10 @@ func (c *Core) Start() {
 // Stop ends background work and saves the library.
 func (c *Core) Stop() {
 	c.Launch.Close()
+	if c.ctl != nil {
+		c.ctl.end()
+		_ = c.ctl.unhide()
+	}
 	c.cancel()
 	if c.watcher != nil {
 		_ = c.watcher.Close()

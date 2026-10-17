@@ -24,7 +24,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 
 - A Windows game launcher that finds games on its own: store installs and external copies (games installed outside a store launcher: standalone and DRM-free installers, Steam API emulators, plain folders), and adds art and metadata the way Playnite does for Steam games.
 - Two modes: **Desktop** (mouse, layout D) and **Big picture** (controller). Big picture has three layouts, picked in Settings: **Deck (default)**, Console, Orbit.
-- First-class DualSense: native input, glyphs, haptics, lightbar, and the PS button to summon the launcher. Games without DualSense support start through Steam Input automatically. Games that support it start directly.
+- First-class DualSense: native input, glyphs, haptics, lightbar, and the PS button to summon the launcher. Games without DualSense support get an Xbox controller automatically: Seaglass's own bridge (ViGEmBus and HidHide) is built; Steam Input stays as a choice in Settings and per game. Games that support it start directly.
 - Syncer integration: save status per game, sync before launch, back up after exit, conflicts, and each person's playtime, achievements and settings following them between PCs.
 - Pretty, responsive, secure and light: the interface unloads while you play.
 
@@ -69,7 +69,9 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 | Risk | Mitigation |
 |---|---|
 | Wails v3 is a beta that ships every few days | Pinned version, deliberate upgrades, thin Wails-specific layer |
-| Steam only picks up `shortcuts.vdf` changes after a restart | Batch changes, apply when Steam is closed or after asking; only games that need Steam Input |
+| Steam only picks up `shortcuts.vdf` changes after a restart | Batch changes, apply when Steam is closed or after asking; only games that need Steam Input. Applies only to the Steam fallback now |
+| ViGEmBus was archived in 2023, so its driver is frozen | Seaglass talks to it through a Bridge interface, so VIIPER over usbip-win2 can replace it |
+| HidHide's per-process hiding needs 1.7, which has no release yet | Seaglass uses the saved block list of 1.5.230 with a ledger of what it added, undone at game end, start, quit and from Settings; switch the pin to 1.7 once it is released |
 | DualSense shared between the launcher and a game (Bluetooth report mode) | Passive listener while playing, no output reports, can be turned off |
 | Steam also claims the PS button | Setting explained in Controller settings; detect and warn |
 | Overlay over exclusive full-screen games | Recommend borderless windowed; overlay is optional; no injection |

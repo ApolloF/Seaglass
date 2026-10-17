@@ -12,7 +12,7 @@ A Windows game launcher that finds installed games on its own (stores, external 
 ## Commands
 - Install frontend deps: `cd frontend && npm ci`
 - Dev (app): `wails3 dev -port 9245` (or `task dev`)
-- Dev (interface only, made-up games): `cd frontend && npm run dev:mock` (`?layout=console|orbit`, `?games=N`, `?art=steam`, `?syncer=missing|old|off`; `window.mockPad("down")` presses a controller button)
+- Dev (interface only, made-up games): `cd frontend && npm run dev:mock` (`?layout=console|orbit`, `?games=N`, `?art=steam`, `?syncer=missing|old|off`, `?controller=ready|restart|missing`; `window.mockPad("down")` presses a controller button)
 - Build: `wails3 build` → `bin/Seaglass.exe`
 - Installer: `wails3 task installer VERSION=vX.Y.Z MAKENSIS=".../makensis.exe"`
 - Regenerate bindings after changing exported service methods or their types: `wails3 generate bindings -f '-tags production' -clean=true -ts -i`

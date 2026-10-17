@@ -28,8 +28,51 @@ func TestRoute(t *testing.T) {
 		{"forced native", library.Game{Exe: `C:\g.exe`, PadMode: "native", Meta: xinputOnly}, ds, RouteDirect},
 		{"forced Steam Input", library.Game{Exe: `C:\g.exe`, PadMode: "steam"}, xbox, RouteSteamInput},
 	} {
-		if got := route(tc.g, tc.pad); got != tc.want {
+		// The Steam route for Auto is the one a person who chose Steam gets.
+		if got := route(tc.g, tc.pad, translator{steam: true}); got != tc.want {
 			t.Errorf("%s: route = %s, want %s", tc.name, got, tc.want)
+		}
+	}
+}
+
+// Auto picks the translator the person chose: Steam Input, or Seaglass's
+// own virtual controller once ViGEmBus is there, else it starts directly.
+// The xbox mode needs ViGEmBus; native and steam ignore the drivers.
+func TestRouteTranslator(t *testing.T) {
+	ds := pad.State{Connected: true, Kind: pad.PlayStation, DualSense: true}
+	xbox := pad.State{Connected: true, Kind: pad.Xbox}
+	xinputOnly := &library.Meta{Controller: "partial"}
+	auto := library.Game{Exe: `C:\g.exe`, Meta: xinputOnly}
+	forced := library.Game{Exe: `C:\g.exe`, PadMode: "xbox"}
+	none, vigem := translator{}, translator{viGEm: true}
+	steam, both := translator{steam: true}, translator{viGEm: true, steam: true}
+	for _, tc := range []struct {
+		name  string
+		g     library.Game
+		pad   pad.State
+		tr    translator
+		want  string
+		setup bool
+	}{
+		{"auto, ViGEmBus", auto, ds, vigem, RouteBridge, false},
+		{"auto, nothing set up", auto, ds, none, RouteDirect, true},
+		{"auto, Steam chosen", auto, ds, steam, RouteSteamInput, false},
+		{"auto, Steam chosen over ViGEmBus", auto, ds, both, RouteSteamInput, false},
+		{"auto, Xbox pad", auto, xbox, vigem, RouteDirect, false},
+		{"auto, Xbox pad, nothing set up", auto, xbox, none, RouteDirect, false},
+		{"auto, DualSense game", library.Game{Exe: `C:\g.exe`, Meta: &library.Meta{Controller: "full", DualSense: "yes"}}, ds, none, RouteDirect, false},
+		{"xbox mode, ViGEmBus", forced, xbox, vigem, RouteBridge, false},
+		{"xbox mode, no pad", forced, pad.State{}, both, RouteBridge, false},
+		{"xbox mode, nothing set up", forced, ds, steam, RouteDirect, true},
+		{"native mode", library.Game{Exe: `C:\g.exe`, PadMode: "native", Meta: xinputOnly}, ds, vigem, RouteDirect, false},
+		{"steam mode", library.Game{Exe: `C:\g.exe`, PadMode: "steam", Meta: xinputOnly}, ds, vigem, RouteSteamInput, false},
+		{"store game", library.Game{LaunchURI: "steam://rungameid/1", PadMode: "xbox"}, ds, none, RouteStore, false},
+	} {
+		if got := route(tc.g, tc.pad, tc.tr); got != tc.want {
+			t.Errorf("%s: route = %s, want %s", tc.name, got, tc.want)
+		}
+		if got := needsSetup(tc.g, tc.pad, tc.tr); got != tc.setup {
+			t.Errorf("%s: needsSetup = %v, want %v", tc.name, got, tc.setup)
 		}
 	}
 }

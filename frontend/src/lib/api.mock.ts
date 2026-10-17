@@ -1,7 +1,7 @@
 // Made-up library for `npm run dev:mock`: the games from the design canvas,
 // covering every way a game can be found.
 import type { Api } from "./api";
-import type { Accounts, Achievement, Achievements, AppInfo, Game, MetaState, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, UpdateState } from "./types";
+import type { Accounts, Achievement, Achievements, AppInfo, ControllerStatus, Game, MetaState, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, StepState, Startup, UpdateState } from "./types";
 import { sessionActive } from "./types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -42,6 +42,7 @@ let games: Game[] = [
   game({ title: "Lumen Drift", steamAppId: 620, launchUri: "steam://rungameid/620", addedAt: now - day, sizeBytes: 6e9 }),
   game({ title: "Kestrel", source: "steam", installed: false, playtime: 6 * 3600, lastPlayed: now - 400 * day }),
   game({ title: "Tidebreaker", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 2840770, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 2 * 3600, lastPlayed: now - 2 * day, sizeBytes: 90e9 }),
+  game({ title: "Brass Circuit", source: "folder", sourceLabel: "Folder", how: "Game folder in D:\\Games", matchHow: "Matched by title", confidence: 80, playtime: 3 * 3600, lastPlayed: now - 5 * day, padMode: "xbox", sizeBytes: 12e9 }),
   game({ title: "Copper Fields", source: "gog", sourceLabel: "GOG", installed: false, playtime: 21 * 3600, lastPlayed: now - 700 * day }),
 ];
 
@@ -106,6 +107,8 @@ let settings: Settings = {
   glyphs: "auto",
   closeWhilePlaying: true,
   padWhilePlaying: "listen",
+  padTranslator: "seaglass",
+  hidePadWhilePlaying: true,
   noticeExternal: true,
   showOwned: false,
   ownedGOG: false,
@@ -315,11 +318,26 @@ function setSession(p: Partial<Session>) {
   sessionListeners.forEach((cb) => cb(clone(session)));
 }
 
+// ?controller=ready|hidden|restart|missing sets how Seaglass's Xbox controller starts.
+const NO_DRIVERS: ControllerStatus = { viGEm: false, hidHide: false, hidHideActive: false, canHide: false, restart: false, hidden: false };
+const READY: ControllerStatus = { viGEm: true, viGEmVersion: "1.22.0", hidHide: true, hidHideVersion: "1.5.230", hidHideActive: true, canHide: true, restart: false, hidden: false };
+let controllerStatus: ControllerStatus =
+  mockParams.get("controller") === "ready"
+    ? READY
+    : mockParams.get("controller") === "hidden"
+      ? { ...READY, hidden: true }
+      : mockParams.get("controller") === "restart"
+        ? { ...NO_DRIVERS, restart: true }
+        : NO_DRIVERS;
+
 async function runMockSession(g: Game) {
   const steam = g.padMode === "steam" && !g.launchUri;
+  const xboxMode = g.padMode === "xbox" && !g.launchUri;
+  const bridge = xboxMode && controllerStatus.viGEm;
+  const xboxStep = (status: StepState["status"], detail = ""): StepState[] => [{ id: "controller", label: "Xbox controller", status, detail }];
   setSession({
     id: session.id + 1, gameId: g.id, title: g.customTitle || g.title, phase: "preparing", from: uiMode,
-    route: "", before: steam ? [{ id: "steamInput", label: "Steam Input", status: "running" }] : [],
+    route: "", before: steam ? [{ id: "steamInput", label: "Steam Input", status: "running" }] : xboxMode ? xboxStep("running") : [],
     after: [], seconds: 0, startedAt: 0, error: "", note: "", question: undefined,
   });
   const id = session.id;
@@ -337,9 +355,17 @@ async function runMockSession(g: Game) {
     await wait(skipStep ? 0 : 1400);
     setSession({ before: [{ id: "steamInput", label: "Steam Input", status: "done", detail: answer === "restart" ? "Added to Steam" : "Starting without Steam Input" }] });
   }
+  if (xboxMode) {
+    await wait(skipStep ? 0 : 900);
+    setSession({
+      before: bridge
+        ? xboxStep("done", "Your controller works as an Xbox controller in this game.")
+        : xboxStep("skipped", "Set up Seaglass's Xbox controller in Settings to play this game with your controller."),
+    });
+  }
   const cur = () => session; // read fresh after each await
   if (cur().id !== id || cur().phase !== "preparing") return;
-  setSession({ phase: "starting", route: steam ? "steamInput" : g.launchUri ? "store" : "direct" });
+  setSession({ phase: "starting", route: steam ? "steamInput" : bridge ? "bridge" : g.launchUri ? "store" : "direct" });
   await update(g.id, (x) => (x.lastPlayed = Math.floor(Date.now() / 1000)));
   await wait(1800);
   if (cur().id !== id || cur().phase !== "starting") return;
@@ -500,6 +526,21 @@ export const mockApi: Api = {
   onMetaState() {
     return () => {};
   },
+  controller: {
+    async status() {
+      return clone(controllerStatus);
+    },
+    async setUp() {
+      await wait(1500);
+      controllerStatus = READY;
+      return clone(controllerStatus);
+    },
+    async unhide() {
+      controllerStatus = { ...controllerStatus, hidden: false };
+      return clone(controllerStatus);
+    },
+  },
+
   saves: {
     async get(id) {
       await wait(250);

@@ -69,7 +69,7 @@ type Game struct {
 
 	Favorite bool   `json:"favorite,omitempty"`
 	Hidden   bool   `json:"hidden,omitempty"`
-	PadMode  string `json:"padMode,omitempty"` // "" = auto, "native", "steam"
+	PadMode  string `json:"padMode,omitempty"` // "" = auto, "native", "xbox", "steam"
 	// Collections are the user's own groups ("Co-op", "Finished"); a game
 	// can be in several.
 	Collections []string `json:"collections,omitempty"`

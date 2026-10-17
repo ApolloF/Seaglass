@@ -18,8 +18,8 @@
 
   let { game, onplay, onclose }: { game: Game; onplay: () => void; onclose: () => void } = $props();
 
-  const modes = ["", "native", "steam"] as const;
-  const modeLabel: Record<string, string> = { "": "Auto", native: "Native", steam: "Steam Input" };
+  const modes = ["", "native", "xbox", "steam"] as const;
+  const modeLabel: Record<string, string> = { "": "Auto", native: "Native", xbox: "Xbox controller", steam: "Steam Input" };
 
   let b = $state(0);
   let logoFailed = $state(false);

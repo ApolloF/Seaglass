@@ -107,6 +107,7 @@ func main() {
 			application.NewService(app.NewAccountsService(core)),
 			application.NewService(app.NewSettingsService(core)),
 			application.NewService(app.NewPadService(core)),
+			application.NewService(app.NewControllerService(core)),
 			application.NewService(app.NewUpdateService(core)),
 		},
 		Assets: application.AssetOptions{

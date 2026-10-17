@@ -1,7 +1,7 @@
 // The frontend's one door to the Go side. In mock mode (`npm run dev:mock`)
 // the same interface is served by made-up data, so the interface can be
 // built and checked in a normal browser. Vite drops the unused one.
-import type { Accounts, Achievements, AppInfo, ArtChoice, ArtKind, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
+import type { Accounts, Achievements, AppInfo, ArtChoice, ArtKind, ControllerStatus, Game, MetaState, PadRaw, PadState, Profile, Saves, ScanState, Session, SessionAchievements, Settings, Startup, StoreHit, SyncerStatus, UpdateState } from "./types";
 import { realApi } from "./api.real";
 import { mockApi } from "./api.mock";
 
@@ -65,6 +65,15 @@ export interface Api {
     install(): Promise<void>;
     openReleasePage(): Promise<void>;
     onState(cb: (s: UpdateState) => void): () => void;
+  };
+
+  controller: {
+    /** What Seaglass's Xbox controller (two drivers) can do on this PC. */
+    status(): Promise<ControllerStatus>;
+    /** Downloads and runs the driver installers; resolves with the status when they're done. */
+    setUp(): Promise<ControllerStatus>;
+    /** Shows every controller Seaglass hid from games again. */
+    unhide(): Promise<ControllerStatus>;
   };
 
   saves: {

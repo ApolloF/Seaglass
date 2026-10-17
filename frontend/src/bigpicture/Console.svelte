@@ -80,10 +80,11 @@
   let focus = $state<Focus>("play");
   let lastCard = $state<Card>("about");
   let open = $state<Card | null>(null);
-  const modes = ["", "native", "steam"] as const;
+  const modes = ["", "native", "xbox", "steam"] as const;
   const modeInfo = [
     { label: "Auto", text: "Seaglass decides from what the game supports." },
     { label: "Native", text: "Always starts directly. The game handles the controller itself." },
+    { label: "Xbox controller", text: "Always starts with Seaglass's Xbox controller, so your controller works as an Xbox one." },
     { label: "Steam Input", text: "Always starts through Steam Input, so a DualSense acts as an Xbox controller." },
   ];
   let pick = $state(0);
