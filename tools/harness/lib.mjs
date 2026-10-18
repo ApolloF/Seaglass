@@ -74,7 +74,8 @@ function countFiles(dir) {
 export function realLibrary() {
   for (const p of [path.join(OUT, "real-library.json"), path.join(BACKUP, "library.json"), path.join(DATA, "library.json")]) {
     try {
-      return JSON.parse(fs.readFileSync(p, "utf8"));
+      const lib = JSON.parse(fs.readFileSync(p, "utf8"));
+      return { ...lib, games: lib.games ?? [] }; // an empty library saves null
     } catch {}
   }
   return { version: 1, nextId: 1, games: [] };
