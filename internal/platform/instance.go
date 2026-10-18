@@ -7,7 +7,7 @@ import (
 )
 
 // instanceMutex is the mutex Wails' single-instance lock creates for
-// uniqueID (pkg/application/single_instance_windows.go, beta.26).
+// uniqueID (pkg/application/single_instance_windows.go, beta.31).
 func instanceMutex(uniqueID string) string { return "wails-app-" + uniqueID + "-sim" }
 
 // InstanceRunning reports whether a Seaglass with this id already runs
