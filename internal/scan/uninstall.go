@@ -5,39 +5,12 @@ import (
 	"strings"
 
 	"github.com/ApolloF/Seaglass/internal/platform"
-	"golang.org/x/sys/windows/registry"
 )
 
 // uninstallEntry is one program in Windows' installed apps list.
 type uninstallEntry struct {
 	Key, Name, Publisher, Dir, Icon string
 	SizeKB                          int64
-}
-
-func uninstallEntries() []uninstallEntry {
-	var out []uninstallEntry
-	for _, src := range []struct {
-		root registry.Key
-		path string
-	}{
-		{registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`},
-		{registry.LOCAL_MACHINE, `SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`},
-		{registry.CURRENT_USER, `SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`},
-	} {
-		registryEach(src.root, src.path, func(k registry.Key, key string) {
-			if regInt(k, "SystemComponent") == 1 || regString(k, "ParentKeyName") != "" {
-				return
-			}
-			e := uninstallEntry{
-				Key: key, Name: regString(k, "DisplayName"), Publisher: regString(k, "Publisher"),
-				Dir: regString(k, "InstallLocation"), Icon: regString(k, "DisplayIcon"), SizeKB: regInt(k, "EstimatedSize"),
-			}
-			if e.Name != "" {
-				out = append(out, e)
-			}
-		})
-	}
-	return out
 }
 
 // repackers maps text found in an installer's publisher or folder to the

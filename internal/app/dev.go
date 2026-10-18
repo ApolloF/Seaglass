@@ -9,12 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/ApolloF/Seaglass/internal/logx"
 	"github.com/ApolloF/Seaglass/internal/pad"
-	"github.com/Microsoft/go-winio"
-	"golang.org/x/sys/windows"
 )
 
 // Dev flags drive the real app from a test harness (tools/harness). They
@@ -68,12 +65,7 @@ func DevAllowed(version string) bool { return version == "dev" }
 // StartDev opens the control pipe and plugs in the virtual controller.
 func StartDev(c *Core, d DevArgs) {
 	logx.Printf("dev flags: %+v", d)
-	sid, err := currentUserSID()
-	if err != nil {
-		logx.Printf("dev pipe: %v", err)
-		return
-	}
-	l, err := winio.ListenPipe(DevPipe, &winio.PipeConfig{SecurityDescriptor: "D:P(A;;GA;;;" + sid + ")"})
+	l, err := listenDevPipe()
 	if err != nil {
 		logx.Printf("dev pipe: %v", err)
 		return
@@ -212,40 +204,4 @@ func devCommand(c *Core, f []string) (string, error) {
 		return "ok", nil
 	}
 	return "", fmt.Errorf("unknown command %q", f[0])
-}
-
-func currentUserSID() (string, error) {
-	u, err := windows.GetCurrentProcessToken().GetTokenUser()
-	if err != nil {
-		return "", err
-	}
-	return u.User.Sid.String(), nil
-}
-
-// processMemoryCounters mirrors PROCESS_MEMORY_COUNTERS_EX.
-type processMemoryCounters struct {
-	cb                         uint32
-	pageFaultCount             uint32
-	peakWorkingSetSize         uintptr
-	workingSetSize             uintptr
-	quotaPeakPagedPoolUsage    uintptr
-	quotaPagedPoolUsage        uintptr
-	quotaPeakNonPagedPoolUsage uintptr
-	quotaNonPagedPoolUsage     uintptr
-	pagefileUsage              uintptr
-	peakPagefileUsage          uintptr
-	privateUsage               uintptr
-}
-
-var procGetProcessMemoryInfo = windows.NewLazySystemDLL("psapi.dll").NewProc("GetProcessMemoryInfo")
-
-// privateBytes is this process's private memory.
-func privateBytes() uint64 {
-	var pmc processMemoryCounters
-	pmc.cb = uint32(unsafe.Sizeof(pmc))
-	r, _, _ := procGetProcessMemoryInfo.Call(uintptr(windows.CurrentProcess()), uintptr(unsafe.Pointer(&pmc)), uintptr(pmc.cb))
-	if r == 0 {
-		return 0
-	}
-	return uint64(pmc.privateUsage)
 }

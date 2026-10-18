@@ -16,8 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sys/windows/registry"
-
 	"github.com/ApolloF/Seaglass/internal/achievements"
 	"github.com/ApolloF/Seaglass/internal/launch"
 	"github.com/ApolloF/Seaglass/internal/library"
@@ -114,11 +112,7 @@ func newProfileState(c *Core) *profileState {
 // id, so two PCs with the same name (or a copied AppData) don't share one.
 func thisPC() (id, name string) {
 	name, _ = os.Hostname()
-	var raw string
-	if k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Cryptography`, registry.QUERY_VALUE|registry.WOW64_64KEY); err == nil {
-		raw, _, _ = k.GetStringValue("MachineGuid")
-		k.Close()
-	}
+	raw := machineID()
 	if raw == "" {
 		raw = name
 	}

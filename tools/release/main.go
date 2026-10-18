@@ -1,3 +1,5 @@
+//go:build windows
+
 // Command release signs and publishes Seaglass releases with the
 // offline release key (internal/update/signature.go).
 //

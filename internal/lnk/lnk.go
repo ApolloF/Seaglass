@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf16"
-
-	"golang.org/x/sys/windows/registry"
 )
 
 // Link is what a shortcut starts.
@@ -231,16 +229,6 @@ func ansiz(b []byte) string {
 		return ansi(b[:i])
 	}
 	return ""
-}
-
-func expand(s string) string {
-	if !strings.Contains(s, "%") {
-		return s
-	}
-	if e, err := registry.ExpandString(s); err == nil {
-		return e
-	}
-	return s
 }
 
 func clean(p string) string {
