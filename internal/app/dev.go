@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +36,8 @@ import (
 //	plug ps|xbox, unplug
 //	state                 controller, session, windows (JSON)
 //	mem                   the core's memory (JSON)
+//	profile <prefix>      heap and goroutine profiles to <prefix>.heap.pprof
+//	                      and <prefix>.goroutine.txt (after a GC)
 //	quit
 type DevArgs struct {
 	VirtualPad string // "", "ps" or "xbox"
@@ -207,11 +211,36 @@ func devCommand(c *Core, f []string) (string, error) {
 			"goroutines": runtime.NumGoroutine(), "games": len(c.Lib.Games()),
 		})
 		return string(b), err
+	case "profile":
+		if len(f) < 2 {
+			return "", fmt.Errorf("where to?")
+		}
+		return "ok", writeProfiles(f[1])
 	case "quit":
 		go c.quitForUpdate()
 		return "ok", nil
 	}
 	return "", fmt.Errorf("unknown command %q", f[0])
+}
+
+// writeProfiles writes the heap (after a GC, so it shows what's live) and
+// every goroutine's stack, for attributing the core's memory and wakeups.
+func writeProfiles(prefix string) error {
+	runtime.GC()
+	h, err := os.Create(prefix + ".heap.pprof")
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+	if err := pprof.WriteHeapProfile(h); err != nil {
+		return err
+	}
+	g, err := os.Create(prefix + ".goroutine.txt")
+	if err != nil {
+		return err
+	}
+	defer g.Close()
+	return pprof.Lookup("goroutine").WriteTo(g, 1)
 }
 
 func currentUserSID() (string, error) {
