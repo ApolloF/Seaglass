@@ -20,14 +20,14 @@ jobs:
       SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
       SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' && startsWith(github.ref, 'refs/tags/v') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.27.x' # latest patch: releases ship Go's security fixes
           check-latest: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
@@ -35,7 +35,7 @@ jobs:
 
       - name: Install Wails
         # Pinned: v3 is in beta and moves fast; upgrades are deliberate.
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.26
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.31
 
       - name: Install NSIS
         run: |
@@ -117,7 +117,7 @@ jobs:
       - name: Upload binaries for signing
         id: unsigned-binaries
         if: env.SIGNPATH == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unsigned-binaries
           path: unsigned/*
@@ -151,7 +151,7 @@ jobs:
       - name: Upload installer for signing
         id: unsigned-installer
         if: env.SIGNPATH == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unsigned-installer
           path: bin/Seaglass-setup.exe
@@ -238,7 +238,7 @@ jobs:
             "$h  $f" | Out-File "bin/$f.sha256" -Encoding ascii
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Seaglass
           path: |
@@ -256,7 +256,7 @@ jobs:
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Seaglass ${{ github.ref_name }}
           prerelease: ${{ env.WL_PRERELEASE == 'true' }}

@@ -3,7 +3,7 @@
 A Windows game launcher that finds installed games on its own (stores, external copies, game folders), launches them and tracks playtime, with a desktop mode and a controller-first big picture mode.
 
 ## Stack
-- Backend: Go 1.27 on Wails v3 (pinned `v3.0.0-beta.26`; upgrade on purpose, never floating). No cgo; Windows APIs through `golang.org/x/sys/windows`.
+- Backend: Go 1.27 on Wails v3 (pinned `v3.0.0-beta.31`; upgrade on purpose, never floating). No cgo; Windows APIs through `golang.org/x/sys/windows`.
 - Frontend: Svelte 5 (runes) + TypeScript + Vite 8, Vitest. No UI library, no router.
 - Styling: CSS custom properties in `frontend/src/app.css` (dark in `:root`, light under `[data-theme="light"]`); Barlow / Barlow Condensed.
 - Data: JSON files with atomic tmp+rename writes (`%APPDATA%\Seaglass` for library/settings/keys/log, `%LOCALAPPDATA%\Seaglass` for art, game database, updates). No database.

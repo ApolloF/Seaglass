@@ -1,6 +1,6 @@
 # Privacy
 
-Last updated: 4 October 2026
+Last updated: 11 October 2026
 
 Seaglass is a free Windows game launcher. It runs on your PC and has no server of its own. ApolloF receives no data from the app: no account, no telemetry, no analytics, no automatic crash reports.
 

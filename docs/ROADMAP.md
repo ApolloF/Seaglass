@@ -34,7 +34,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 
 | Area | Decision |
 |---|---|
-| Stack | Go + Wails **v3** (pinned to `v3.0.0-beta.26`, upgraded on purpose, never floating) + Svelte 5 + TypeScript + Vite |
+| Stack | Go + Wails **v3** (pinned to `v3.0.0-beta.31`, upgraded on purpose, never floating) + Svelte 5 + TypeScript + Vite |
 | Why v3 | It can close windows and keep the app alive (the interface unloads while a game runs), has several windows (main and in-game overlay) and a built-in tray. v2 can only hide its one window. |
 | Library storage | In memory, saved as one JSON file with atomic writes (changed from SQLite during v0.1: even thousands of games stay a few MB, it loads in milliseconds, and it saves a ~7 MB dependency; search and filters run in the interface) |
 | Controller | SDL3 3.4.x (`SDL3.dll`, zlib license) through a small binding of our own over `golang.org/x/sys/windows`. No cgo. |

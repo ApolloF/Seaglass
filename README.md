@@ -54,7 +54,7 @@ Builds aren't code-signed yet, so SmartScreen may warn the first time: *More inf
 
 ## Develop
 
-Requirements: Go 1.27+, Node 24+, [Wails v3](https://v3.wails.io) (`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.26`).
+Requirements: Go 1.27+, Node 24+, [Wails v3](https://v3.wails.io) (`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.31`).
 
 ```bash
 wails3 build                              # bin/Seaglass.exe
