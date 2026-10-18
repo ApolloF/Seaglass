@@ -117,7 +117,7 @@ jobs:
       - name: Upload binaries for signing
         id: unsigned-binaries
         if: env.SIGNPATH == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unsigned-binaries
           path: unsigned/*
@@ -151,7 +151,7 @@ jobs:
       - name: Upload installer for signing
         id: unsigned-installer
         if: env.SIGNPATH == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unsigned-installer
           path: bin/Seaglass-setup.exe
@@ -238,7 +238,7 @@ jobs:
             "$h  $f" | Out-File "bin/$f.sha256" -Encoding ascii
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Seaglass
           path: |
