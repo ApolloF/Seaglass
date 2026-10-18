@@ -132,10 +132,10 @@ const (
 	triggerOn   = 16000
 
 	pollActive  = 8 * time.Millisecond   // a controller is in use
-	pollIdle    = 16 * time.Millisecond  // connected, untouched for a few seconds
+	pollIdle    = 33 * time.Millisecond  // connected, untouched for a few seconds: half the wakeups, a press is seen one frame late at worst
 	pollPassive = 33 * time.Millisecond  // a game runs: only the PS button matters
 	pollBridge  = 4 * time.Millisecond   // a game reads the controller through Seaglass: latency counts
-	pollNoPad   = 250 * time.Millisecond // nothing connected: only hotplug
+	pollNoPad   = 500 * time.Millisecond // nothing connected: only hotplug, found within half a second
 
 	// slowCall is how long one SDL call may take before the controller
 	// counts as slow to answer; a healthy start takes well under a second.
