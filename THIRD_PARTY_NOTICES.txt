@@ -11,24 +11,24 @@ Component                                                     Version         Li
 ------------------------------------------------------------  --------------  -------------------------  -----------
 @fontsource/barlow                                            5.3.0           OFL-1.1                    Seaglass.exe (interface fonts)
 @fontsource/barlow-condensed                                  5.3.0           OFL-1.1                    Seaglass.exe (interface fonts)
-@wailsio/runtime                                              3.0.0-beta.26   MIT                        Seaglass.exe (interface)
+@wailsio/runtime                                              3.0.0-beta.31   MIT                        Seaglass.exe (interface)
 clsx                                                          2.1.1           MIT                        Seaglass.exe (interface)
 github.com/adrg/xdg                                           v0.5.3          MIT                        Seaglass.exe
 github.com/ApolloF/gamekit                                    v0.2.2          MIT                        Seaglass.exe
 github.com/fsnotify/fsnotify                                  v1.10.1         BSD-3-Clause               Seaglass.exe
 github.com/go-ole/go-ole                                      v1.3.0          MIT                        Seaglass.exe
-github.com/Microsoft/go-winio                                 v0.6.2          MIT                        Seaglass.exe
-github.com/wailsapp/wails/v3                                  v3.0.0-beta.26  MIT                        Seaglass.exe
-github.com/wailsapp/wails/v3/internal/go-common-file-dialog   v3.0.0-beta.26  MIT                        Seaglass.exe
-github.com/wailsapp/wails/v3/internal/webview2/webviewloader  v3.0.0-beta.26  ISC                        Seaglass.exe
+github.com/Microsoft/go-winio                                 v0.6.3          MIT                        Seaglass.exe
+github.com/wailsapp/wails/v3                                  v3.0.0-beta.31  MIT                        Seaglass.exe
+github.com/wailsapp/wails/v3/internal/go-common-file-dialog   v3.0.0-beta.31  MIT                        Seaglass.exe
+github.com/wailsapp/wails/v3/internal/webview2/webviewloader  v3.0.0-beta.31  ISC                        Seaglass.exe
 Go standard library and runtime                                               BSD-3-Clause               Seaglass.exe
-golang.org/x/image                                            v0.46.0         BSD-3-Clause               Seaglass.exe
-golang.org/x/sys                                              v0.48.0         BSD-3-Clause               Seaglass.exe
+golang.org/x/image                                            v0.47.0         BSD-3-Clause               Seaglass.exe
+golang.org/x/sys                                              v0.49.0         BSD-3-Clause               Seaglass.exe
 HidHide (ported IOCTL definitions)                                            MIT                        Seaglass.exe (internal/vpad)
 Microsoft Edge WebView2 Runtime bootstrapper                                  Microsoft redistributable  Seaglass-setup.exe
 NSIS (Nullsoft Scriptable Install System)                                     Zlib                       Seaglass-setup.exe (installer)
 SDL 3                                                         3.4.16          Zlib                       Seaglass.exe (embedded SDL3.dll)
-svelte                                                        5.57.1          MIT                        Seaglass.exe (interface)
+svelte                                                        5.57.2          MIT                        Seaglass.exe (interface)
 ViGEmClient (ported protocol definitions)                                     MIT                        Seaglass.exe (internal/vpad)
 
 
@@ -233,7 +233,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 
 ========================================================================
-@wailsio/runtime 3.0.0-beta.26
+@wailsio/runtime 3.0.0-beta.31
 License: MIT
 Included in: Seaglass.exe (interface)
 
@@ -393,7 +393,7 @@ SOFTWARE.
 
 
 ========================================================================
-github.com/Microsoft/go-winio v0.6.2
+github.com/Microsoft/go-winio v0.6.3
 License: MIT
 Included in: Seaglass.exe
 
@@ -421,7 +421,7 @@ SOFTWARE.
 
 
 ========================================================================
-github.com/wailsapp/wails/v3 v3.0.0-beta.26
+github.com/wailsapp/wails/v3 v3.0.0-beta.31
 License: MIT
 Included in: Seaglass.exe
 
@@ -429,7 +429,7 @@ Same license text as @wailsio/runtime above.
 
 
 ========================================================================
-github.com/wailsapp/wails/v3/internal/go-common-file-dialog v3.0.0-beta.26
+github.com/wailsapp/wails/v3/internal/go-common-file-dialog v3.0.0-beta.31
 License: MIT
 Included in: Seaglass.exe
 Vendored inside github.com/wailsapp/wails/v3.
@@ -458,7 +458,7 @@ SOFTWARE.
 
 
 ========================================================================
-github.com/wailsapp/wails/v3/internal/webview2/webviewloader v3.0.0-beta.26
+github.com/wailsapp/wails/v3/internal/webview2/webviewloader v3.0.0-beta.31
 License: ISC
 Included in: Seaglass.exe
 Vendored inside github.com/wailsapp/wails/v3.
@@ -540,7 +540,7 @@ shall terminate as of the date such litigation is filed.
 
 
 ========================================================================
-golang.org/x/image v0.46.0
+golang.org/x/image v0.47.0
 License: BSD-3-Clause
 Included in: Seaglass.exe
 
@@ -550,7 +550,7 @@ Same license text as Go standard library and runtime above.
 
 
 ========================================================================
-golang.org/x/sys v0.48.0
+golang.org/x/sys v0.49.0
 License: BSD-3-Clause
 Included in: Seaglass.exe
 
@@ -616,7 +616,7 @@ freely, subject to the following restrictions:
 
 
 ========================================================================
-svelte 5.57.1
+svelte 5.57.2
 License: MIT
 Included in: Seaglass.exe (interface)
 
