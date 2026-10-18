@@ -256,7 +256,7 @@ jobs:
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Seaglass ${{ github.ref_name }}
           prerelease: ${{ env.WL_PRERELEASE == 'true' }}
