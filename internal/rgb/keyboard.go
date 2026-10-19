@@ -79,11 +79,15 @@ func New(addr, name string, logf func(format string, args ...any)) *Keyboard {
 	return k
 }
 
-// SetColour shows #rrggbb. Near-white colours are skipped: the board's
-// red LEDs tint white pink, so the last good colour stays instead.
+// SetColour shows the hue of #rrggbb at full strength (see vivid). Greys
+// have no hue to show, so the last colour stays instead.
 func (k *Keyboard) SetColour(hex string) {
 	c, ok := parseHex(hex)
-	if k == nil || !ok || washedOut(c) {
+	if k == nil || !ok {
+		return
+	}
+	c, ok = vivid(c)
+	if !ok {
 		return
 	}
 	k.mu.Lock()
@@ -287,10 +291,22 @@ func parseHex(s string) ([3]byte, bool) {
 	return [3]byte{byte(v >> 16), byte(v >> 8), byte(v)}, true
 }
 
-// washedOut is a bright colour with little hue: on the keyboard it would
-// show as a pinkish white rather than the game's colour.
-func washedOut(c [3]byte) bool {
+// vivid keeps a colour's hue at full saturation and brightness. Seaglass's
+// game accents are soft (pale oranges and sky blues), which a screen shows
+// well but the keyboard's LEDs wash out into about two colours; and white
+// comes out pink on the board. A colour with almost no hue (a grey) is
+// refused.
+func vivid(c [3]byte) ([3]byte, bool) {
 	hi := max(c[0], c[1], c[2])
 	lo := min(c[0], c[1], c[2])
-	return hi >= 160 && int(hi)-int(lo) < 48
+	if int(hi)-int(lo) < 24 {
+		return c, false
+	}
+	// Stretch each channel from [lo, hi] to [0, 255]: the hue stays, the
+	// lowest channel goes to 0 and the highest to full.
+	var out [3]byte
+	for i, v := range c {
+		out[i] = byte((int(v) - int(lo)) * 255 / (int(hi) - int(lo)))
+	}
+	return out, true
 }

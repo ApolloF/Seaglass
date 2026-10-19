@@ -119,14 +119,23 @@ func TestParseControllerRejectsTruncatedOrBadData(t *testing.T) {
 	}
 }
 
-func TestWashedOutSkipsNearWhiteOnly(t *testing.T) {
-	for hex, want := range map[string]bool{
-		"#ffffff": true, "#e8edf2": true, "#d0c8c0": true,
-		"#4fd0e0": false, "#ff2020": false, "#303030": false, "#000000": false,
+func TestVividKeepsTheHueAtFullStrengthAndRefusesGreys(t *testing.T) {
+	for hex, want := range map[string]string{
+		"#eb843b": "#ff6900", // a soft orange accent
+		"#65b4eb": "#0096ff", // a soft blue one
+		"#ff0000": "#ff0000",
+		"#203040": "#007fff",
 	} {
-		c, ok := parseHex(hex)
-		if !ok || washedOut(c) != want {
-			t.Errorf("washedOut(%s) = %v, want %v", hex, !want, want)
+		c, _ := parseHex(hex)
+		got, ok := vivid(c)
+		if s := fmt.Sprintf("#%02x%02x%02x", got[0], got[1], got[2]); !ok || s != want {
+			t.Errorf("vivid(%s) = %s %v, want %s", hex, s, ok, want)
+		}
+	}
+	for _, grey := range []string{"#ffffff", "#e8edf2", "#808080", "#000000"} {
+		c, _ := parseHex(grey)
+		if _, ok := vivid(c); ok {
+			t.Errorf("vivid(%s) accepted a grey", grey)
 		}
 	}
 	for _, bad := range []string{"", "ffffff", "#fff", "#gggggg", "#1234567"} {
@@ -293,7 +302,7 @@ func TestKeyboardEntersDirectOnceAndSendsOnlyChangedColours(t *testing.T) {
 	k.SetColour("#ff0000")
 	s.waitOps(t, "direct 3", "leds 3 ff0000")
 	k.SetColour("#ff0000")
-	k.SetColour("#ffffff") // near white: skipped
+	k.SetColour("#f0f0f0") // grey: skipped
 	k.SetColour("#0000ff")
 	s.waitOps(t, "direct 3", "leds 3 ff0000", "leds 3 0000ff")
 }
@@ -329,7 +338,7 @@ func TestKeyboardSendsAtMostOneColourPerGap(t *testing.T) {
 	defer k.Stop()
 	start := time.Now()
 	for i := range 50 {
-		k.SetColour(fmt.Sprintf("#%02x0000", 100+i))
+		k.SetColour(fmt.Sprintf("#ff%02x00", 5*i))
 		time.Sleep(20 * time.Millisecond)
 	}
 	elapsed := time.Since(start)
@@ -343,7 +352,7 @@ func TestKeyboardSendsAtMostOneColourPerGap(t *testing.T) {
 	if limit := int(elapsed/(100*time.Millisecond)) + 2; leds > limit {
 		t.Fatalf("%d colours in %v, limit %d", leds, elapsed, limit)
 	}
-	if last := s.got()[len(s.got())-1]; last != "leds 3 950000" {
+	if last := s.got()[len(s.got())-1]; last != "leds 3 fff500" {
 		t.Fatalf("last colour %q, want the latest asked for", last)
 	}
 }
