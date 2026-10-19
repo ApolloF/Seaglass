@@ -10,7 +10,10 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 
 ## Open items
 
-- **Keyboard follows the game, live test** (1.11): tested only against a fake SDK server so far. With the OpenRGB GUI serving on 6743: turn it on, browse big picture (one Direct switch, then colours), start and end a game (mode back, then Direct again), close big picture and quit (mode back). Project Aurora's Desktop profile has full-board layers (gradient waves, background, brightness) that also paint the keyboard's one LED through its fallback key, so while Aurora runs it likely overwrites Seaglass's colour when browsing. To check live, then pick a fix: Aurora's Desktop profile without layers on that key, or Aurora started only while a game runs.
+- **Keyboard follows the game** (1.11), live test of 2026-10-19 so far: Seaglass entered Direct once, colours followed the selection, and quitting gave the keyboard its previous mode back. Open:
+  - **Colours look bland**: game accents fall into two families (oranges and sky blues), so even at full saturation the board shows about two colours. Options: spread hues for the keyboard, or take a more saturated colour from the art.
+  - **The restored mode was Static once instead of Wave**: the first quit restored Wave, but the second run saved Static (index 0). Check what the keyboard reports before Seaglass enters Direct.
+  - **Not tested yet**: giving the keyboard back when a game starts and taking it again afterwards; closing Big Picture; running alongside Aurora. Aurora's Desktop profile has full-board layers (gradient waves, background, brightness) that paint the keyboard's one LED through its fallback key, so it likely overwrites Seaglass's colour while browsing. Fix options: a Desktop profile without layers on that key, or starting Aurora only while a game runs.
 
 - **Tests**: a run of the mock interface in CI (both themes, the target sizes and a narrow window) with Playwright; today the harness in `tools/harness` covers the real app, but only when run by hand.
 - **Uninstall tidy-up**: offer to remove the non-Steam shortcuts Seaglass added to Steam (they're in a "Seaglass" collection).
