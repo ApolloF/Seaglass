@@ -38,6 +38,9 @@ type Settings struct {
 	Lightbar                   bool   `json:"lightbar"`
 	PSButton                   bool   `json:"psButton"`
 	Glyphs                     string `json:"glyphs"` // auto, playstation, xbox
+	// KeyboardFollowsGame tints an RGB keyboard served by OpenRGB to the
+	// selected game while browsing. Per PC, like the keyboard.
+	KeyboardFollowsGame bool `json:"keyboardFollowsGame"`
 
 	// While playing
 	CloseWhilePlaying bool   `json:"closeWhilePlaying"` // close the interface while a game runs (frees its memory)

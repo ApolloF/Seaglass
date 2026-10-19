@@ -103,6 +103,7 @@ let settings: Settings = {
   sounds: false,
   haptics: true,
   lightbar: true,
+  keyboardFollowsGame: false,
   psButton: true,
   glyphs: "auto",
   closeWhilePlaying: true,
@@ -694,6 +695,7 @@ export const mockApi: Api = {
     },
     rumble() {},
     setLight() {},
+    clearLight() {},
     testInput() {},
     onRaw(cb) {
       // window.mockRaw(buttons, axes) shows a controller state on the test screen.

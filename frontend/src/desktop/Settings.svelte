@@ -225,6 +225,7 @@
             <Toggle checked={s.psButton} title="PS / Xbox button opens Seaglass" detail="From other apps, and the overlay while you play. Turn off Steam's own guide-button shortcut to avoid both opening." onchange={(v) => set({ psButton: v })} />
             <Toggle checked={s.haptics} title="Haptics while browsing" detail="Light ticks as you move between games." onchange={(v) => set({ haptics: v })} />
             <Toggle checked={s.lightbar} title="Lightbar follows the game" detail="Tints the DualSense to the selected game's colour." onchange={(v) => set({ lightbar: v })} />
+            <Toggle checked={s.keyboardFollowsGame} title="Keyboard follows the game" detail="Tints an Akko PC75B Plus to the selected game in big picture, through OpenRGB. Games get it back while they run." onchange={(v) => set({ keyboardFollowsGame: v })} />
             <Toggle checked={s.sounds} title="Navigation sounds" detail="Soft clicks as you move." onchange={(v) => set({ sounds: v })} />
           </div>
           <p class="hint">Open big picture with the button in the sidebar, F11, or the PS / Xbox button.</p>

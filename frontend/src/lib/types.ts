@@ -90,6 +90,8 @@ export interface Settings {
   sounds: boolean;
   haptics: boolean;
   lightbar: boolean;
+  /** Tint the RGB keyboard OpenRGB serves to the selected game (per PC). */
+  keyboardFollowsGame: boolean;
   psButton: boolean;
   glyphs: "auto" | "playstation" | "xbox";
   closeWhilePlaying: boolean;

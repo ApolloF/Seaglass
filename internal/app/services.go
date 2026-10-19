@@ -341,6 +341,12 @@ func (c *Core) saveSettings(v settings.Settings) (settings.Settings, error) {
 	if saved.Achievements != old.Achievements || saved.ShowHiddenAchievements != old.ShowHiddenAchievements {
 		c.ach.clear()
 	}
+	if saved.KeyboardFollowsGame != old.KeyboardFollowsGame {
+		c.stateMu.Lock()
+		light := c.light
+		c.stateMu.Unlock()
+		c.keyboardLight(light)
+	}
 	if saved.AutoUpdate && !old.AutoUpdate {
 		NewUpdateService(c).Check()
 	}

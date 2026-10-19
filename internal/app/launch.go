@@ -281,6 +281,7 @@ func (c *Core) plan(g library.Game) launch.Plan {
 // padForGame steps the controller layer back while a game runs, or keeps
 // feeding Seaglass's virtual controller when the game plays through it.
 func (c *Core) padForGame() {
+	c.kb.Pause()
 	m := c.padManager()
 	if m == nil {
 		return
@@ -305,6 +306,9 @@ func (c *Core) onSession(s launch.Session) {
 	// pick it up as a controller.
 	if c.ctl != nil && (s.Phase == launch.Finishing || s.Phase.Done()) {
 		c.ctl.end()
+	}
+	if s.Phase == launch.Finishing || s.Phase.Done() {
+		c.kb.Resume()
 	}
 	if s.Phase == launch.Finishing {
 		if m := c.padManager(); m != nil {

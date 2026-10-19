@@ -10,6 +10,8 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 
 ## Open items
 
+- **Keyboard follows the game, live test** (1.11): tested only against a fake SDK server so far. With the OpenRGB GUI serving on 6743: turn it on, browse big picture (one Direct switch, then colours), start and end a game (mode back, then Direct again), close big picture and quit (mode back). Project Aurora's Desktop profile has full-board layers (gradient waves, background, brightness) that also paint the keyboard's one LED through its fallback key, so while Aurora runs it likely overwrites Seaglass's colour when browsing. To check live, then pick a fix: Aurora's Desktop profile without layers on that key, or Aurora started only while a game runs.
+
 - **Tests**: a run of the mock interface in CI (both themes, the target sizes and a narrow window) with Playwright; today the harness in `tools/harness` covers the real app, but only when run by hand.
 - **Uninstall tidy-up**: offer to remove the non-Steam shortcuts Seaglass added to Steam (they're in a "Seaglass" collection).
 - **Localisation**: the interface is English only, with strings inline in components. Extract them before adding languages.

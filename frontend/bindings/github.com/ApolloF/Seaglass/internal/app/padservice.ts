@@ -15,6 +15,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as pad$0 from "../pad/models.js";
 
 /**
+ * ClearLight says Big Picture has closed: the keyboard goes back to its
+ * own lighting. (The lightbar keeps its colour, as it always has.)
+ */
+export function ClearLight(): $CancellablePromise<void> {
+    return $Call.ByID(1173988018);
+}
+
+/**
  * Rumble plays a short effect ("tick", "bump", "confirm", "error",
  * "launch") when the user has haptics on.
  */
@@ -23,7 +31,8 @@ export function Rumble(effect: string): $CancellablePromise<void> {
 }
 
 /**
- * SetLight tints the DualSense lightbar (#rrggbb) when the user has that on.
+ * SetLight tints the DualSense lightbar and the RGB keyboard (#rrggbb),
+ * each when the user has it on.
  */
 export function SetLight(hex: string): $CancellablePromise<void> {
     return $Call.ByID(341387689, hex);

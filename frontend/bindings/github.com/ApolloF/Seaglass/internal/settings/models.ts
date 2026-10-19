@@ -74,6 +74,12 @@ export interface Settings {
     "glyphs": string;
 
     /**
+     * KeyboardFollowsGame tints an RGB keyboard served by OpenRGB to the
+     * selected game while browsing. Per PC, like the keyboard.
+     */
+    "keyboardFollowsGame": boolean;
+
+    /**
      * While playing
      * close the interface while a game runs (frees its memory)
      */

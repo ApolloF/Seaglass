@@ -150,6 +150,8 @@ export interface Api {
     state(): Promise<PadState>;
     rumble(effect: "tick" | "bump" | "confirm" | "error" | "launch"): void;
     setLight(hex: string): void;
+    /** Big Picture has closed: the keyboard gets its own lighting back. */
+    clearLight(): void;
     onAction(cb: (action: string, repeat: boolean) => void): () => void;
     onState(cb: (s: PadState) => void): () => void;
     /** Streams every button and axis (onRaw) while on, for the test screen. */

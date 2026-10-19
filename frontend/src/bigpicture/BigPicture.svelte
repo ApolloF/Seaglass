@@ -1,6 +1,6 @@
 <script lang="ts">
   import { accentOf, newFinds } from "../lib/bp";
-  import { dispatch, dispatchFrom, feedback, input, keyIntent, setBase, setLight, toHex } from "../lib/input.svelte";
+  import { clearLight, dispatch, dispatchFrom, feedback, input, keyIntent, setBase, setLight, toHex } from "../lib/input.svelte";
   import { lib } from "../lib/store.svelte";
   import type { Game } from "../lib/types";
   import { wheelStepper } from "../lib/wheel";
@@ -65,6 +65,8 @@
   const lightHex = $derived(toHex(accent));
 
   $effect(() => setLight(accent));
+  // Leaving big picture gives the keyboard its own lighting back.
+  $effect(() => clearLight);
 
   const go = (s: Screen) => {
     if (s === screen && !qa) return;

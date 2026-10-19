@@ -18,6 +18,7 @@ import (
 	"github.com/ApolloF/Seaglass/internal/meta"
 	"github.com/ApolloF/Seaglass/internal/pad"
 	"github.com/ApolloF/Seaglass/internal/platform"
+	"github.com/ApolloF/Seaglass/internal/rgb"
 	"github.com/ApolloF/Seaglass/internal/scan"
 	"github.com/ApolloF/Seaglass/internal/settings"
 	"github.com/fsnotify/fsnotify"
@@ -69,6 +70,8 @@ type Core struct {
 
 	shell       *Shell
 	pad         atomic.Pointer[pad.Manager]
+	kb          *rgb.Keyboard
+	light       string           // the colour Big Picture shows, "" while it's closed
 	ctl         *controllerState // Seaglass's virtual Xbox controller for games
 	lastSession int64            // the last session whose end was handled
 	registered  atomic.Bool      // the game list reached Syncer
@@ -107,6 +110,7 @@ func NewCore(version string) (*Core, error) {
 	c.ach = newAchState(c, c.owned.client, c.meta.client)
 	c.profile = newProfileState(c)
 	c.ctl = newControllerState(c)
+	c.kb = rgb.New(rgb.DefaultAddr, rgb.DefaultName, logx.Printf)
 	return c, nil
 }
 
@@ -425,6 +429,19 @@ func (c *Core) pruneArt() {
 }
 
 func (c *Core) padManager() *pad.Manager { return c.pad.Load() }
+
+// keyboardLight shows the colour Big Picture shows ("" once it closes) on
+// the RGB keyboard, when the user has that on.
+func (c *Core) keyboardLight(hex string) {
+	c.stateMu.Lock()
+	c.light = hex
+	c.stateMu.Unlock()
+	if hex != "" && c.Settings.Get().KeyboardFollowsGame {
+		c.kb.SetColour(hex)
+	} else {
+		c.kb.Clear()
+	}
+}
 
 // padState is the controller in use (none when controllers are unavailable).
 func (c *Core) padState() pad.State {

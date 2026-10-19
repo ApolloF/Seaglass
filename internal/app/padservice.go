@@ -57,6 +57,7 @@ func (s *PadService) ServiceShutdown() error {
 	if s.mgr != nil {
 		s.mgr.Stop()
 	}
+	s.c.kb.Stop()
 	return nil
 }
 
@@ -148,10 +149,19 @@ func (s *PadService) Rumble(effect string) {
 
 var reHex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
-// SetLight tints the DualSense lightbar (#rrggbb) when the user has that on.
+// SetLight tints the DualSense lightbar and the RGB keyboard (#rrggbb),
+// each when the user has it on.
 func (s *PadService) SetLight(hex string) {
-	if s.mgr == nil || !s.c.Settings.Get().Lightbar || !reHex.MatchString(hex) {
+	if !reHex.MatchString(hex) {
+		return
+	}
+	s.c.keyboardLight(hex)
+	if s.mgr == nil || !s.c.Settings.Get().Lightbar {
 		return
 	}
 	_ = s.mgr.SetLight(hex)
 }
+
+// ClearLight says Big Picture has closed: the keyboard goes back to its
+// own lighting. (The lightbar keeps its colour, as it always has.)
+func (s *PadService) ClearLight() { s.c.keyboardLight("") }

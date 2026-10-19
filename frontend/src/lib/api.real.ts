@@ -127,6 +127,7 @@ export const realApi: Api = {
     state: () => PadService.State() as Promise<unknown> as Promise<PadState>,
     rumble: (effect) => void PadService.Rumble(effect),
     setLight: (hex) => void PadService.SetLight(hex),
+    clearLight: () => void PadService.ClearLight(),
     onAction: (cb) =>
       Events.On("pad:action", (e) => {
         const d = e.data as unknown as { action: string; repeat: boolean };

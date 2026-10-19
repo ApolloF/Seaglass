@@ -49,6 +49,7 @@
     { key: "padtest", title: "Test controller", detail: "Every button, stick and trigger as the controller reports it, and each rumble.", kind: "action" },
     { key: "haptics", title: "Haptics", detail: "A tick as you move, a bump at the end of a row, a firmer pulse when you choose.", kind: "toggle" },
     { key: "lightbar", title: "Lightbar follows the game", detail: "Tints the DualSense to the selected game.", kind: "toggle" },
+    { key: "keyboardFollowsGame", title: "Keyboard follows the game", detail: "Tints an Akko PC75B Plus to the selected game, through OpenRGB.", kind: "toggle" },
     { key: "openBigPictureOnController", title: "Open big picture when a controller connects", detail: "Switches over as soon as you pick one up.", kind: "toggle" },
     { key: "psButton", title: "PS / Xbox button opens Seaglass", detail: "From other apps, and the overlay in games. Turn off Steam's guide-button shortcut to avoid both opening.", kind: "toggle" },
     {

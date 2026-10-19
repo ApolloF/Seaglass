@@ -213,12 +213,18 @@ export function moveTo<T>(cur: T, next: T | null | undefined, set: (v: T) => voi
 }
 
 let lastLight = "";
-/** Tints the DualSense lightbar (the Go side checks the user's setting). */
+/** Tints the DualSense lightbar and the RGB keyboard (the Go side checks the user's settings). */
 export function setLight(css: string | undefined) {
   const hex = css ? toHex(css) : "";
   if (!hex || hex === lastLight) return;
   lastLight = hex;
   api.pad.setLight(hex);
+}
+
+/** Big Picture has closed: the keyboard goes back to its own lighting, and the next colour is sent again. */
+export function clearLight() {
+  lastLight = "";
+  api.pad.clearLight();
 }
 
 let ctx: CanvasRenderingContext2D | null = null;

@@ -147,6 +147,7 @@ func (c *Core) externalPlan(g library.Game, pid uint32) launch.Plan {
 		OnRun: func() {
 			heapDiag("playing")
 			c.shell.setTrayTooltip("Seaglass · playing " + title)
+			c.kb.Pause()
 			if m := c.padManager(); m != nil {
 				if c.Settings.Get().PadWhilePlaying == "off" {
 					m.SetMode(pad.Off)
