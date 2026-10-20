@@ -15,7 +15,7 @@ import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { EXE, OUT, PadClient, backupAppData, fakeGameExe, isRunning, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { EXE, OUT, PadClient, fakeGameExe, isRunning, makeDevData, sleep, startApp } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
@@ -260,22 +260,17 @@ async function scanRun() {
 
 const art = makeArt();
 const results = {};
-backupAppData();
-try {
-  for (const [name, fn] of Object.entries({ tray, desktop, bigpicture, scan: scanRun, game })) {
-    if (!ONLY.includes(name)) continue;
-    process.stdout.write(`${name}… `);
-    try {
-      results[name] = await fn();
-      console.log("done");
-    } catch (e) {
-      console.log(`failed: ${e.message}`);
-      results[name] = { error: e.message };
-      if (isRunning()) execFileSync("taskkill", ["/IM", "Seaglass.exe", "/F"]);
-    }
+for (const [name, fn] of Object.entries({ tray, desktop, bigpicture, scan: scanRun, game })) {
+  if (!ONLY.includes(name)) continue;
+  process.stdout.write(`${name}… `);
+  try {
+    results[name] = await fn();
+    console.log("done");
+  } catch (e) {
+    console.log(`failed: ${e.message}`);
+    results[name] = { error: e.message };
+    if (isRunning()) execFileSync("taskkill", ["/IM", "Seaglass.exe", "/F"]);
   }
-} finally {
-  restoreAppData();
 }
 fs.writeFileSync(path.join(OUT, `footprint-${LABEL}.json`), JSON.stringify({ exe: EXE, games: GAMES, idleSecs: IDLE / 1000, results }, null, 1));
 

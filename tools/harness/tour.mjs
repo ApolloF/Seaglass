@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { auditPage } from "./audit.mjs";
 import { SIZES } from "./sizes.mjs";
-import { OUT, backupAppData, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { OUT, makeDevData, sleep, startApp } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
@@ -27,12 +27,7 @@ const KEYS = {
   lb: "PageUp", rb: "PageDown", lt: "[", rt: "]", guide: "Home",
 };
 
-backupAppData();
-try {
-  for (const input of inputs) await tour(input);
-} finally {
-  restoreAppData();
-}
+for (const input of inputs) await tour(input);
 
 async function tour(input) {
   const dir = path.join(OUT, `tour-${input}`);

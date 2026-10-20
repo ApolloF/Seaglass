@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { auditPage } from "./audit.mjs";
-import { OUT, backupAppData, fakeGameExe, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { OUT, fakeGameExe, sleep, startApp } from "./lib.mjs";
 import { SIZES } from "./sizes.mjs";
 
 const APP = 400;
@@ -31,7 +31,6 @@ const writeUnlocks = (ids) =>
 const checks = [];
 const check = (what, ok, detail = "") => (checks.push({ what, ok, detail }), console.log(`${ok ? "ok  " : "FAIL"} ${what}${detail ? ` (${detail})` : ""}`));
 
-backupAppData();
 let app;
 try {
   // The game: the fake game, set up as a Goldberg copy of Portal.
@@ -150,7 +149,6 @@ try {
   await audit("bigpicture-screen");
 } finally {
   await app?.quit();
-  restoreAppData();
   if (unlockBackup) fs.writeFileSync(unlockFile, unlockBackup);
   else fs.rmSync(saves, { recursive: true, force: true });
 }

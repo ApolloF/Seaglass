@@ -1,8 +1,7 @@
 // Quick check that the harness can start, see and drive the real app.
 import path from "node:path";
-import { OUT, backupAppData, restoreAppData, makeDevData, startApp, sleep } from "./lib.mjs";
+import { OUT, makeDevData, startApp, sleep } from "./lib.mjs";
 
-backupAppData();
 let app;
 try {
   const data = makeDevData("smoke");
@@ -17,5 +16,4 @@ try {
   console.log(await app.mem());
 } finally {
   await app?.quit();
-  restoreAppData();
 }

@@ -1,6 +1,5 @@
-// Shared pieces of the harness: backing up Seaglass's data, making a
-// test library, starting the real app with its dev flags, and talking to
-// it over CDP (the WebView2 pages) and the dev pipe (virtual controller).
+// Shared pieces of the harness: making a test library, starting the real app with its dev flags,
+// and talking to it over CDP (the WebView2 pages) and the dev pipe (virtual controller).
 import { spawn, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
@@ -14,65 +13,25 @@ export const OUT = process.env.WL_OUT || path.join(os.tmpdir(), "wl-harness");
 export const CDP_PORT = 9333;
 const PIPE = "\\\\.\\pipe\\seaglass-dev";
 const DATA = path.join(process.env.APPDATA, "Seaglass");
-const BACKUP = path.join(OUT, "appdata-backup");
-const MARK = path.join(OUT, "appdata-backup.json");
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 fs.mkdirSync(OUT, { recursive: true });
 
-// ---- %APPDATA%\Seaglass backup ----
+// ---- the real data (read only) ----
 
-/** Copies %APPDATA%\Seaglass aside. A backup left by a run that
- * didn't finish is restored first, never overwritten. */
-export function backupAppData() {
-  // Another run (or Seaglass itself) is going: its data isn't ours to touch.
-  if (isRunning()) throw new Error("Seaglass is already running: close it (or the other harness run) first");
-  if (fs.existsSync(MARK)) {
-    console.log("an earlier run left a backup: restoring it first");
-    restoreAppData({ keep: true });
-  }
-  fs.rmSync(BACKUP, { recursive: true, force: true });
-  const existed = fs.existsSync(DATA);
-  if (existed) fs.cpSync(DATA, BACKUP, { recursive: true });
-  fs.writeFileSync(MARK, JSON.stringify({ from: DATA, at: new Date().toISOString(), existed, files: existed ? countFiles(BACKUP) : 0 }));
+// An older harness backed up %APPDATA%\Seaglass and put it back after a run.
+// Restoring a stale copy rolled back the synced Profile folder on every PC,
+// so nothing is restored any more. The old marker is set aside so no one
+// can pick it up again.
+const OLD_MARK = path.join(OUT, "appdata-backup.json");
+if (fs.existsSync(OLD_MARK)) {
+  fs.renameSync(OLD_MARK, `${OLD_MARK}.ignored`);
+  console.log(`an old backup of the real Seaglass data was left in ${path.join(OUT, "appdata-backup")}. It is never restored any more: you can delete it.`);
 }
 
-/** Puts %APPDATA%\Seaglass back as it was. The backup lives in Temp,
- * which Windows may have cleaned since: when it's gone or has fewer files
- * than were copied, the real data stays as it is. What a run left in its
- * place is moved aside, not deleted, until the backup is back; with keep
- * (a backup an earlier run left, perhaps long ago) it stays aside, since
- * Seaglass may have saved newer data there since. */
-export function restoreAppData({ keep = false } = {}) {
-  if (!fs.existsSync(MARK)) return;
-  const m = JSON.parse(fs.readFileSync(MARK, "utf8"));
-  if (m.existed && !(typeof m.files === "number" && fs.existsSync(BACKUP) && countFiles(BACKUP) >= m.files)) {
-    fs.renameSync(MARK, `${MARK}.broken`);
-    console.error(`the backup of ${DATA} in ${BACKUP} is gone or incomplete: left ${DATA} as it is`);
-    return;
-  }
-  const aside = `${DATA}.harness-${Date.now()}`;
-  if (fs.existsSync(DATA)) fs.renameSync(DATA, aside);
-  try {
-    if (m.existed) fs.cpSync(BACKUP, DATA, { recursive: true });
-  } catch (e) {
-    fs.rmSync(DATA, { recursive: true, force: true });
-    if (fs.existsSync(aside)) fs.renameSync(aside, DATA);
-    throw e;
-  }
-  if (keep && fs.existsSync(aside)) console.log(`kept what was in ${DATA} in ${aside}`);
-  else fs.rmSync(aside, { recursive: true, force: true });
-  fs.rmSync(MARK);
-  console.log("restored", DATA);
-}
-
-function countFiles(dir) {
-  return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).length;
-}
-
-/** The real library (from the backup), for its art. */
+/** The real library, for its art. Only read, never written. */
 export function realLibrary() {
-  for (const p of [path.join(OUT, "real-library.json"), path.join(BACKUP, "library.json"), path.join(DATA, "library.json")]) {
+  for (const p of [path.join(OUT, "real-library.json"), path.join(DATA, "library.json")]) {
     try {
       const lib = JSON.parse(fs.readFileSync(p, "utf8"));
       return { ...lib, games: lib.games ?? [] }; // an empty library saves null
@@ -173,9 +132,13 @@ export function makeDevData(name, { extra = 0, settings = {}, fake = true } = {}
 
 /** Starts Seaglass with its dev flags and connects to its window. */
 export async function startApp({ data, pad = "ps", args = [] } = {}) {
+  // The real folder holds the synced Profile: a run there would change what
+  // every PC sees, so the harness only ever runs on its own data.
+  if (!data) throw new Error("startApp needs data: the harness only runs on its own data (--dev-data)");
+  if (path.resolve(data).toLowerCase() === path.resolve(DATA).toLowerCase()) throw new Error(`refusing to run on the real data folder ${DATA}`);
   if (isRunning()) throw new Error("Seaglass is already running: close it first");
   const flags = [`--remote-debugging=${CDP_PORT}`, ...args];
-  if (data) flags.push(`--dev-data=${data}`);
+  flags.push(`--dev-data=${data}`);
   if (pad) flags.push(`--virtual-pad=${pad}`);
   const proc = spawn(EXE, flags, { detached: true, stdio: "ignore" });
   proc.unref();

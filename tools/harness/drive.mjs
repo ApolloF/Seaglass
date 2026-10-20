@@ -1,18 +1,18 @@
 // Starts the real app and keeps it running behind a small local HTTP
 // server, so screens can be explored one step at a time:
 //
-//   node drive.mjs [dataName] [--extra=N] [--layout=deck] [--real]
+//   node drive.mjs [dataName] [--extra=N] [--layout=deck]
 //   curl "127.0.0.1:9444/pad?b=down"        press a controller button
 //   curl "127.0.0.1:9444/key?k=ArrowDown"   press a key
 //   curl "127.0.0.1:9444/snap?name=home"    screenshots at every size + audit
 //   curl "127.0.0.1:9444/shot?name=x"       one screenshot at the current size
 //   curl -d "document.title" 127.0.0.1:9444/eval
-//   curl "127.0.0.1:9444/quit"              close, restore %APPDATA%, exit
+//   curl "127.0.0.1:9444/quit"              close and exit
 import { execFileSync } from "node:child_process";
 import http from "node:http";
 import path from "node:path";
 import { auditPage } from "./audit.mjs";
-import { OUT, backupAppData, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { OUT, makeDevData, sleep, startApp } from "./lib.mjs";
 
 export { SIZES } from "./sizes.mjs";
 import { SIZES } from "./sizes.mjs";
@@ -22,17 +22,10 @@ const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?
 const run = argv.find((a) => !a.startsWith("--")) ?? "drive";
 let base = opt("base", "1920x1080").split("x").map(Number);
 
-backupAppData();
 const settings = { bigPictureLayout: opt("layout", "deck") };
 if (argv.includes("--bp")) settings.startInBigPicture = true;
-const data = argv.includes("--real") ? undefined : makeDevData(run, { extra: Number(opt("extra", 0)), settings: argv.includes("--fresh") ? null : settings });
-let app;
-try {
-  app = await startApp({ data, pad: opt("pad", "ps") });
-} catch (e) {
-  restoreAppData();
-  throw e;
-}
+const data = makeDevData(run, { extra: Number(opt("extra", 0)), settings: argv.includes("--fresh") ? null : settings });
+const app = await startApp({ data, pad: opt("pad", "ps") });
 await app.viewport(...base);
 console.log(`ready in ${app.startMs} ms`);
 
@@ -104,7 +97,6 @@ const server = http.createServer(async (req, res) => {
         return reply(app.pages().map((p) => p.url()));
       case "/quit":
         await app.quit();
-        restoreAppData();
         reply("bye");
         setTimeout(() => process.exit(0), 100);
     }
@@ -119,7 +111,6 @@ server.listen(9444, "127.0.0.1");
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, async () => {
     await app.quit();
-    restoreAppData();
     process.exit(0);
   });
 }

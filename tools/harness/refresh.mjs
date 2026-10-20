@@ -1,26 +1,20 @@
-// Runs the real app once on the real library (backed up first) so its
-// metadata and art are current, and keeps a copy of the refreshed library
-// for makeDevData. The real %APPDATA%\Seaglass is restored after.
+// Keeps a read-only copy of the real library (%APPDATA%\Seaglass\library.json)
+// in OUT/real-library.json, for makeDevData's art and details. It never runs
+// the app and never writes to %APPDATA%\Seaglass, which holds the synced
+// Profile. To refresh the metadata, open Seaglass normally and run this again.
 import fs from "node:fs";
 import path from "node:path";
-import { OUT, backupAppData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { OUT } from "./lib.mjs";
 
-backupAppData();
-let app;
-try {
-  app = await startApp({ pad: null });
-  const lib = path.join(process.env.APPDATA, "Seaglass", "library.json");
-  for (let k = 0; k < 90; k++) {
-    await sleep(2000);
-    const games = JSON.parse(fs.readFileSync(lib, "utf8")).games;
-    const done = games.filter((g) => !g.installed || (g.meta?.version ?? 0) >= 3).length;
-    process.stdout.write(`\r${done}/${games.length} games with current metadata`);
-    if (done === games.length && k > 3) break;
-  }
-  await app.quit();
-  fs.copyFileSync(path.join(process.env.APPDATA, "Seaglass", "library.json"), path.join(OUT, "real-library.json"));
-  console.log("\nsaved", path.join(OUT, "real-library.json"));
-} finally {
-  await app?.quit();
-  restoreAppData();
+const src = path.join(process.env.APPDATA, "Seaglass", "library.json");
+if (!fs.existsSync(src)) {
+  console.error(`no library at ${src}: open Seaglass once so it has one, then run this again`);
+  process.exit(1);
 }
+const dest = path.join(OUT, "real-library.json");
+fs.copyFileSync(src, dest);
+const games = JSON.parse(fs.readFileSync(dest, "utf8")).games ?? [];
+const done = games.filter((g) => !g.installed || (g.meta?.version ?? 0) >= 3).length;
+console.log(`${done}/${games.length} games with current metadata`);
+if (done < games.length) console.log("some are out of date: open Seaglass normally to refresh them, then run this again");
+console.log("saved", dest);
