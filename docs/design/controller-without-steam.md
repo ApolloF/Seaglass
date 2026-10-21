@@ -149,7 +149,7 @@ Why A over B now: it is the setup that DS4Windows users have run for years on Wi
 
 - **Without ViGEmBus:** Auto falls back as described (Steam or direct), and `xbox` mode shows the setup notice instead of failing the launch.
 - **Without HidHide**, or if hiding fails: the game still starts with the virtual pad, and the launch panel warns "Some games may see your controller twice." Most XInput-only games ignore the DualSense anyway, which is why they need the bridge.
-- **If Seaglass crashes mid-game**, ViGEmBus removes the virtual pad when the owning handle closes (verified on claude-dev with ViGEmBus 1.22).
+- **If Seaglass crashes mid-game**, ViGEmBus removes the virtual pad when the owning handle closes (verified on a test PC with ViGEmBus 1.22).
 - **Built differently (2026-10-17):** no HidHide release has the session block list (it is only in the unreleased 1.7 tags). Seaglass therefore uses HidHide's saved block list. It notes each controller it adds in `%APPDATA%\Seaglass\hidden-controllers.json` before adding it, and takes exactly those off at game end, at every start and quit, and from **Unhide controller** in Settings. It also puts its own exe on HidHide's allow list, since HidHide blocks the hiding app too. A HidHide with the session list is used when present.
 - **Auto without ViGEmBus** starts the game directly with the setup hint. The maintainer chose this over falling back to Steam, which works badly.
 
@@ -161,7 +161,7 @@ Why A over B now: it is the setup that DS4Windows users have run for years on Wi
 
 ### Testing
 
-- **Unit tests (CI, claude-dev):**
+- **Unit tests (CI):**
   - report mapping: every button, stick inversion edges `-32768/32767`, trigger scaling, Guide not forwarded;
   - device path → instance id and MULTI_SZ encoding;
   - `unsafe.Sizeof` of the IOCTL structs against ViGEmClient's sizes;
@@ -169,7 +169,7 @@ Why A over B now: it is the setup that DS4Windows users have run for years on Wi
   - settings normalize;
   - the launch plan includes and undoes the `controller` step (fake Bridge);
   - mock mode for the setup flow and the new labels, in both themes.
-- **Live test, gated** (`WL_REAL_VIGEM=1 go test -run RealViGEm ./internal/vpad`): plugs an X360 target, sends a report, and checks it with `XInputGetState` from `xinput1_4.dll`. It needs ViGEmBus installed, so it isn't run on claude-dev unless installing the driver there is approved. It needs no physical controller.
+- **Live test, gated** (`WL_REAL_VIGEM=1 go test -run RealViGEm ./internal/vpad`): plugs an X360 target, sends a report, and checks it with `XInputGetState` from `xinput1_4.dll`. It needs ViGEmBus installed, so it isn't run on the test PC unless installing the driver there is approved. It needs no physical controller.
 - **Only on a real PC with a real controller (Florian):**
   - Set up from the button: two UAC prompts, plus a restart if asked.
   - DualSense over USB, then Bluetooth, in an XInput-only game: input, rumble, no double input in a game that also reads HID.
