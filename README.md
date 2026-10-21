@@ -31,6 +31,10 @@
 
 <sub>Screenshots use the demo library (`npm run dev:mock`), so the games and art are made up.</sub>
 
+## Why
+
+I tried Playnite first. It can do a lot, but it felt like more setup than I wanted, and its game detection and metadata kept getting my library wrong. Seaglass goes the other way: fewer knobs, and it works out by itself which game each install is.
+
 ## Intended use
 
 Seaglass is a library manager. It indexes, identifies and launches games that are already installed on your PC. It does not download, distribute, unlock or modify games, and it contains no tools to bypass copy protection, license checks or DRM.
