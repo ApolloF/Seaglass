@@ -9,7 +9,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { OUT, backupAppData, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { OUT, makeDevData, sleep, startApp } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
@@ -30,25 +30,20 @@ const SCENARIOS = [
 ];
 
 const results = [];
-backupAppData();
-try {
-  for (const n of counts) {
-    for (const layout of ["desktop", "deck", "console", "orbit"]) {
-      const scen = SCENARIOS.filter((s) => (s.desktop ? layout === "desktop" : s.layout === layout) && (!only || only.split(",").includes(s.name)));
-      if (!scen.length) continue;
-      const data = makeDevData(`perf-${n}`, { extra: n, settings: { bigPictureLayout: layout === "desktop" ? "deck" : layout, startInBigPicture: layout !== "desktop" } });
-      const app = await startApp({ data });
-      try {
-        await app.viewport(3840, 2160, 1.5);
-        await sleep(3000); // art loads, the page settles
-        for (const s of scen) results.push(await run(app, n, s));
-      } finally {
-        await app.quit();
-      }
+for (const n of counts) {
+  for (const layout of ["desktop", "deck", "console", "orbit"]) {
+    const scen = SCENARIOS.filter((s) => (s.desktop ? layout === "desktop" : s.layout === layout) && (!only || only.split(",").includes(s.name)));
+    if (!scen.length) continue;
+    const data = makeDevData(`perf-${n}`, { extra: n, settings: { bigPictureLayout: layout === "desktop" ? "deck" : layout, startInBigPicture: layout !== "desktop" } });
+    const app = await startApp({ data });
+    try {
+      await app.viewport(3840, 2160, 1.5);
+      await sleep(3000); // art loads, the page settles
+      for (const s of scen) results.push(await run(app, n, s));
+    } finally {
+      await app.quit();
     }
   }
-} finally {
-  restoreAppData();
 }
 fs.writeFileSync(path.join(dir, "results.json"), JSON.stringify(results, null, 1));
 console.log("\ngames scenario         fps  presented partial dropped holes  main ms  longtasks  heapMB   DOM  webview MB  core MB");

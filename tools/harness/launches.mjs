@@ -6,7 +6,7 @@
 //   node launches.mjs [--only=Direct,Handover] [--from=bigpicture|desktop]
 import fs from "node:fs";
 import path from "node:path";
-import { FAKE_GAMES, OUT, backupAppData, makeDevData, restoreAppData, sleep, startApp } from "./lib.mjs";
+import { FAKE_GAMES, OUT, makeDevData, sleep, startApp } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
@@ -18,7 +18,6 @@ const RUN = { Direct: "--run=10", Handover: "--run=10", Slow: "--run=8", Crash: 
 const dir = path.join(OUT, `launches-${from}`);
 fs.rmSync(dir, { recursive: true, force: true });
 fs.mkdirSync(dir, { recursive: true });
-backupAppData();
 const results = [];
 let current = [];
 let app;
@@ -44,7 +43,6 @@ try {
   }
 } finally {
   await app?.quit();
-  restoreAppData();
 }
 fs.writeFileSync(path.join(dir, "results.json"), JSON.stringify(results, null, 1));
 for (const r of results) {
