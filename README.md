@@ -10,9 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/ApolloF/Seaglass" alt="License: AGPL-3.0"></a>
 </p>
 
-<p align="center"><img src="docs/images/seaglass-bigpicture-home.png" width="860" alt="Seaglass big picture mode: Continue playing, new games found on this PC and the library, with controller button hints"></p>
-
-<p align="center"><sub>Formerly WaterLauncher. WaterLauncher doesn't update to Seaglass on its own: install Seaglass over it, and it keeps your library and settings.</sub></p>
+<p align="center"><img src="docs/images/seaglass-bigpicture-home.png" width="860" alt="Seaglass big picture mode, Deck layout: Continue playing, new games found on this PC and the library, with controller button hints"></p>
 
 ---
 
@@ -25,11 +23,15 @@
 - Works with [Syncer](https://github.com/ApolloF/syncer) to keep saves in sync before and after you play. *Settings → Saves* installs Syncer with one click.
 - Hide whole libraries you don't want to see (*Settings → Library*), for example Xbox or external copies.
 
+<p align="center"><img src="docs/images/seaglass-bigpicture.gif" width="860" alt="From the desktop library into big picture mode: moving along the rows with a controller, opening a game and pressing Play"></p>
+
 | Desktop mode | Achievements |
 |---|---|
 | <img src="docs/images/seaglass-desktop.png" alt="Desktop mode: game grid, sources in the sidebar and a details panel with Play, playtime, controller mode and save status"> | <img src="docs/images/seaglass-achievements.png" alt="Achievements dialog with unlock dates and rarity"> |
 
-<sub>Screenshots use the demo library (`npm run dev:mock`) with real games: the art, details and achievements are what Seaglass fetches for them; playtimes and progress are made up.</sub>
+| Big picture: Console layout | Big picture: Orbit layout |
+|---|---|
+| <img src="docs/images/seaglass-bigpicture-console.png" alt="Console layout: a row of game covers over the selected game's full-screen art, with Play and its details"> | <img src="docs/images/seaglass-bigpicture-orbit.png" alt="Orbit layout: round game icons clustered around the selected game, with zoom"> |
 
 ## Why
 
@@ -79,6 +81,6 @@ Seaglass is free and stays free: no pro tier, no locked features. If it's useful
 
 ## License
 
-[GNU Affero General Public License v3.0](LICENSE). Releases up to 1.4 (as WaterLauncher) were MIT licensed.
+[GNU Affero General Public License v3.0](LICENSE). Releases up to 1.4 were MIT licensed.
 
 Seaglass includes third-party code and fonts under their own licenses (MIT, BSD, ISC, zlib and the SIL Open Font License for Barlow); see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt), which the installer also puts next to `Seaglass.exe`. After changing dependencies, regenerate it with `go run ./tools/notices` (CI checks that it is up to date).
