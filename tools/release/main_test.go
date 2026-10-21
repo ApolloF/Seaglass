@@ -71,3 +71,15 @@ func TestTrusted(t *testing.T) {
 		t.Error("a key missing from keys.go was trusted")
 	}
 }
+
+func TestPRDone(t *testing.T) {
+	if done, err := prDone("MERGED"); !done || err != nil {
+		t.Errorf("merged: %v, %v", done, err)
+	}
+	if done, err := prDone("OPEN"); done || err != nil {
+		t.Errorf("open: %v, %v", done, err)
+	}
+	if _, err := prDone("CLOSED"); err == nil {
+		t.Error("a closed pull request counted as pending")
+	}
+}
