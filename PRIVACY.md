@@ -1,6 +1,6 @@
 # Privacy
 
-Last updated: 11 October 2026
+Last updated: 21 October 2026
 
 Seaglass is a free Windows game launcher. It runs on your PC and has no server of its own. ApolloF receives no data from the app: no account, no telemetry, no analytics, no automatic crash reports.
 
@@ -33,13 +33,14 @@ Keys and sign-in tokens are stored in `%APPDATA%\Seaglass\secrets`, encrypted wi
 - **Achievements:** for games with achievements, Seaglass fetches names, icons and global unlock rates from Steam, Epic and GOG. With your Steam key, Epic sign-in or GOG sign-in it also reads your own unlocks, sending the key or token with your Steam ID, Epic account ID or GOG user ID.
 - **Game recognition:** it downloads the [Ludusavi manifest](https://github.com/mtkennerly/ludusavi-manifest) from GitHub (raw.githubusercontent.com) when it is missing or more than a week old.
 - **Updates:** with automatic updates on (the default), it checks GitHub for a new Seaglass release at start and downloads it from GitHub. With them off it only checks when you click *Check* in Settings. Installing or updating Syncer from Seaglass checks and downloads from Syncer's GitHub releases.
+- **Xbox controller drivers:** only when you set up *Settings → Xbox controller for games*, Seaglass downloads the ViGEmBus and HidHide installers from their GitHub releases, checks them against hashes pinned in Seaglass and runs them (Windows asks for permission for each).
 - These services see your IP address, as with any web request, and what is being looked up: game names, store IDs and, for the accounts above, your keys, tokens and IDs. Nothing else about you is sent.
 
 All requests use HTTPS and go only to allowlisted hosts. They identify the app as `Seaglass` and carry no install ID, account or machine name of their own.
 
 | Service | Hosts | When |
 |---|---|---|
-| GitHub | `api.github.com`, `github.com`, GitHub's download hosts | Update checks and downloads; installing Syncer |
+| GitHub | `api.github.com`, `github.com`, GitHub's download hosts | Update checks and downloads; installing Syncer or the Xbox controller drivers |
 | GitHub | `raw.githubusercontent.com` | The Ludusavi game database, about once a week |
 | Steam store | `store.steampowered.com`, `*.steamstatic.com`, `steamcdn-a.akamaihd.net` | Details and art for games in your library |
 | Steam Web API | `api.steampowered.com` | Achievement data; with your key, owned games and your unlocks |
@@ -56,7 +57,7 @@ If you use [Syncer](https://apps.apollof.nl/syncer/), Seaglass talks to it on yo
 
 Settings, your library, the profile, the log and crash logs stay in `%APPDATA%\Seaglass`. The log records events such as the titles of games started, play times and errors. Cached art, achievement data, the game database, update downloads and the data of the WebView2 component that draws Seaglass's window stay in `%LOCALAPPDATA%\Seaglass`. WebView2 is a Microsoft component; its own data handling follows Microsoft's and Windows' privacy settings, not Seaglass. Seaglass's interface loads no remote code (it has a strict Content Security Policy).
 
-Outside those folders Seaglass writes only when you turn the feature on: a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for *Start with Windows*, and Seaglass shortcuts in Steam's `shortcuts.vdf` for the Steam Input route for controllers. It reads, but doesn't change, the store launchers' own files and registry entries.
+Outside those folders Seaglass writes only when you turn the feature on: a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for *Start with Windows*, and Seaglass shortcuts in Steam's `shortcuts.vdf` for the Steam Input route for controllers. With HidHide installed, Seaglass adds your controller to HidHide's block list while a game runs and adds itself to HidHide's allow list; it notes the controllers it hid in `%APPDATA%\Seaglass\hidden-controllers.json` and takes exactly those off again when the game ends. It reads, but doesn't change, the store launchers' own files and registry entries.
 
 *Copy diagnostics* (or `Seaglass.exe --diagnostics`, which writes a file to your desktop) creates a report only when you ask for it. It holds Seaglass, Windows and WebView2 versions, your settings (including game folders), library counts, the last crash and the end of the log. It holds no keys or tokens, and your user folder is shortened to `%USERPROFILE%`. It goes only where you paste or send it.
 

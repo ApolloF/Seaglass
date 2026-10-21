@@ -21,7 +21,7 @@
 - Finds Steam, Epic, GOG, EA, Ubisoft, Battle.net and Xbox installs, plus games installed outside a store launcher (*external copies*, such as standalone and DRM-free installs and backups) and plain game folders, and works out which game each one is.
 - Desktop mode for mouse and keyboard, and a big picture mode for controllers with three layouts to choose from (Deck, Console, Orbit).
 - Starts games and tracks playtime. While you play, the interface closes to free memory, and the PS button opens an overlay over the game.
-- DualSense first: native button glyphs, haptics, lightbar, and the PS button to open the launcher. Games without DualSense support start through Steam Input automatically.
+- DualSense first: native button glyphs, haptics, lightbar, and the PS button to open the launcher. Games without DualSense support get a virtual Xbox controller from Seaglass itself, no Steam needed (*Settings → Xbox controller for games*); Steam Input stays available per game.
 - Works with [Syncer](https://github.com/ApolloF/syncer) to keep saves in sync before and after you play. *Settings → Saves* installs Syncer with one click.
 - Hide whole libraries you don't want to see (*Settings → Library*), for example Xbox or external copies.
 
@@ -29,7 +29,7 @@
 |---|---|
 | <img src="docs/images/seaglass-desktop.png" alt="Desktop mode: game grid, sources in the sidebar and a details panel with Play, playtime, controller mode and save status"> | <img src="docs/images/seaglass-achievements.png" alt="Achievements dialog with unlock dates and rarity"> |
 
-<sub>Screenshots use the demo library (`npm run dev:mock`), so the games and art are made up.</sub>
+<sub>Screenshots use the demo library (`npm run dev:mock`) with real games: the art, details and achievements are what Seaglass fetches for them; playtimes and progress are made up.</sub>
 
 ## Why
 
