@@ -20,9 +20,10 @@ import (
 //  1. This PC's release key is one the updater trusts.
 //  2. The tag is a version, its notes exist, it isn't used yet.
 //  3. The working tree is clean, on main, level with origin/main.
-//  4. With --pr: that pull request is merged and its head is in main.
+//  4. With --pr: that pull request is merged and its merge commit is in main.
 //  5. CI passed for main's head (waits while it runs).
-//  6. "Version X.Y.Z" is committed (build/windows/info.json) and pushed.
+//  6. "Version X.Y.Z" (build/windows/info.json) goes into main through a
+//     pull request, since main takes nothing else; skipped if already there.
 //  7. The tag is pushed; CI builds and tests it and makes a draft release.
 //  8. publish signs the draft with the release key and makes it public.
 func cut(tag string, pr string, dry bool) error {
@@ -69,17 +70,24 @@ func cut(tag string, pr string, dry bool) error {
 	if pr != "" {
 		step("checking pull request #%s", pr)
 		var p struct {
-			State      string `json:"state"`
-			HeadRefOid string `json:"headRefOid"`
+			State       string `json:"state"`
+			MergeCommit struct {
+				Oid string `json:"oid"`
+			} `json:"mergeCommit"`
 		}
-		if err := ghJSON(&p, "pr", "view", pr, "--repo", repo, "--json", "state,headRefOid"); err != nil {
+		if err := ghJSON(&p, "pr", "view", pr, "--repo", repo, "--json", "state,mergeCommit"); err != nil {
 			return err
 		}
 		if p.State != "MERGED" {
 			return fmt.Errorf("pull request #%s is %s, not merged", pr, strings.ToLower(p.State))
 		}
-		if _, err := git("merge-base", "--is-ancestor", p.HeadRefOid, "HEAD"); err != nil {
-			return fmt.Errorf("pull request #%s's last commit isn't in main", pr)
+		// The merge commit, not the PR's own head: a squash or rebase merge
+		// leaves the head out of main.
+		if p.MergeCommit.Oid == "" {
+			return fmt.Errorf("pull request #%s has no merge commit", pr)
+		}
+		if _, err := git("merge-base", "--is-ancestor", p.MergeCommit.Oid, "HEAD"); err != nil {
+			return fmt.Errorf("pull request #%s's merge commit isn't in main", pr)
 		}
 	}
 
@@ -92,18 +100,15 @@ func cut(tag string, pr string, dry bool) error {
 		return nil
 	}
 
-	step("committing Version %s", num)
 	changed, err := bumpVersionFile("build/windows/info.json", num)
 	if err != nil {
 		return err
 	}
 	if changed {
-		if _, err := git("commit", "-q", "-am", "Version "+num); err != nil {
+		step("bumping the version to %s through a pull request", num)
+		if err := bumpViaPR(tag, num); err != nil {
 			return err
 		}
-	}
-	if _, err := git("push", "-q", "origin", "main"); err != nil {
-		return fmt.Errorf("pushing main: %w", err)
 	}
 	head, _ = git("rev-parse", "HEAD")
 
@@ -134,6 +139,82 @@ func cut(tag string, pr string, dry bool) error {
 
 	step("signing and publishing %s", tag)
 	return publish(tag)
+}
+
+// bumpViaPR commits the already edited build/windows/info.json on a branch,
+// opens a pull request, waits for it to merge (squash, once CI passes) and
+// brings main level with origin/main again. A run that stops in between can
+// be started again: it picks up from main, with the bump merged or not.
+func bumpViaPR(tag, num string) (err error) {
+	branch := "release/" + tag
+	if out, _ := git("ls-remote", "--heads", "origin", branch); out != "" {
+		return fmt.Errorf("the branch %s exists already; merge or delete its pull request and run again", branch)
+	}
+	if _, err := git("checkout", "-q", "-b", branch); err != nil {
+		return err
+	}
+	defer func() {
+		if _, e := git("checkout", "-q", "main"); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if _, err := git("commit", "-q", "-am", "Version "+num); err != nil {
+		return err
+	}
+	if _, err := git("push", "-q", "-u", "origin", branch); err != nil {
+		return err
+	}
+	if err := gh("pr", "create", "--repo", repo, "--base", "main", "--head", branch,
+		"--title", "Version "+num, "--body", "Version bump for the "+tag+" release."); err != nil {
+		return err
+	}
+	if err := gh("pr", "merge", branch, "--repo", repo, "--auto", "--squash"); err != nil {
+		return err
+	}
+
+	deadline := time.Now().Add(40 * time.Minute)
+	for {
+		var p struct {
+			State string `json:"state"`
+		}
+		if err := ghJSON(&p, "pr", "view", branch, "--repo", repo, "--json", "state"); err != nil {
+			return err
+		}
+		done, err := prDone(p.State)
+		if err != nil {
+			return err
+		}
+		if done {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the pull request for %s didn't merge in 40 minutes", branch)
+		}
+		time.Sleep(20 * time.Second)
+	}
+
+	if _, err := git("checkout", "-q", "main"); err != nil {
+		return err
+	}
+	if _, err := git("fetch", "--quiet", "origin", "main"); err != nil {
+		return err
+	}
+	if _, err := git("merge", "--ff-only", "-q", "origin/main"); err != nil {
+		return err
+	}
+	git("branch", "-D", branch)
+	return nil
+}
+
+// prDone reports whether a pull request has merged; a closed one never will.
+func prDone(state string) (bool, error) {
+	switch state {
+	case "MERGED":
+		return true, nil
+	case "CLOSED":
+		return false, errors.New("the version pull request was closed without merging")
+	}
+	return false, nil
 }
 
 var reTag = regexp.MustCompile(`^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.]+)?$`)

@@ -19,21 +19,19 @@ From v1.1, every release is signed with Seaglass's **release key**, an ed25519 k
 ## Steps
 
 1. Merge the release branch into `main` and write `docs/releases/vX.Y.Z.md` (on the branch, or on `main` before the next step).
-2. `main` only takes pull requests, so the version bump goes in through one: set the version in `build/windows/info.json` to X.Y.Z on a branch, open a PR "Version X.Y.Z" and let it merge. Then, from a clean `main`, level with GitHub:
+2. From a clean `main`, level with GitHub:
 
    ```bash
-   go run ./tools/release cut vX.Y.Z
+   go run ./tools/release cut vX.Y.Z --pr <number>
    ```
-
-   Leave out `--pr` when the PR was squash-merged: the check wants the PR's last commit in `main`, which a squash never leaves there.
 
    It stops at the first check that fails, before anything that can't be undone:
    - the tag is a version, its notes exist, and it isn't used yet;
    - the working tree is clean, on `main`, level with `origin/main`;
-   - with `--pr`, the pull request is merged and its last commit is in `main`;
+   - with `--pr`, the pull request is merged and its merge commit is in `main`;
    - CI passed for `main`'s head (it waits while CI runs).
 
-   Then it commits "Version X.Y.Z" (`build/windows/info.json`) only if the file isn't bumped yet (that commit can't be pushed to `main` any more, so bump it in the PR), pushes, tags, checks the tag on GitHub, waits for CI to build, test (including an install/uninstall smoke test) and code-sign the tag into a **draft** release, and runs `publish` (below). `--dry-run` does the checks only.
+   Then it puts "Version X.Y.Z" (`build/windows/info.json`) into `main` through a pull request (`release/vX.Y.Z`, squash-merged once CI passes, because `main` takes nothing else; skipped if the file already has the version), tags, checks the tag on GitHub, waits for CI to build, test (including an install/uninstall smoke test) and code-sign the tag into a **draft** release, and runs `publish` (below). `--dry-run` does the checks only.
 3. `publish` downloads the draft's files, checks them against the `.sha256` CI made, prints the hashes, writes `SHA256SUMS` and `SHA256SUMS.sig`, uploads them, publishes the release (as *latest* unless it's a preview like `v1.2.0-beta.1`), and verifies the published signature. It can also be run on its own: `go run ./tools/release publish vX.Y.Z`.
 4. Optional: compare the printed hashes with the CI run's *Checksums* step. The signature says "the maintainer approved exactly these files"; it can't tell whether CI built the right thing.
 5. Check that `docs/CHANGELOG.md` has the version and `docs/ROADMAP.md` no longer lists what it finished (both belong in the release's pull request).
