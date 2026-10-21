@@ -5,7 +5,6 @@ frontend/dist
 frontend/node_modules
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 # Local tool settings (absolute paths on one machine)
-.claude/
 tools/harness/node_modules
 # Builds go to bin/; a built exe never belongs in the repository.
 /*.exe
