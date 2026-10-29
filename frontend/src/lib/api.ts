@@ -15,6 +15,12 @@ export interface Api {
   rename(id: number, title: string): Promise<Game>;
   confirmMatch(id: number): Promise<Game>;
   chooseExe(id: number): Promise<Game>;
+  /** Picks a program for the launch options without saving it ("" when cancelled). */
+  pickProgram(id: number): Promise<string>;
+  /** The game's program (its own, or the one just picked), the arguments it starts with, and ones that make it close the game ("" for none). Saved once the person confirms them in a Windows dialog. */
+  setLaunch(id: number, exe: string, args: string, quitArgs: string): Promise<Game>;
+  /** Back to starting the game the way the scan found (a console game: its emulator). */
+  resetLaunch(id: number): Promise<Game>;
   openFolder(id: number): Promise<void>;
   /** Asks the game's store to install it. */
   install(id: number): Promise<void>;

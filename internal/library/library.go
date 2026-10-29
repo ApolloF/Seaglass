@@ -33,14 +33,20 @@ type Game struct {
 	Repacker    string `json:"repacker,omitempty"`
 	DRMFree     string `json:"drmFree,omitempty"`
 
-	Installed  bool   `json:"installed"`
-	PadHint    string `json:"padHint,omitempty"` // the game ships libScePad or SDL
-	Dir        string `json:"dir"`
-	Exe        string `json:"exe,omitempty"`
-	Args       string `json:"args,omitempty"`
-	WorkDir    string `json:"workDir,omitempty"`
-	LaunchURI  string `json:"launchUri,omitempty"`
-	UserExe    bool   `json:"userExe,omitempty"`    // the user picked the executable; scans leave it alone
+	Installed bool   `json:"installed"`
+	PadHint   string `json:"padHint,omitempty"` // the game ships libScePad or SDL
+	Dir       string `json:"dir"`
+	Exe       string `json:"exe,omitempty"`
+	Args      string `json:"args,omitempty"`
+	WorkDir   string `json:"workDir,omitempty"`
+	LaunchURI string `json:"launchUri,omitempty"`
+	UserExe   bool   `json:"userExe,omitempty"` // the user picked the executable; scans leave it alone
+	// QuitArgs make the game's program close the game (a launcher's or
+	// script's quit command) instead of Seaglass ending it.
+	QuitArgs string `json:"quitArgs,omitempty"`
+	// UserArgs: the user set Args and QuitArgs; scans leave them alone,
+	// with the program the scan found (UserExe keeps that too).
+	UserArgs   bool   `json:"userArgs,omitempty"`
 	Owned      bool   `json:"owned,omitempty"`      // a connected store account owns it
 	InstallURI string `json:"installUri,omitempty"` // asks the store to install it
 	SizeBytes  int64  `json:"sizeBytes,omitempty"`
@@ -74,7 +80,34 @@ type Game struct {
 	// can be in several.
 	Collections []string `json:"collections,omitempty"`
 
+	// Console is set for a console game played on an emulator.
+	Console *Console `json:"console,omitempty"`
+
 	Meta *Meta `json:"meta,omitempty"`
+}
+
+// Console is what's known about a console game played on an emulator.
+// The game's Exe and Args start the emulator with it.
+type Console struct {
+	Platform string `json:"platform"` // "PS3", "GameCube", "Wii", "Wii U"
+	Emulator string `json:"emulator"` // "RPCS3", "Dolphin", "Cemu"
+	// EmuDir is the emulator's folder: its processes are the game while
+	// it runs, whatever started it.
+	EmuDir string `json:"emuDir"`
+	File   string `json:"file"`             // what the emulator boots
+	Serial string `json:"serial,omitempty"` // BLES01689, RMCE01, …
+	// Title is the game's name without the serial a second copy gets,
+	// for looking up its art.
+	Title string `json:"title"`
+	// How the emulator starts it, for going back to that after the user
+	// picked another program.
+	Exe  string `json:"exe"`
+	Args string `json:"args"`
+	// Pictures that came with the game or the emulator downloaded, for
+	// when the art sources have none (local PNG files).
+	Cover    string `json:"cover,omitempty"`
+	Backdrop string `json:"backdrop,omitempty"`
+	Icon     string `json:"icon,omitempty"`
 }
 
 // Meta is store metadata and art, filled in by the metadata service.
@@ -126,6 +159,7 @@ type Found struct {
 	StorePlaytime               int64
 	StoreLastPlayed             int64
 	PadHint                     string
+	Console                     *Console
 }
 
 type fileData struct {
@@ -289,6 +323,13 @@ func (s *Store) SetPlayed(fn func(g *Game) (playtime, lastPlayed int64, ok bool)
 // refreshed; games no longer found are kept (with their playtime) but
 // marked not installed. User choices are never overwritten.
 func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
+	return s.ApplyScanOf(found, now, nil)
+}
+
+// ApplyScanOf is ApplyScan for a scan that looked only for the games
+// whose key looked reports (nil: all of them). Games it didn't look for
+// stay as they are when it doesn't find them.
+func (s *Store) ApplyScanOf(found []Found, now time.Time, looked func(key string) bool) (added, removed int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ts := now.Unix()
@@ -324,7 +365,11 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		g.EmuDir = f.EmuDir
 		g.Installed, g.Dir, g.LaunchURI, g.SizeBytes = true, f.Dir, f.LaunchURI, f.SizeBytes
 		if !g.UserExe {
+			args := g.Args
 			g.Exe, g.Args, g.WorkDir = f.Exe, f.Args, f.WorkDir
+			if g.UserArgs {
+				g.Args = args
+			}
 		}
 		if !g.Confirmed && !byStore {
 			if g.SteamAppID != f.SteamAppID && g.Meta != nil {
@@ -335,6 +380,11 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		}
 		g.EpicApp, g.How, g.SeenAt = f.EpicApp, f.How, ts
 		g.PadHint = f.PadHint
+		g.Console = nil
+		if f.Console != nil {
+			c := *f.Console
+			g.Console = &c
+		}
 		if g.Owned {
 			// The owned sync may know more (GOG Galaxy, Steam's web API);
 			// store playtime only goes up.
@@ -344,7 +394,7 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		}
 	}
 	for k, g := range s.byKey {
-		if !seen[k] && g.Installed {
+		if !seen[k] && g.Installed && (looked == nil || looked(k)) {
 			g.Installed = false
 			removed++
 		}
@@ -417,6 +467,10 @@ func writeAtomic(path string, b []byte) error {
 func copyGame(g *Game) Game {
 	c := *g
 	c.Collections = append([]string(nil), g.Collections...)
+	if g.Console != nil {
+		k := *g.Console
+		c.Console = &k
+	}
 	if g.Meta != nil {
 		m := *g.Meta
 		m.Developers = append([]string(nil), g.Meta.Developers...)

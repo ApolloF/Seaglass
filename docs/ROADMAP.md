@@ -18,6 +18,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 - **Theme packs**: user themes as token sets only (no JavaScript), on top of the per-layout CSS tokens.
 - **Memory while playing**: the goal was a Go core under 50 MB with the interface closed. 1.1 got it from 79 MB to 62 MB; a bare Wails v3 app is 46 MB here, so what's left of ours is ~16 MB, nearly all the game database index. An interned or on-disk index would be the next step.
 - **Wails**: v3 is still beta; keep the pin, and when upgrading recheck the single-instance mutex name, event payloads and bindings.
+- **More emulators**: RetroArch (its playlists), Ryujinx, PCSX2, DuckStation and PPSSPP, each one `emulator` value in `internal/emulated`. Also: RPCS3's and Cemu's own playtime and trophies, and Dolphin's compressed GCZ images (only named by file today).
 - **Syncer** (in Syncer's repo): use `gamekit/steam.Accounts`, and let games the launcher registers feed Syncer's discovery (for now they only help `gameStatus`).
 
 ## Goals
@@ -28,7 +29,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 - Syncer integration: save status per game, sync before launch, back up after exit, conflicts, and each person's playtime, achievements and settings following them between PCs.
 - Pretty, responsive, secure and light: the interface unloads while you play.
 
-**Not planned:** downloading or modifying games, or anything that bypasses copy protection (Seaglass only manages what's installed). Also not planned for now: emulators and ROMs, macOS or Linux, importing from Playnite.
+**Not planned:** downloading or modifying games, or anything that bypasses copy protection (Seaglass only manages what's installed). Also not planned for now: macOS or Linux, importing from Playnite. Console games on emulators are in (1.13), for the emulators and games already on the PC: Seaglass doesn't download, set up or configure emulators, BIOS files, keys or games.
 
 ## Decisions
 
@@ -41,6 +42,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 | Shared code | `github.com/ApolloF/gamekit` (public, MIT): VDF (text and binary), Steam (folder, libraries, installed apps, account, Authenticode, tamper and emulator checks) and the Ludusavi manifest parser. Store detection (Epic, GOG, Xbox, …) stays in each app: Syncer only needs names, Seaglass needs launch details. |
 | Syncer | Stays a separate app with a local API (named pipe, current user only). Needs Syncer 0.11+; see [syncer-api.md](syncer-api.md) |
 | Store games not installed | Optional, **off by default** |
+| Console games | Emulators found on the PC (RPCS3, Dolphin, Cemu) and the games their own settings point at; **on by default**, per PC. Started through the emulator full screen; the emulator handles the controller. Keys of their own (`emu:` + the booted file), so PC games are never touched |
 | Desktop theme | Follows the Windows light or dark setting (Mica). Big picture is always dark. |
 | Releases | Signed with the release key outside GitHub ([RELEASING.md](RELEASING.md)); the updater installs only signed releases |
 | License | AGPL-3.0 (MIT until 1.4) |
@@ -50,7 +52,7 @@ These need the maintainer's accounts or decisions; nothing else can do them.
 - **WebView:** strict CSP with no remote scripts. Navigation away from the app is blocked, devtools and the context menu are off in release, only bound services are exposed, and every value from the UI is validated in Go (paths must resolve inside known roots).
 - **Network:** allowlisted hosts, HTTPS, size limits, and images re-encoded. The only executables ever downloaded are Seaglass's own update from GitHub Releases (checked against the signed `SHA256SUMS`) and Syncer's installer (checked against the SHA-256 GitHub computed on upload, never the same or an older version, and, while Syncer's releases are unsigned, only after a Yes and with the installer's own windows).
 - **Secrets:** the SteamGridDB key, Steam Web API key, Epic token and GOG token are stored with DPAPI and never logged.
-- **Parsers:** VDF, ini, JSON, lnk and ACF files, and emulators' achievement files, are treated as untrusted, with size limits and fuzz tests.
+- **Parsers:** VDF, ini, JSON, lnk and ACF files, emulators' achievement files, and console emulators' settings and game files (PARAM.SFO, disc headers, games.yml, Dolphin.ini, Cemu's XML) are treated as untrusted, with size limits and fuzz tests; walks through their game folders are bounded in time, entries and depth.
 - **Privileges:** Seaglass never elevates itself, and nothing is ever injected into games. The Syncer pipe is current-user only.
 
 ## Performance budget (Ryzen 7 7840HS, 16 GB)

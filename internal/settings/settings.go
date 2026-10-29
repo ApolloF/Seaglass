@@ -17,9 +17,12 @@ import (
 // an older settings file doesn't have them.
 type Settings struct {
 	// Library
-	Folders          []string `json:"folders"`          // extra folders whose subfolders are games
-	AutoFolders      bool     `json:"autoFolders"`      // also look in common game folders on every drive
-	DetectExternal   bool     `json:"detectExternal"`   // recognise games on Steam API emulators and from repacks
+	Folders        []string `json:"folders"`        // extra folders whose subfolders are games
+	AutoFolders    bool     `json:"autoFolders"`    // also look in common game folders on every drive
+	DetectExternal bool     `json:"detectExternal"` // recognise games on Steam API emulators and from repacks
+	// DetectEmulators adds the console games of emulators installed here
+	// (RPCS3, Dolphin, Cemu). Per PC, like the emulators.
+	DetectEmulators  bool     `json:"detectEmulators"`
 	ReviewUncertain  bool     `json:"reviewUncertain"`  // keep low-confidence matches in New on this PC for a check
 	ShowNotInstalled bool     `json:"showNotInstalled"` // list games that aren't installed (anymore)
 	ShowOwned        bool     `json:"showOwned"`        // list games connected store accounts own but aren't installed
@@ -73,16 +76,17 @@ type Settings struct {
 }
 
 // Sources are the libraries that can be hidden, as the interface groups
-// games: by store, then external copies, standalone installs and folders.
+// games: by store, then external copies, standalone installs, folders and
+// console games on emulators.
 var Sources = map[string]bool{
 	"steam": true, "epic": true, "gog": true, "ea": true, "ubisoft": true, "battlenet": true, "xbox": true,
-	"external": true, "standalone": true, "folder": true,
+	"external": true, "standalone": true, "folder": true, "emulated": true,
 }
 
 // Defaults are the settings on first start.
 func Defaults() Settings {
 	return Settings{
-		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectExternal: true, ReviewUncertain: true,
+		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectExternal: true, DetectEmulators: true, ReviewUncertain: true,
 		Theme: "system", BigPictureLayout: "deck",
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,
@@ -119,6 +123,10 @@ type Portable struct {
 	Achievements           bool     `json:"achievements"`
 	ShowHiddenAchievements bool     `json:"showHiddenAchievements"`
 	AutoUpdate             bool     `json:"autoUpdate"`
+	// HideConsoles says whether "emulated" is in HiddenSources. A Seaglass
+	// older than console games drops it from the list, and doesn't send
+	// this: then the console games stay hidden or shown as they were.
+	HideConsoles bool `json:"hideConsoles"`
 }
 
 // Portable returns the settings that go with a person.
@@ -131,8 +139,12 @@ func (v Settings) Portable() Portable {
 		NoticeExternal: v.NoticeExternal, SyncSavesBefore: v.SyncSavesBefore, BackupSavesAfter: v.BackupSavesAfter,
 		SyncWait: v.SyncWait, Achievements: v.Achievements,
 		ShowHiddenAchievements: v.ShowHiddenAchievements, AutoUpdate: v.AutoUpdate,
+		HideConsoles: slices.Contains(v.HiddenSources, consoles),
 	}
 }
+
+// consoles is the source of console games on emulators.
+const consoles = "emulated"
 
 // WithPortable returns v with another PC's portable settings, given as
 // JSON. Settings the JSON doesn't have (an older Seaglass saved it) stay
@@ -145,6 +157,13 @@ func (v Settings) WithPortable(b []byte) (Settings, error) {
 	var keys map[string]json.RawMessage
 	if json.Unmarshal(b, &keys) == nil {
 		legacyExternal(&p.DetectExternal, keys)
+	}
+	if _, ok := keys["hideConsoles"]; !ok {
+		p.HideConsoles = slices.Contains(v.HiddenSources, consoles)
+	}
+	p.HiddenSources = slices.DeleteFunc(slices.Clone(p.HiddenSources), func(s string) bool { return s == consoles })
+	if p.HideConsoles {
+		p.HiddenSources = append(p.HiddenSources, consoles)
 	}
 	v.DetectExternal, v.ReviewUncertain, v.ShowNotInstalled = p.DetectExternal, p.ReviewUncertain, p.ShowNotInstalled
 	v.ShowOwned, v.HiddenSources, v.Theme = p.ShowOwned, p.HiddenSources, p.Theme

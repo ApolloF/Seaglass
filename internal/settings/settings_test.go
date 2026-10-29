@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -166,5 +167,50 @@ func TestControllerTranslatorSettings(t *testing.T) {
 	steam.PadTranslator = "steam"
 	if normalize(steam).PadTranslator != "steam" {
 		t.Error("steam isn't kept")
+	}
+}
+
+// Console games are a new library: on for settings saved before it
+// existed, per PC, and its library can be hidden like the others.
+func TestEmulatedGamesSettings(t *testing.T) {
+	old := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(old, []byte(`{"detectExternal":false,"hiddenSources":["emulated"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v := Open(old).Get()
+	if !v.DetectEmulators || len(v.HiddenSources) != 1 || v.HiddenSources[0] != "emulated" {
+		t.Fatalf("got %+v", v)
+	}
+	off := Defaults()
+	off.DetectEmulators = false
+	b, _ := json.Marshal(off.Portable())
+	if got, _ := Defaults().WithPortable(b); !got.DetectEmulators {
+		t.Fatal("another PC turned this PC's emulators off")
+	}
+}
+
+// A Seaglass older than console games drops "emulated" from the hidden
+// sources it sends: console games hidden here stay hidden. One that knows
+// them shows or hides them on every PC.
+func TestHiddenConsolesSurviveAnOlderPC(t *testing.T) {
+	here := Defaults()
+	here.HiddenSources = []string{"emulated", "gog"}
+	old := []byte(`{"hiddenSources":["steam"],"theme":"dark"}`)
+	got, err := here.WithPortable(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got.HiddenSources, []string{"steam", "emulated"}) {
+		t.Fatalf("hidden %v", got.HiddenSources)
+	}
+	shown := Defaults()
+	shown.HiddenSources = []string{"epic"}
+	b, _ := json.Marshal(shown.Portable())
+	if got, _ := here.WithPortable(b); !slices.Equal(got.HiddenSources, []string{"epic"}) {
+		t.Fatalf("shown on the other PC: %v", got.HiddenSources)
+	}
+	b, _ = json.Marshal(here.Portable())
+	if got, _ := Defaults().WithPortable(b); !slices.Contains(got.HiddenSources, "emulated") {
+		t.Fatalf("hidden on the other PC: %v", got.HiddenSources)
 	}
 }

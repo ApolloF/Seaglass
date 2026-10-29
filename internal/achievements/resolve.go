@@ -79,6 +79,9 @@ func gogGame(g library.Game) bool {
 
 // emulated reports whether the game's achievements come from emulator files.
 func emulated(g library.Game) bool {
+	if g.Console != nil {
+		return false
+	}
 	switch g.Source {
 	case "steam", "epic", "gog":
 		return g.External
@@ -132,6 +135,9 @@ func Resolve(ctx context.Context, g library.Game, d Deps) (l *List, net bool) {
 	app := steamApp(g)
 	steamIDs := false // the items are keyed by Steam's API names
 	switch {
+	case g.Console != nil:
+		// Console games' trophies are in the emulator's own files.
+		l.Hint = "Seaglass can't read " + g.Console.Emulator + "'s achievements yet."
 	case gogGame(g):
 		net = resolveGOG(ctx, g, d, l)
 	case emulated(g):

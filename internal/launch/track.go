@@ -50,6 +50,9 @@ type tracker struct {
 	rootStarted uint64
 	known       map[uint32]*procInfo
 	image       func(pid uint32) (string, uint64, error)
+	// before are the processes that ran before the game was started (id
+	// to name), with Plan.FolderOnly: they aren't the game.
+	before map[uint32]string
 }
 
 func newTracker(dirs []string, root, self uint32, image func(uint32) (string, uint64, error)) *tracker {
@@ -72,6 +75,9 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 	// Folder rule: look up each new process's exe once.
 	for _, p := range ps {
 		if p.PID == 0 || p.PID == 4 || p.PID == t.self {
+			continue
+		}
+		if name, ok := t.before[p.PID]; ok && strings.EqualFold(name, p.Name) {
 			continue
 		}
 		// A known id that now lists another exe was handed out again

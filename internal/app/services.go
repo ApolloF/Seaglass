@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ApolloF/Seaglass/internal/library"
 	"github.com/ApolloF/Seaglass/internal/logx"
@@ -103,6 +105,19 @@ func (s *LibraryService) ChooseExe(id int64) (library.Game, error) {
 	if !ok {
 		return g, library.ErrNotFound
 	}
+	p, err := pickProgram(g)
+	if err != nil || p == "" {
+		return g, err
+	}
+	return s.update(id, func(g *library.Game) {
+		g.Exe, g.Args, g.WorkDir, g.UserExe, g.LaunchURI = p, "", filepath.Dir(p), true, ""
+		g.QuitArgs, g.UserArgs = "", false // they were the other program's
+	})
+}
+
+// pickProgram asks for the program that starts g in Windows' own file
+// picker; "" when the person cancels.
+func pickProgram(g library.Game) (string, error) {
 	d := application.Get().Dialog.OpenFile().
 		SetTitle("Choose the program that starts "+g.DisplayTitle()).
 		CanChooseFiles(true).CanChooseDirectories(false).
@@ -112,15 +127,126 @@ func (s *LibraryService) ChooseExe(id int64) (library.Game, error) {
 	}
 	p, err := d.PromptForSingleSelection()
 	if err != nil || p == "" {
-		return g, err
+		return "", err
 	}
 	p = filepath.Clean(p)
 	if !strings.EqualFold(filepath.Ext(p), ".exe") || !platform.IsFile(p) {
-		return g, errors.New("please choose a program (.exe)")
+		return "", errors.New("please choose a program (.exe)")
 	}
+	return p, nil
+}
+
+// PickProgram lets the user pick a program for the game's launch options
+// without saving it: SetLaunch takes it when they save. "" when they
+// cancel.
+func (s *LibraryService) PickProgram(id int64) (string, error) {
+	g, ok := s.c.Lib.Get(id)
+	if !ok {
+		return "", library.ErrNotFound
+	}
+	p, err := pickProgram(g)
+	if err == nil && p != "" {
+		s.c.picked.Store(id, p)
+	}
+	return p, err
+}
+
+// plainText reports whether s shows as what it is: valid UTF-8 without
+// control or format characters (line breaks, right-to-left marks), so
+// the confirmation shows exactly what runs.
+func plainText(s string) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return false
+		}
+	}
+	return true
+}
+
+// errNotSaved is a launch change the person didn't confirm.
+var errNotSaved = errors.New("not saved")
+
+// confirmLaunch shows the command lines a launch change makes Seaglass
+// run in a Windows dialog, which the interface can't answer for the
+// person; tests stand in for it.
+var confirmLaunch = askYesNo
+
+// SetLaunch sets the program that starts the game (exe: the one it has,
+// or the one PickProgram just picked), its command-line arguments, and
+// the ones that make it close the game again (quitArgs, "" for none:
+// then Seaglass ends the game itself). Scans keep them. The person
+// confirms the exact command lines in a Windows dialog first. A console
+// game can be started through a launcher or script this way (a figure
+// portal's boot script, say).
+func (s *LibraryService) SetLaunch(id int64, exe, args, quitArgs string) (library.Game, error) {
+	args, quitArgs = strings.TrimSpace(args), strings.TrimSpace(quitArgs)
+	for _, a := range []string{args, quitArgs} {
+		if len(a) > 2000 || !plainText(a) {
+			return library.Game{}, errors.New("arguments must be one line of plain text, at most 2000 characters")
+		}
+	}
+	g, ok := s.c.Lib.Get(id)
+	if !ok {
+		return g, library.ErrNotFound
+	}
+	if g.Exe == "" || g.LaunchURI != "" {
+		return g, errors.New(g.DisplayTitle() + " starts through its store: choose a program first")
+	}
+	exe = strings.TrimSpace(exe)
+	same := exe == "" || strings.EqualFold(filepath.Clean(exe), g.Exe)
+	if same {
+		exe = g.Exe
+	} else {
+		exe = filepath.Clean(exe)
+		if p, ok := s.c.picked.Load(id); !ok || !strings.EqualFold(p.(string), exe) {
+			return g, errors.New("choose the program with Choose program…")
+		}
+		if !strings.EqualFold(filepath.Ext(exe), ".exe") || !platform.IsFile(exe) {
+			return g, errors.New("please choose a program (.exe)")
+		}
+	}
+	if same && args == g.Args && quitArgs == g.QuitArgs {
+		return g, nil
+	}
+	if next := g; quitArgs != "" {
+		next.Exe, next.QuitArgs = exe, quitArgs
+		if !quitsWithArgs(next) {
+			return g, errors.New("quit arguments only work with a launcher or script: the game's own program would start it a second time")
+		}
+	}
+	msg := "Start " + g.DisplayTitle() + " with:\n\n" + platform.CommandLine(exe, args)
+	if quitArgs != "" {
+		msg += "\n\nQuit game runs:\n\n" + platform.CommandLine(exe, quitArgs)
+	}
+	if !confirmLaunch("Save launch options?", msg) {
+		return g, errNotSaved
+	}
+	s.c.picked.Delete(id)
 	return s.update(id, func(g *library.Game) {
-		g.Exe, g.Args, g.WorkDir, g.UserExe, g.LaunchURI = p, "", filepath.Dir(p), true, ""
+		if !same {
+			g.Exe, g.WorkDir, g.UserExe, g.LaunchURI = exe, filepath.Dir(exe), true, ""
+		}
+		g.Args, g.QuitArgs, g.UserArgs = args, quitArgs, true
 	})
+}
+
+// ResetLaunch goes back to starting the game the way the scan found
+// (a console game: its emulator), forgetting the chosen program and
+// arguments.
+func (s *LibraryService) ResetLaunch(id int64) (library.Game, error) {
+	g, err := s.update(id, func(g *library.Game) {
+		g.UserExe, g.UserArgs, g.QuitArgs = false, false, ""
+		if k := g.Console; k != nil {
+			g.Exe, g.Args, g.WorkDir = k.Exe, k.Args, k.EmuDir
+		}
+	})
+	if err == nil && g.Console == nil {
+		s.c.RequestScan() // the scan finds the game's own program again
+	}
+	return g, err
 }
 
 // Install asks the game's store to install it (owned, not installed).
@@ -344,11 +470,18 @@ func (c *Core) saveSettings(v settings.Settings) (settings.Settings, error) {
 	if saved.AutoUpdate && !old.AutoUpdate {
 		NewUpdateService(c).Check()
 	}
-	if !sameStrings(old.Folders, saved.Folders) || old.AutoFolders != saved.AutoFolders ||
-		old.DetectExternal != saved.DetectExternal || old.ReviewUncertain != saved.ReviewUncertain {
+	if needsRescan(old, saved) {
 		c.RequestScan()
 	}
 	return saved, nil
+}
+
+// needsRescan reports whether changing settings old to saved changes
+// what a scan finds.
+func needsRescan(old, saved settings.Settings) bool {
+	return !sameStrings(old.Folders, saved.Folders) || old.AutoFolders != saved.AutoFolders ||
+		old.DetectExternal != saved.DetectExternal || old.ReviewUncertain != saved.ReviewUncertain ||
+		old.DetectEmulators != saved.DetectEmulators
 }
 
 // AddFolder asks for a folder whose subfolders are games and adds it.

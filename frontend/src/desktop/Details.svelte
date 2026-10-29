@@ -23,6 +23,7 @@
   const gid = $derived(game.id);
   const installed = $derived(game.installed);
   const owned = $derived(!!game.owned);
+  const isConsole = $derived(!!game.console);
   const logo = $derived(game.meta?.logo);
   const phase = $derived(lib.session?.phase);
 
@@ -72,7 +73,7 @@
   const savesInfo = $derived(savesSummary(saves));
   $effect(() => {
     const id = gid;
-    const inst = installed;
+    const inst = installed && !isConsole; // Syncer doesn't know console games
     phase; // ask again once a game session ends
     saves = null;
     if (!inst) return;
@@ -175,6 +176,35 @@
     await lib.run(() => api.launch.quitGame());
   }
 
+  // Launch options: the program's arguments, and ones that make it close
+  // the game (a launcher or script that wants to be told).
+  let launchOpen = $state(false);
+  let exeDraft = $state("");
+  let argsDraft = $state("");
+  let quitDraft = $state("");
+  $effect(() => {
+    gid;
+    launchOpen = false;
+  });
+  function openLaunch() {
+    menuOpen = false;
+    exeDraft = game.exe ?? "";
+    argsDraft = game.args ?? "";
+    quitDraft = game.quitArgs ?? "";
+    launchOpen = true;
+  }
+  async function saveLaunch() {
+    if ((await lib.run(() => api.setLaunch(game.id, exeDraft, argsDraft, quitDraft))) !== undefined) launchOpen = false;
+  }
+  async function resetLaunch() {
+    if ((await lib.run(() => api.resetLaunch(game.id))) !== undefined) launchOpen = false;
+  }
+  // The program picked here is saved with the rest, or dropped on Cancel.
+  async function chooseLaunchExe() {
+    const p = await lib.run(() => api.pickProgram(game.id));
+    if (p) (exeDraft = p), (argsDraft = ""), (quitDraft = "");
+  }
+
   function onmenukey(e: KeyboardEvent) {
     if (e.key === "Escape") menuOpen = false;
   }
@@ -257,6 +287,9 @@
             {#if game.installed}
               <button type="button" role="menuitem" onclick={() => ((menuOpen = false), lib.run(() => api.openFolder(game.id)))}><Icon name="folder" size={18} />Open folder</button>
               <button type="button" role="menuitem" onclick={() => ((menuOpen = false), lib.run(() => api.chooseExe(game.id)))}><Icon name="file" size={18} />Choose program…</button>
+              {#if game.exe && !game.launchUri}
+                <button type="button" role="menuitem" onclick={openLaunch}><Icon name="pencil" size={18} />Launch options…</button>
+              {/if}
             {/if}
             <button type="button" role="menuitem" onclick={startRename}><Icon name="pencil" size={18} />Rename</button>
             <button type="button" role="menuitem" onclick={() => ((menuOpen = false), (matching = true))}><Icon name="link" size={18} />Change game…</button>
@@ -323,6 +356,35 @@
       </div>
     </div>
 
+    {#if launchOpen}
+      <form class="card launch" onsubmit={(e) => (e.preventDefault(), saveLaunch())}>
+        <div class="card-head">
+          <Icon name="file" size={22} stroke={1.8} />
+          <span class="grow">Launch options</span>
+        </div>
+        <div class="prog">
+          <span class="ellipsis" title={exeDraft}>{exeDraft.split("\\").pop()}</span>
+          <button type="button" class="btn small" onclick={chooseLaunchExe}>Choose program…</button>
+        </div>
+        <label class="field">
+          <span>Arguments</span>
+          <input bind:value={argsDraft} spellcheck="false" autocomplete="off" maxlength="2000" />
+        </label>
+        <label class="field">
+          <span>Arguments to quit the game</span>
+          <input bind:value={quitDraft} spellcheck="false" autocomplete="off" maxlength="2000" placeholder="None: Seaglass closes the game itself" />
+        </label>
+        <p>Quit game runs the program again with these, then closes the game itself if it's still running 20 seconds later.</p>
+        <div class="row">
+          <button type="submit" class="btn primary">Save</button>
+          <button type="button" class="btn" onclick={() => (launchOpen = false)}>Cancel</button>
+          {#if game.userExe || game.userArgs}
+            <button type="button" class="btn" onclick={resetLaunch}>{game.console ? `Start with ${game.console.emulator}` : "Use the program found"}</button>
+          {/if}
+        </div>
+      </form>
+    {/if}
+
     {#if game.installed}
       <div class="card">
         <div class="card-head">
@@ -336,25 +398,27 @@
         </div>
         <p>{padNote}</p>
       </div>
-      <div class="card saves" class:warn={savesInfo?.tone === "warn"}>
-        <div class="card-head">
-          <Icon name="cloudCheck" size={22} stroke={1.8} />
-          <span class="grow">Saves</span>
-          {#if savesInfo?.action === "get"}
-            <button type="button" class="btn small" disabled={installingSyncer} onclick={installSyncer}
-              >{installingSyncer ? "Installing…" : saves?.outdated ? "Update Syncer" : "Install Syncer"}</button
-            >
-          {:else if savesInfo?.action === "open"}
-            <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.openSyncer())}>Open Syncer</button>
+      {#if !game.console}
+        <div class="card saves" class:warn={savesInfo?.tone === "warn"}>
+          <div class="card-head">
+            <Icon name="cloudCheck" size={22} stroke={1.8} />
+            <span class="grow">Saves</span>
+            {#if savesInfo?.action === "get"}
+              <button type="button" class="btn small" disabled={installingSyncer} onclick={installSyncer}
+                >{installingSyncer ? "Installing…" : saves?.outdated ? "Update Syncer" : "Install Syncer"}</button
+              >
+            {:else if savesInfo?.action === "open"}
+              <button type="button" class="btn small" onclick={() => lib.run(() => api.saves.openSyncer())}>Open Syncer</button>
+            {/if}
+          </div>
+          {#if savesInfo}
+            <strong class="saves-line">{savesInfo.text}</strong>
+            <p>{savesInfo.detail}</p>
+          {:else}
+            <p>Asking Syncer…</p>
           {/if}
         </div>
-        {#if savesInfo}
-          <strong class="saves-line">{savesInfo.text}</strong>
-          <p>{savesInfo.detail}</p>
-        {:else}
-          <p>Asking Syncer…</p>
-        {/if}
-      </div>
+      {/if}
     {/if}
 
     {#if achOn && (game.installed || game.owned) && !(ach && ach.total === 0 && !ach.source)}
@@ -394,13 +458,17 @@
       <dt>Identified</dt>
       <dd>{game.matchHow}{game.confidence < 100 ? ` (${game.confidence}% sure)` : ""}</dd>
       {#if game.emulator}<dt>Emulator</dt><dd>{game.emulator}</dd>{/if}
+      {#if game.console}
+        <dt>Plays on</dt>
+        <dd>{game.console.emulator}{game.console.serial ? ` · ${game.console.serial}` : ""}</dd>
+      {/if}
       {#if game.repacker}<dt>Installer</dt><dd>{game.repacker}</dd>{/if}
       {#if game.steamAppId}<dt>Steam app</dt><dd>{game.steamAppId}</dd>{/if}
       {#if game.installed}
         <dt>Folder</dt>
         <dd><button type="button" class="link ellipsis" title={game.dir} onclick={() => lib.run(() => api.openFolder(game.id))}>{game.dir}</button></dd>
         <dt>Starts</dt>
-        <dd class="ellipsis" title={game.launchUri || game.exe}>{game.launchUri ? game.launchUri.split("?")[0] : game.exe ? game.exe.split("\\").pop() : "Nothing found yet"}</dd>
+        <dd class="ellipsis" title={game.launchUri || [game.exe, game.args].filter(Boolean).join(" ")}>{game.launchUri ? game.launchUri.split("?")[0] : game.exe ? game.exe.split("\\").pop() : "Nothing found yet"}</dd>
       {/if}
       {#if game.sizeBytes}<dt>Size</dt><dd>{bytes(game.sizeBytes)}</dd>{/if}
     </dl>
@@ -702,6 +770,37 @@
     color: var(--text);
     font: inherit;
     font-size: 13px;
+  }
+  .launch .prog {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .launch .prog span {
+    flex: 1;
+    min-width: 0;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .field input {
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+  }
+  .field input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   .card p {
     margin: 0;

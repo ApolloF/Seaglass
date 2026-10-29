@@ -34,6 +34,10 @@ type Request struct {
 	// PCGW is the game's PCGamingWiki page when the caller already looked
 	// it up; otherwise Fetch looks it up by Title.
 	PCGW *PCGW
+	// Console is set for a console game on an emulator: PC stores and
+	// PCGamingWiki don't have it, so only SteamGridDB (by Title) and the
+	// pictures that came with the game are used.
+	Console *library.Console
 }
 
 // Fetch gathers metadata and art for one game. Missing pieces are simply
@@ -46,7 +50,7 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 	var errs []error
 	found := false
 	wiki := r.PCGW
-	if wiki == nil {
+	if wiki == nil && r.Console == nil {
 		if p, err := c.PCGamingWiki(ctx, r.Title); err == nil {
 			wiki = p
 		}
@@ -214,6 +218,12 @@ func (c *Client) Fetch(ctx context.Context, r Request) (*library.Meta, error) {
 	m.Backdrop = c.pickBackdrop(ctx, backdrops)
 	m.Logo, logoImg = c.firstImage(ctx, urls.logo, Logo)
 	m.Icon, _ = c.firstImage(ctx, urls.icon, Icon)
+	if r.Console != nil && c.addLocal(m, r.Console, &coverImg, &heroImg) {
+		found = true
+		if m.Source == "" {
+			m.Source = r.Console.Emulator
+		}
+	}
 	if !found {
 		// Only Steam's art files answered (a game its store no longer
 		// lists): that's still worth keeping.

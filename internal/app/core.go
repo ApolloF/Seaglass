@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ApolloF/Seaglass/internal/emulated"
 	"github.com/ApolloF/Seaglass/internal/identify"
 	"github.com/ApolloF/Seaglass/internal/launch"
 	"github.com/ApolloF/Seaglass/internal/library"
@@ -86,6 +87,8 @@ type Core struct {
 	linkDirs atomic.Pointer[map[string]bool]
 	meta     *metaWorker
 	pruned   sync.Once // unused art is cleared once per start
+	consoles consoleSearch
+	picked   sync.Map // game id → the program PickProgram picked, for SetLaunch
 }
 
 // NewCore opens the library and settings.
@@ -99,6 +102,7 @@ func NewCore(version string) (*Core, error) {
 		Version: version, Lib: lib, Settings: settings.Open(settings.DefaultPath()),
 		Manifest: identify.NewManager(platform.CacheDir("manifest")),
 		ctx:      ctx, cancel: cancel, pending: make(chan struct{}, 1),
+		consoles: consoleSearch{find: emulated.Find},
 	}
 	c.meta = newMetaWorker(c)
 	c.Launch = launch.NewManager(c.onSession)
@@ -235,6 +239,12 @@ func (c *Core) scanNow() {
 	defer c.scanMu.Unlock()
 	c.setState(func(s *ScanState) { s.Running, s.Error = true, "" })
 	cfg := c.Settings.Get()
+	// Console games on emulators are looked for alongside the PC games,
+	// which never wait for them (see consoleSearch).
+	var consoles <-chan consoleResult
+	if cfg.DetectEmulators {
+		consoles = c.consoles.start(c.ctx)
+	}
 	res := scan.Run(c.ctx, scan.Options{Folders: cfg.Folders, AutoFolders: cfg.AutoFolders, DetectExternal: cfg.DetectExternal})
 	if c.ctx.Err() != nil {
 		return
@@ -244,7 +254,11 @@ func (c *Core) scanNow() {
 	for _, g := range res.Games {
 		found = append(found, toFound(g, ix.Identify(g), cfg))
 	}
-	added, removed := c.Lib.ApplyScan(found, time.Now())
+	r, ready := consoleResultNow(consoles)
+	for _, g := range r.games {
+		found = append(found, consoleFound(g))
+	}
+	added, removed := c.Lib.ApplyScanOf(found, time.Now(), lookedFor(cfg.DetectEmulators, ready, r.err))
 	logx.Printf("scan: %d games (%d new, %d gone) in %v", len(found), added, removed, res.Took.Round(time.Millisecond))
 	c.setState(func(s *ScanState) {
 		s.Running, s.LastScan, s.TookMs = false, time.Now().Unix(), res.Took.Milliseconds()
@@ -256,6 +270,9 @@ func (c *Core) scanNow() {
 	c.pruned.Do(func() { go c.pruneArt() })
 	if added > 0 || removed > 0 || !c.registered.Load() {
 		go c.registerWithSyncer()
+	}
+	if consoles != nil && !ready {
+		go c.lateConsoles(consoles)
 	}
 }
 
@@ -272,6 +289,25 @@ func toFound(g scan.Candidate, m identify.Match, cfg settings.Settings) library.
 	f.SourceLabel = sourceLabel(g)
 	f.NeedsReview = cfg.ReviewUncertain && m.Confidence < 70 && !g.Source.Store()
 	return f
+}
+
+// SourceEmulator is the library source of console games on emulators.
+const SourceEmulator = "emulator"
+
+// consoleFound turns a console game into a library record. Its key is
+// the file the emulator boots, so it never meets a PC game's folder key.
+// The emulator knows which game it is: there's nothing to identify.
+func consoleFound(g emulated.Game) library.Found {
+	return library.Found{
+		Key: g.Key(), Title: g.Title, SortTitle: scan.SortTitle(g.Title),
+		Source: SourceEmulator, SourceLabel: g.Platform,
+		Dir: g.Dir, Exe: g.Exe, Args: g.Args, WorkDir: g.EmuDir, SizeBytes: g.SizeBytes,
+		How: g.How, MatchHow: "Title from " + g.TitleFrom, Confidence: 100,
+		Console: &library.Console{
+			Platform: g.Platform, Emulator: g.Emulator, EmuDir: g.EmuDir, File: g.File, Serial: g.Serial,
+			Title: g.BaseTitle, Exe: g.Exe, Args: g.Args, Cover: g.Cover, Backdrop: g.Backdrop, Icon: g.Icon,
+		},
+	}
 }
 
 var storeLabels = map[scan.Source]string{

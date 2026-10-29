@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -330,5 +331,71 @@ func TestLegacyUnofficial(t *testing.T) {
 	}
 	if b.External || b.SourceLabel != "Steam" {
 		t.Errorf("b: external %v, label %q", b.External, b.SourceLabel)
+	}
+}
+
+// A console game's details come with every scan; a program and
+// arguments the user chose to start it with stay, and it's saved and
+// read back with the game.
+func TestConsoleGameScan(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	s, _ := Open(path)
+	f := Found{Key: `emu:r:\ps3\a\eboot.bin`, Title: "A", SortTitle: "a", Source: "emulator", SourceLabel: "PS3",
+		Exe: `C:\Emu\rpcs3.exe`, Args: "--no-gui a", Dir: `R:\PS3\A`,
+		Console: &Console{Platform: "PS3", Emulator: "RPCS3", Serial: "BLES00001", Exe: `C:\Emu\rpcs3.exe`, Args: "--no-gui a"}}
+	s.ApplyScan([]Found{f}, time.Now())
+	g := s.Games()[0]
+	if g.Console == nil || g.Console.Serial != "BLES00001" {
+		t.Fatalf("console not kept: %+v", g)
+	}
+	if _, err := s.Update(g.ID, func(g *Game) {
+		g.Exe, g.Args, g.QuitArgs, g.UserExe = `C:\Windows\powershell.exe`, "-File boot.ps1", "-File boot.ps1 -Quit", true
+		g.Console.Serial = "changed through a copy"
+	}); err != nil {
+		t.Fatal(err)
+	}
+	f.Console.Serial = "BLES00002"
+	s.ApplyScan([]Found{f}, time.Now())
+	g, _ = s.Get(g.ID)
+	if g.Exe != `C:\Windows\powershell.exe` || g.Args != "-File boot.ps1" || g.QuitArgs != "-File boot.ps1 -Quit" {
+		t.Fatalf("the user's launch was replaced: %+v", g)
+	}
+	if g.Console.Serial != "BLES00002" {
+		t.Fatalf("scan's details not taken: %+v", g.Console)
+	}
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := Open(path)
+	if g2, _ := r.Get(g.ID); g2.Console == nil || g2.Console.Platform != "PS3" || g2.QuitArgs == "" {
+		t.Fatalf("not read back: %+v", g2)
+	}
+}
+
+// A scan that didn't get to look for console games (their emulators'
+// network drive is slow) leaves them installed; a later look for them
+// alone leaves the PC games alone.
+func TestApplyScanOfLeavesOthersAlone(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "library.json"))
+	pc := Found{Key: `c:\games\hades`, Title: "Hades", SortTitle: "hades", Source: "folder", Dir: `C:\Games\Hades`}
+	emu := Found{Key: `emu:z:\wii u\mk8.wud`, Title: "Mario Kart 8", SortTitle: "mario kart 8", Source: "emulator", Dir: `Z:\Wii U`,
+		Console: &Console{Platform: "Wii U"}}
+	isEmu := func(k string) bool { return strings.HasPrefix(k, "emu:") }
+	s.ApplyScan([]Found{pc, emu}, time.Now())
+
+	if _, removed := s.ApplyScanOf([]Found{pc}, time.Now(), func(k string) bool { return !isEmu(k) }); removed != 0 {
+		t.Fatalf("removed %d", removed)
+	}
+	if _, removed := s.ApplyScanOf(nil, time.Now(), isEmu); removed != 1 {
+		t.Fatalf("console game not gone: removed %d", removed)
+	}
+	for _, g := range s.Games() {
+		if g.Installed != (g.Key == pc.Key) {
+			t.Fatalf("%s installed %v", g.Title, g.Installed)
+		}
+	}
+	// nil looks for everything, as ApplyScan does.
+	if _, removed := s.ApplyScanOf(nil, time.Now(), nil); removed != 1 {
+		t.Fatalf("removed %d", removed)
 	}
 }

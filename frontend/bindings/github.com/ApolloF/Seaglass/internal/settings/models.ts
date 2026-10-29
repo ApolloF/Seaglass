@@ -23,6 +23,12 @@ export interface Settings {
     "detectExternal": boolean;
 
     /**
+     * DetectEmulators adds the console games of emulators installed here
+     * (RPCS3, Dolphin, Cemu). Per PC, like the emulators.
+     */
+    "detectEmulators": boolean;
+
+    /**
      * keep low-confidence matches in New on this PC for a check
      */
     "reviewUncertain": boolean;

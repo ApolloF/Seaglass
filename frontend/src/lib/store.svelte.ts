@@ -32,6 +32,7 @@ export const SOURCE_GROUPS: { id: string; label: string; match: (g: Game) => boo
   { id: "external", label: "External", match: (g) => g.external },
   { id: "standalone", label: "Standalone", match: (g) => !g.external && (g.source === "installer" || g.source === "shortcut") },
   { id: "folder", label: "Folders", match: (g) => !g.external && g.source === "folder" },
+  { id: "emulated", label: "Consoles", match: (g) => !!g.console },
 ];
 
 const WEEK = 7 * 86400;

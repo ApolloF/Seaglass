@@ -180,7 +180,10 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 	// Unknown to the game database: the Steam store usually still knows the
 	// game by name, for art and details. A clear hit also settles which game
 	// it is (unless the user already said), so it doesn't wait for a check.
-	if g.SteamAppID == 0 && g.GogID == "" && (appID == 0 || !g.Confirmed && g.Confidence < storeMatchConfidence) && looksLikeGameName(g.DisplayTitle()) {
+	// (A console game isn't on the PC stores: one with the same name is a
+	// PC game.)
+	pc := g.Console == nil
+	if pc && g.SteamAppID == 0 && g.GogID == "" && (appID == 0 || !g.Confirmed && g.Confidence < storeMatchConfidence) && looksLikeGameName(g.DisplayTitle()) {
 		h, ok, err := w.searchStore(ctx, g.DisplayTitle())
 		if errors.Is(err, meta.ErrRateLimited) {
 			return err
@@ -196,7 +199,7 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 	// including those only Epic sells, and often its Steam app.
 	var wiki *meta.PCGW
 	gogID := g.GogID
-	if appID == 0 && gogID == "" && looksLikeGameName(g.DisplayTitle()) {
+	if pc && appID == 0 && gogID == "" && looksLikeGameName(g.DisplayTitle()) {
 		p, err := w.client.PCGamingWiki(ctx, g.DisplayTitle())
 		if errors.Is(err, meta.ErrRateLimited) {
 			return err
@@ -208,7 +211,14 @@ func (w *metaWorker) fetch(ctx context.Context, id int64) error {
 			}
 		}
 	}
-	m, err := w.client.Fetch(ctx, meta.Request{Title: g.DisplayTitle(), SteamAppID: appID, GogID: gogID, EpicApp: g.EpicApp, Keep: g.Meta, PCGW: wiki})
+	req := meta.Request{Title: g.DisplayTitle(), SteamAppID: appID, GogID: gogID, EpicApp: g.EpicApp, Keep: g.Meta, PCGW: wiki}
+	if !pc {
+		req.Console = g.Console
+		if g.CustomTitle == "" {
+			req.Title = g.Console.Title // without the serial a second copy has
+		}
+	}
+	m, err := w.client.Fetch(ctx, req)
 	if err != nil {
 		if !errors.Is(err, meta.ErrRateLimited) {
 			w.mu.Lock()

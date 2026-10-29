@@ -31,6 +31,7 @@
     external: "oklch(0.78 0.14 60)",
     standalone: "oklch(0.72 0.05 200)",
     folder: "oklch(0.7 0.02 240)",
+    emulated: "oklch(0.72 0.15 350)",
   };
 
   const isActive = (kind: string, source?: string) =>
