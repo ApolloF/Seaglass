@@ -282,16 +282,20 @@ func TestSetLaunch(t *testing.T) {
 		t.Fatalf("args %q", g.Args)
 	}
 	answer = true
-	g, err := s.SetLaunch(id, game, "-windowed", "-quit")
+	g, err := s.SetLaunch(id, game, "-windowed", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g.Args != "-windowed" || g.QuitArgs != "-quit" || g.UserExe || !g.UserArgs || g.Exe != game {
+	if g.Args != "-windowed" || g.UserExe || !g.UserArgs || g.Exe != game {
 		t.Fatalf("game %+v", g)
 	}
-	want := platform.CommandLine(game, "-windowed")
-	if n := len(asked); n != 2 || !strings.Contains(asked[1], want) || !strings.Contains(asked[1], platform.CommandLine(game, "-quit")) {
+	if want := platform.CommandLine(game, "-windowed"); len(asked) != 2 || !strings.Contains(asked[1], want) || strings.Contains(asked[1], "Quit") {
 		t.Fatalf("asked %q, want %q in it", asked, want)
+	}
+	// The game's own program would start a second copy with quit
+	// arguments, so Quit game never runs them: they're refused, unasked.
+	if _, err := s.SetLaunch(id, game, "-windowed", "-quit"); err == nil || len(asked) != 2 {
+		t.Fatalf("quit arguments for the game's own program: err %v, asked %d", err, len(asked))
 	}
 	// A rescan keeps the arguments, with the program it found.
 	c.Lib.ApplyScan([]library.Found{{Key: platform.Key(dir), Title: "G", SortTitle: "g", Source: "folder", Dir: dir, Exe: game, WorkDir: dir}}, time.Now())
@@ -299,7 +303,7 @@ func TestSetLaunch(t *testing.T) {
 		t.Fatalf("rescan: args %q", g.Args)
 	}
 	// Nothing changed: nothing to confirm.
-	if _, err := s.SetLaunch(id, game, "-windowed", "-quit"); err != nil || len(asked) != 2 {
+	if _, err := s.SetLaunch(id, game, "-windowed", ""); err != nil || len(asked) != 2 {
 		t.Fatalf("err %v, asked %d", err, len(asked))
 	}
 	// A program the interface names, but the person didn't pick.
@@ -307,9 +311,12 @@ func TestSetLaunch(t *testing.T) {
 		t.Fatal("took a program that wasn't picked")
 	}
 	c.picked.Store(id, tool)
-	g, err = s.SetLaunch(id, tool, "--go", "")
-	if err != nil || g.Exe != tool || !g.UserExe || g.WorkDir != filepath.Dir(tool) || g.QuitArgs != "" {
+	g, err = s.SetLaunch(id, tool, "--go", "--stop")
+	if err != nil || g.Exe != tool || !g.UserExe || g.WorkDir != filepath.Dir(tool) || g.QuitArgs != "--stop" {
 		t.Fatalf("err %v, game %+v", err, g)
+	}
+	if last := asked[len(asked)-1]; !strings.Contains(last, platform.CommandLine(tool, "--go")) || !strings.Contains(last, platform.CommandLine(tool, "--stop")) {
+		t.Fatalf("asked %q", last)
 	}
 	if _, ok := c.picked.Load(id); ok {
 		t.Fatal("the pick is used up")
@@ -318,6 +325,36 @@ func TestSetLaunch(t *testing.T) {
 	g, err = s.ResetLaunch(id)
 	if err != nil || g.UserExe || g.UserArgs || g.QuitArgs != "" {
 		t.Fatalf("reset: err %v, game %+v", err, g)
+	}
+}
+
+// Arguments that would show differently in the confirmation than they
+// run (a line break, a right-to-left override, an invisible character,
+// broken UTF-8) are refused before anything is asked.
+func TestSetLaunchRefusesHiddenCharacters(t *testing.T) {
+	asked := 0
+	old := confirmLaunch
+	confirmLaunch = func(_, _ string) bool { asked++; return true }
+	t.Cleanup(func() { confirmLaunch = old })
+	c := ctlTestCore(t, false, nil, nil)
+	s := NewLibraryService(c)
+	dir := t.TempDir()
+	game := filepath.Join(dir, "game.exe")
+	if err := os.WriteFile(game, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c.Lib.ApplyScan([]library.Found{{Key: platform.Key(dir), Title: "G", SortTitle: "g", Source: "folder", Dir: dir, Exe: game, WorkDir: dir}}, time.Now())
+	id := c.Lib.Games()[0].ID
+	for _, a := range []string{"-a\n-b", "-a\x7f", "-a\u0085b", "-file \u202egpj.exe", "-a\u200b-b", "-a\u2066x", "-a\xff"} {
+		if _, err := s.SetLaunch(id, "", a, ""); err == nil {
+			t.Errorf("%q taken", a)
+		}
+	}
+	if asked != 0 {
+		t.Fatalf("asked %d times", asked)
+	}
+	if _, err := s.SetLaunch(id, "", `-name "Zoë" -lang 日本語`, ""); err != nil || asked != 1 {
+		t.Fatalf("plain text refused: %v", err)
 	}
 }
 

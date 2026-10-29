@@ -146,7 +146,7 @@ type Plan struct {
 	// waited for up to StarterTimeout rather than DetectTimeout.
 	FolderOnly     bool
 	StarterTimeout time.Duration
-	Before     []Step
+	Before         []Step
 	// Start starts the game. It runs after the Before steps, which may
 	// change what it does (the route). pid is 0 when the game was handed
 	// to a store or Steam.

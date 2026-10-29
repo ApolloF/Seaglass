@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -422,5 +423,31 @@ func TestWalkStopsAtItsBounds(t *testing.T) {
 	w.walk(root{path: dir, depth: maxDepth})
 	if w.stopped == "" || len(w.found) != 0 {
 		t.Fatalf("a walk past its deadline should stop: %q %v", w.stopped, w.found)
+	}
+}
+
+// A walk that runs out of time names the game folders it didn't get
+// through; only games there may have been missed.
+func TestWalkStoppedNamesWhatItMissed(t *testing.T) {
+	root := t.TempDir()
+	emu := filepath.Join(root, "Emu", "Dolphin")
+	a, b := filepath.Join(root, "A"), filepath.Join(root, "B")
+	write(t, a, map[string][]byte{"x.iso": gcDisc("GM4E01", "Mario Kart", false, 0)})
+	write(t, b, map[string][]byte{"y.iso": gcDisc("GALE01", "Melee", false, 0)})
+	ini := "[General]\nISOPaths = 2\nISOPath0 = " + a + "\nISOPath1 = " + b + "\n"
+	write(t, emu, map[string][]byte{"Dolphin.exe": []byte("x"), "portable.txt": []byte(""), "User/Config/Dolphin.ini": []byte(ini)})
+	games, err := find(context.Background(), findInstalls([]string{filepath.Join(root, "Emu")}), time.Now().Add(-time.Second))
+	var w *WalkError
+	if len(games) != 0 || !errors.As(err, &w) || !errors.Is(err, ErrIncomplete) || len(w.Dirs) != 2 {
+		t.Fatalf("games %v, err %v", games, err)
+	}
+	if !Missed(err, "emu:"+platform.Key(filepath.Join(a, "x.iso"))) || Missed(err, `emu:z:\elsewhere\z.iso`) {
+		t.Fatal("missed: only games in the folders not walked")
+	}
+	if Missed(nil, "emu:"+platform.Key(filepath.Join(a, "x.iso"))) || !Missed(ErrIncomplete, `emu:z:\elsewhere\z.iso`) {
+		t.Fatal("nil misses nothing, ErrIncomplete anything")
+	}
+	if games, err = find(context.Background(), findInstalls([]string{filepath.Join(root, "Emu")}), time.Now().Add(time.Minute)); err != nil || len(games) != 2 {
+		t.Fatalf("in time: games %v, err %v", games, err)
 	}
 }

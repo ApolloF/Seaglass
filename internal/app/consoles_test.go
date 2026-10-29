@@ -71,6 +71,12 @@ func TestLookedFor(t *testing.T) {
 			t.Fatal("console games left alone, PC games looked for")
 		}
 	}
+	// A walk that didn't get through R:\Games leaves only the games there
+	// alone: one elsewhere that's gone is marked so.
+	f := lookedFor(true, true, &emulated.WalkError{Dirs: []string{`R:\Games`}})
+	if !f(pc) || f(`emu:r:\games\wii\mkw.wbfs`) || !f(`emu:d:\ps3\a\eboot.bin`) {
+		t.Fatal("only the games in the folders not walked are left alone")
+	}
 }
 
 // Turning console games on or off finds them, or marks them gone, right

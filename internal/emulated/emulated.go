@@ -99,9 +99,40 @@ type emulator struct {
 var emulators = []*emulator{rpcs3, dolphin, cemu}
 
 // ErrIncomplete means Find didn't get to look everywhere (it was
-// cancelled, ran out of time or hit something it couldn't read): games it
-// didn't return may still be there.
+// cancelled or hit something it couldn't read): games it didn't return
+// may still be there.
 var ErrIncomplete = errors.New("console games: not all folders were looked through")
+
+// WalkError is ErrIncomplete for a folder walk that stopped early (out
+// of time, too many files): only games in Dirs, the game folders it
+// didn't get through, may still be there.
+type WalkError struct{ Dirs []string }
+
+func (e *WalkError) Error() string {
+	return ErrIncomplete.Error() + " (" + strings.Join(e.Dirs, ", ") + ")"
+}
+
+func (e *WalkError) Is(target error) bool { return target == ErrIncomplete }
+
+// Missed reports whether a search that ended with err may have missed
+// the console game with library key k, so it's still there although the
+// search didn't return it.
+func Missed(err error, k string) bool {
+	var w *WalkError
+	switch {
+	case err == nil:
+		return false
+	case errors.As(err, &w):
+		file := strings.TrimPrefix(k, keyPrefix)
+		for _, d := range w.Dirs {
+			if platform.Within(d, file) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
 
 // Find returns the console games of the emulators installed on this PC.
 // What can't be read is left out; ErrIncomplete comes with the games it
@@ -130,15 +161,26 @@ func find(ctx context.Context, ins []*install, deadline time.Time) ([]Game, erro
 	for _, g := range games {
 		w.seen[platform.Key(g.File)] = true
 	}
+	var unwalked []string
 	for _, r := range mergeRoots(roots) {
+		if w.stopped != "" {
+			unwalked = append(unwalked, r.path)
+			continue
+		}
 		func() {
 			defer recoverLog("walk "+r.path, &err)
 			w.walk(r)
 		}()
+		if w.stopped != "" {
+			unwalked = append(unwalked, r.path) // part of it, at least
+		}
 	}
 	if w.stopped != "" {
-		logx.Printf("emulated games: folder walk stopped early (%s)", w.stopped)
-		err = ErrIncomplete
+		logx.Printf("emulated games: folder walk stopped early (%s) after %d entries; not through %s",
+			w.stopped, w.entries, strings.Join(unwalked, ", "))
+		if err == nil {
+			err = &WalkError{Dirs: unwalked}
+		}
 	}
 	games = append(games, w.found...)
 	games = collapse(games)

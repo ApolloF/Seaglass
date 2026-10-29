@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ApolloF/Seaglass/internal/library"
 	"github.com/ApolloF/Seaglass/internal/logx"
@@ -149,6 +151,21 @@ func (s *LibraryService) PickProgram(id int64) (string, error) {
 	return p, err
 }
 
+// plainText reports whether s shows as what it is: valid UTF-8 without
+// control or format characters (line breaks, right-to-left marks), so
+// the confirmation shows exactly what runs.
+func plainText(s string) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return false
+		}
+	}
+	return true
+}
+
 // errNotSaved is a launch change the person didn't confirm.
 var errNotSaved = errors.New("not saved")
 
@@ -167,8 +184,8 @@ var confirmLaunch = askYesNo
 func (s *LibraryService) SetLaunch(id int64, exe, args, quitArgs string) (library.Game, error) {
 	args, quitArgs = strings.TrimSpace(args), strings.TrimSpace(quitArgs)
 	for _, a := range []string{args, quitArgs} {
-		if len(a) > 2000 || strings.ContainsAny(a, "\x00\r\n") {
-			return library.Game{}, errors.New("arguments must be one line, at most 2000 characters")
+		if len(a) > 2000 || !plainText(a) {
+			return library.Game{}, errors.New("arguments must be one line of plain text, at most 2000 characters")
 		}
 	}
 	g, ok := s.c.Lib.Get(id)
@@ -193,6 +210,12 @@ func (s *LibraryService) SetLaunch(id int64, exe, args, quitArgs string) (librar
 	}
 	if same && args == g.Args && quitArgs == g.QuitArgs {
 		return g, nil
+	}
+	if next := g; quitArgs != "" {
+		next.Exe, next.QuitArgs = exe, quitArgs
+		if !quitsWithArgs(next) {
+			return g, errors.New("quit arguments only work with a launcher or script: the game's own program would start it a second time")
+		}
 	}
 	msg := "Start " + g.DisplayTitle() + " with:\n\n" + platform.CommandLine(exe, args)
 	if quitArgs != "" {
