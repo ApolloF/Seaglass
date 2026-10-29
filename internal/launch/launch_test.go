@@ -591,3 +591,34 @@ func TestFolderOnlyWaitsForASlowStarter(t *testing.T) {
 		t.Errorf("polls %d, note %q; want it given up after the detect timeout", f.i, s.Note)
 	}
 }
+
+// A boot script can start its own copy of the emulator from another
+// folder (a figure portal's controller): a program with the emulator's
+// name is the game too, but not one that was open already.
+func TestFolderOnlyFollowsTheEmulatorByName(t *testing.T) {
+	const emuDir = `C:\Emulators\RPCS3`
+	open := platform.Proc{PID: 200, PPID: 1, Name: "rpcs3.exe"}
+	script := platform.Proc{PID: 100, PPID: 1, Name: "powershell.exe"}
+	emu := platform.Proc{PID: 300, PPID: 400, Name: "rpcs3.exe"}
+	f := &fakePC{
+		paths: map[uint32]string{
+			100: `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+			200: `C:\Emulators\Other\rpcs3.exe`,
+			300: `C:\Emulators\PortalController\rpcs3\RPCS3.exe`,
+		},
+		frames: [][]platform.Proc{
+			{open}, // before the game starts
+			{open, script}, {open, script, emu}, {open, emu}, {open, emu},
+			{open}, {open}, {open}, {open}, {open}, {open},
+		},
+	}
+	m, r := newTest(f)
+	var played int64
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{emuDir}, FolderOnly: true, ExeNames: []string{"rpcs3.exe"}, DetectTimeout: time.Minute,
+		Start:  func() (uint32, string, error) { return 100, "direct", nil },
+		Played: func(s int64) { played += s }})
+	s := wait(t, r)
+	if s.Phase != Ended || played != 4 || s.Note != "" {
+		t.Errorf("phase %s, played %d, note %q; want ended after the started emulator's 4 s", s.Phase, played, s.Note)
+	}
+}

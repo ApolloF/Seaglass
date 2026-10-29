@@ -66,7 +66,8 @@ func TestConsoleExeAndTracking(t *testing.T) {
 	if consoleExeOK(other) {
 		t.Fatal("a program outside the emulator's folder isn't the game's")
 	}
-	// Only the emulator's processes are the game, whatever started it: not
+	// Only the emulator's processes (from its folder, or by its program's
+	// name from any folder) are the game, whatever started it: not
 	// PowerShell running a boot script, not a launcher that stays in the
 	// tray (a figure portal's controller).
 	c := ctlTestCore(t, false, nil, nil)
@@ -74,13 +75,13 @@ func TestConsoleExeAndTracking(t *testing.T) {
 		k := g
 		k.UserExe, k.Exe = exe != g.Exe, exe
 		p := c.plan(k)
-		if !slices.Equal(p.Dirs, []string{`C:\Emulators\RPCS3`}) || !p.FolderOnly || p.StarterTimeout < 10*time.Minute {
-			t.Errorf("%s: dirs %v, folder only %v, starter timeout %v", exe, p.Dirs, p.FolderOnly, p.StarterTimeout)
+		if !slices.Equal(p.Dirs, []string{`C:\Emulators\RPCS3`}) || !p.FolderOnly || !slices.Equal(p.ExeNames, []string{"rpcs3.exe"}) || p.StarterTimeout < 10*time.Minute {
+			t.Errorf("%s: dirs %v, folder only %v, exe names %v, starter timeout %v", exe, p.Dirs, p.FolderOnly, p.ExeNames, p.StarterTimeout)
 		}
 	}
 	// A PC game's plan is as it was.
 	pc := library.Game{ID: 2, Title: "G", Installed: true, Dir: `C:\G`, Exe: `C:\Tools\g.exe`, UserExe: true}
-	if p := c.plan(pc); !slices.Equal(p.Dirs, []string{`C:\G`, `C:\Tools`}) || p.FolderOnly || p.StarterTimeout != 0 {
+	if p := c.plan(pc); !slices.Equal(p.Dirs, []string{`C:\G`, `C:\Tools`}) || p.FolderOnly || p.ExeNames != nil || p.StarterTimeout != 0 {
 		t.Errorf("pc game: %+v", p)
 	}
 }
