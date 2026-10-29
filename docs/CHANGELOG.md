@@ -4,7 +4,7 @@ What each version of Seaglass (WaterLauncher until 1.4) changed and why, newest 
 
 Alongside Seaglass: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.15.0 and DLSS Updater 1.4.1.
 
-## 1.12.0 (unreleased): big picture for game streaming
+## 1.12.0 (2026-10-29): big picture for game streaming
 
 For streaming to another screen (Sunshine, Moonlight), Seaglass can open big picture from the command line without touching the settings, so desktop use stays as it was.
 
