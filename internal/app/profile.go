@@ -174,6 +174,16 @@ func profileKeys(g *library.Game) []string {
 			ks = append(ks, k)
 		}
 	}
+	// A console game is its console's game, never a PC game of the same
+	// name; its serial follows it to another copy or emulator.
+	if k := g.Console; k != nil {
+		id := strings.ToLower(k.Serial)
+		if id == "" {
+			id = "title:" + scan.LooseKey(k.Title)
+		}
+		add("console:" + strings.ToLower(strings.ReplaceAll(k.Platform, " ", "")) + ":" + id)
+		return ks
+	}
 	if g.SteamAppID > 0 {
 		add("steam:" + strconv.Itoa(g.SteamAppID))
 	}

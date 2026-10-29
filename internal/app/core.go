@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ApolloF/Seaglass/internal/emulated"
 	"github.com/ApolloF/Seaglass/internal/identify"
 	"github.com/ApolloF/Seaglass/internal/launch"
 	"github.com/ApolloF/Seaglass/internal/library"
@@ -235,14 +236,27 @@ func (c *Core) scanNow() {
 	defer c.scanMu.Unlock()
 	c.setState(func(s *ScanState) { s.Running, s.Error = true, "" })
 	cfg := c.Settings.Get()
+	// Console games on emulators are looked for alongside the PC games.
+	var consoles []emulated.Game
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if cfg.DetectEmulators {
+			consoles = emulated.Find(c.ctx)
+		}
+	}()
 	res := scan.Run(c.ctx, scan.Options{Folders: cfg.Folders, AutoFolders: cfg.AutoFolders, DetectExternal: cfg.DetectExternal})
+	<-done
 	if c.ctx.Err() != nil {
 		return
 	}
 	ix := c.Manifest.Index()
-	found := make([]library.Found, 0, len(res.Games))
+	found := make([]library.Found, 0, len(res.Games)+len(consoles))
 	for _, g := range res.Games {
 		found = append(found, toFound(g, ix.Identify(g), cfg))
+	}
+	for _, g := range consoles {
+		found = append(found, consoleFound(g))
 	}
 	added, removed := c.Lib.ApplyScan(found, time.Now())
 	logx.Printf("scan: %d games (%d new, %d gone) in %v", len(found), added, removed, res.Took.Round(time.Millisecond))
@@ -272,6 +286,25 @@ func toFound(g scan.Candidate, m identify.Match, cfg settings.Settings) library.
 	f.SourceLabel = sourceLabel(g)
 	f.NeedsReview = cfg.ReviewUncertain && m.Confidence < 70 && !g.Source.Store()
 	return f
+}
+
+// SourceEmulator is the library source of console games on emulators.
+const SourceEmulator = "emulator"
+
+// consoleFound turns a console game into a library record. Its key is
+// the file the emulator boots, so it never meets a PC game's folder key.
+// The emulator knows which game it is: there's nothing to identify.
+func consoleFound(g emulated.Game) library.Found {
+	return library.Found{
+		Key: g.Key(), Title: g.Title, SortTitle: scan.SortTitle(g.Title),
+		Source: SourceEmulator, SourceLabel: g.Platform,
+		Dir: g.Dir, Exe: g.Exe, Args: g.Args, WorkDir: g.EmuDir, SizeBytes: g.SizeBytes,
+		How: g.How, MatchHow: "Title from " + g.TitleFrom, Confidence: 100,
+		Console: &library.Console{
+			Platform: g.Platform, Emulator: g.Emulator, EmuDir: g.EmuDir, File: g.File, Serial: g.Serial,
+			Title: g.BaseTitle, Exe: g.Exe, Args: g.Args, Cover: g.Cover, Backdrop: g.Backdrop, Icon: g.Icon,
+		},
+	}
 }
 
 var storeLabels = map[scan.Source]string{

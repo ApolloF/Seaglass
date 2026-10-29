@@ -44,7 +44,35 @@ let games: Game[] = [
   game({ title: "Tidebreaker", source: "installer", sourceLabel: "Standalone", external: true, steamAppId: 2840770, how: "Installer entry in Windows", matchHow: "Matched by title", confidence: 85, playtime: 2 * 3600, lastPlayed: now - 2 * day, sizeBytes: 90e9 }),
   game({ title: "Brass Circuit", source: "folder", sourceLabel: "Folder", how: "Game folder in D:\\Games", matchHow: "Matched by title", confidence: 80, playtime: 3 * 3600, lastPlayed: now - 5 * day, padMode: "xbox", sizeBytes: 12e9 }),
   game({ title: "Copper Fields", source: "gog", sourceLabel: "GOG", installed: false, playtime: 21 * 3600, lastPlayed: now - 700 * day }),
+  // Console games on emulators, with two copies of one game (two regions).
+  consoleGame("Tidewater Legends (BLES00001)", "Tidewater Legends", "PS3", "RPCS3", "BLES00001", { playtime: 5 * 3600, lastPlayed: now - 4 * day }),
+  consoleGame("Tidewater Legends (BLES00002)", "Tidewater Legends", "PS3", "RPCS3", "BLES00002", {}),
+  consoleGame("Kite Rally", "Kite Rally", "Wii", "Dolphin", "RKRE01", { playtime: 11 * 3600, lastPlayed: now - 6 * day, favorite: true }),
+  consoleGame("Moonlit Derby", "Moonlit Derby", "GameCube", "Dolphin", "GMDE01", { addedAt: now - 1800 }),
+  consoleGame("Harbor Karts 8", "Harbor Karts 8", "Wii U", "Cemu", "000500001010EC00", { playtime: 3 * 3600, lastPlayed: now - 20 * day }),
 ];
+
+function consoleGame(t: string, base: string, platform: string, emulator: string, serial: string, p: Partial<Game>): Game {
+  const emuDir = `C:\\Emulators\\${emulator}`;
+  const exe = `${emuDir}\\${emulator.toLowerCase()}.exe`;
+  const dir = `R:\\Games\\${platform}\\${base}`;
+  const file = `${dir}\\${platform === "PS3" ? "PS3_GAME\\USRDIR\\EBOOT.BIN" : serial + ".iso"}`;
+  const args = `--fullscreen "${file}"`;
+  return game({
+    title: t,
+    source: "emulator",
+    sourceLabel: platform,
+    dir,
+    exe,
+    args,
+    workDir: emuDir,
+    how: `${emulator} game list`,
+    matchHow: "Title from the game's files",
+    sizeBytes: 4e9,
+    console: { platform, emulator, emuDir, file, serial, title: base, exe, args },
+    ...p,
+  });
+}
 
 // ?games=N in the mock URL adds made-up games, to try the layouts with a
 // bigger library; ?layout=console|orbit|deck picks the big picture layout.
@@ -94,6 +122,7 @@ let settings: Settings = {
   folders: ["D:\\Games"],
   autoFolders: true,
   detectExternal: true,
+  detectEmulators: true,
   reviewUncertain: true,
   showNotInstalled: false,
   theme: "system",
@@ -397,7 +426,14 @@ export const mockApi: Api = {
   setPadMode: (id, mode) => update(id, (g) => (g.padMode = mode === "auto" ? "" : mode)),
   rename: (id, t) => update(id, (g) => (g.customTitle = t.trim())),
   confirmMatch: (id) => update(id, (g) => ((g.confirmed = true), (g.needsReview = false))),
-  chooseExe: (id) => update(id, (g) => ((g.exe = g.dir + "\\Game.exe"), (g.userExe = true))),
+  chooseExe: (id) => update(id, (g) => ((g.exe = g.dir + "\\Game.exe"), (g.args = ""), (g.userExe = true))),
+  setLaunchArgs: (id, args, quitArgs) => update(id, (g) => ((g.args = args.trim()), (g.quitArgs = quitArgs.trim()), (g.userExe = true))),
+  resetLaunch: (id) =>
+    update(id, (g) => {
+      g.userExe = false;
+      g.quitArgs = "";
+      if (g.console) (g.exe = g.console.exe), (g.args = g.console.args), (g.workDir = g.console.emuDir);
+    }),
   async openFolder() {},
   async install() {},
   async metaState(): Promise<MetaState> {

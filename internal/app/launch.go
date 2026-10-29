@@ -62,7 +62,7 @@ func (s *LaunchService) play(id int64, from string) error {
 		if g.Exe == "" {
 			return errors.New("no program found to start " + g.DisplayTitle() + ". Choose one in the game's options.")
 		}
-		if !platform.Within(g.Dir, g.Exe) && !g.UserExe {
+		if !platform.Within(g.Dir, g.Exe) && !g.UserExe && !consoleExeOK(g) {
 			return errors.New("the game's program is outside its folder")
 		}
 	}
@@ -91,11 +91,37 @@ func (s *LaunchService) Cancel() { s.c.Launch.Cancel() }
 
 // QuitGame ends the running game's processes right away.
 func (s *LaunchService) QuitGame() error {
+	cur := s.c.Launch.Current()
+	if g, ok := s.c.Lib.Get(cur.GameID); ok && cur.Phase == launch.Running && g.UserExe && g.QuitArgs != "" {
+		// The program that started the game knows how to close it (a
+		// launcher that wants to be told); Seaglass ends it if that doesn't.
+		_, err := platform.StartProcess(g.Exe, g.QuitArgs, g.WorkDir)
+		if err == nil {
+			logx.Printf("quit game %q with its quit arguments", cur.Title)
+			go s.c.quitIfStillRunning(cur.ID, 20*time.Second)
+			return nil
+		}
+		logx.Printf("quit game %q with its quit arguments: %v", cur.Title, err)
+	}
 	err := s.c.Launch.Quit()
 	if err == nil {
 		logx.Printf("quit game %q", s.c.Launch.Current().Title)
 	}
 	return err
+}
+
+// quitIfStillRunning ends session id's game if it's still running after d.
+func (c *Core) quitIfStillRunning(id int64, d time.Duration) {
+	select {
+	case <-c.ctx.Done():
+		return
+	case <-time.After(d):
+	}
+	if cur := c.Launch.Current(); cur.ID == id && cur.Phase == launch.Running {
+		if err := c.Launch.Quit(); err == nil {
+			logx.Printf("quit game %q: still running after its quit arguments", cur.Title)
+		}
+	}
 }
 
 // SetUIMode tells the core which mode the interface shows.
@@ -163,6 +189,11 @@ func route(g library.Game, ps pad.State, tr translator) string {
 // controller: a PlayStation controller is in use, and the game is known to
 // support controllers but not PlayStation ones.
 func wantsXbox(g library.Game, ps pad.State) bool {
+	// An emulator reads the controller itself (a DualSense too) and hands
+	// the game the console's own pad.
+	if g.Console != nil {
+		return false
+	}
 	if !ps.Connected || ps.Kind != pad.PlayStation || g.PadHint != "" || g.Meta == nil {
 		return false
 	}
@@ -191,7 +222,8 @@ func (c *Core) plan(g library.Game) launch.Plan {
 	bridged := false
 	var before, after []launch.Step
 	cfg := c.Settings.Get()
-	if _, ok := syncer.Installed(); ok {
+	// Syncer doesn't know console games: their saves are the emulator's.
+	if _, ok := syncer.Installed(); ok && g.Console == nil {
 		if cfg.AskWhoPlays {
 			before = append(before, c.whoPlaysStep(g))
 		} else if !cfg.SyncSavesBefore && c.profile != nil {
@@ -219,12 +251,16 @@ func (c *Core) plan(g library.Game) launch.Plan {
 	if g.Exe != "" && !platform.Within(g.Dir, g.Exe) {
 		dirs = append(dirs, filepath.Dir(g.Exe))
 	}
+	folderOnly := false
+	if g.Console != nil {
+		dirs, folderOnly = consoleDirs(g), true
+	}
 	detect := 2 * time.Minute // a UAC prompt can wait a while
 	if r == RouteStore || r == RouteSteamInput {
 		detect = 5 * time.Minute // stores update, sign in, build shader caches
 	}
 	return launch.Plan{
-		GameID: g.ID, Title: title, Dirs: dirs, Before: before, After: after, DetectTimeout: detect,
+		GameID: g.ID, Title: title, Dirs: dirs, FolderOnly: folderOnly, Before: before, After: after, DetectTimeout: detect,
 		Start: func() (uint32, string, error) {
 			var err error
 			var pid int
@@ -475,4 +511,25 @@ func (s *LaunchService) PlayFromArgs(args []string) bool {
 		s.c.shell.OpenMain()
 	}
 	return true
+}
+
+// consoleExeOK reports whether a console game starts its own emulator:
+// the program in the emulator's folder that the scan found, booting a
+// file in the game's folder.
+func consoleExeOK(g library.Game) bool {
+	k := g.Console
+	return k != nil && k.EmuDir != "" && platform.Within(k.EmuDir, g.Exe) && strings.EqualFold(g.Exe, k.Exe) &&
+		platform.Within(g.Dir, k.File)
+}
+
+// consoleDirs are where a console game's processes run from: the
+// emulator's folder, and the folder of a program the user picked to start
+// it, unless that's a part of Windows (PowerShell running a script) whose
+// other processes aren't the game.
+func consoleDirs(g library.Game) []string {
+	dirs := []string{g.Console.EmuDir}
+	if g.UserExe && g.Exe != "" && !platform.Within(g.Console.EmuDir, g.Exe) && !platform.Within(platform.WindowsDir, g.Exe) {
+		dirs = append(dirs, filepath.Dir(g.Exe))
+	}
+	return dirs
 }

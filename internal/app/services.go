@@ -123,6 +123,46 @@ func (s *LibraryService) ChooseExe(id int64) (library.Game, error) {
 	})
 }
 
+// SetLaunchArgs sets the command-line arguments the game's program gets,
+// and the ones that make it close the game again (quit, "" for none: then
+// Seaglass ends the game itself). Scans keep them, as they keep a chosen
+// program. A console game can be started through a launcher or script
+// this way (a figure portal's boot script, say).
+func (s *LibraryService) SetLaunchArgs(id int64, args, quitArgs string) (library.Game, error) {
+	args, quitArgs = strings.TrimSpace(args), strings.TrimSpace(quitArgs)
+	for _, a := range []string{args, quitArgs} {
+		if len(a) > 2000 || strings.ContainsAny(a, "\x00\r\n") {
+			return library.Game{}, errors.New("arguments must be one line, at most 2000 characters")
+		}
+	}
+	g, ok := s.c.Lib.Get(id)
+	if !ok {
+		return g, library.ErrNotFound
+	}
+	if g.Exe == "" || g.LaunchURI != "" {
+		return g, errors.New(g.DisplayTitle() + " starts through its store: choose a program first")
+	}
+	return s.update(id, func(g *library.Game) {
+		g.Args, g.QuitArgs, g.UserExe = args, quitArgs, true
+	})
+}
+
+// ResetLaunch goes back to starting the game the way the scan found
+// (a console game: its emulator), forgetting the chosen program and
+// arguments.
+func (s *LibraryService) ResetLaunch(id int64) (library.Game, error) {
+	g, err := s.update(id, func(g *library.Game) {
+		g.UserExe, g.QuitArgs = false, ""
+		if k := g.Console; k != nil {
+			g.Exe, g.Args, g.WorkDir = k.Exe, k.Args, k.EmuDir
+		}
+	})
+	if err == nil && g.Console == nil {
+		s.c.RequestScan() // the scan finds the game's own program again
+	}
+	return g, err
+}
+
 // Install asks the game's store to install it (owned, not installed).
 func (s *LibraryService) Install(id int64) error {
 	g, ok := s.c.Lib.Get(id)

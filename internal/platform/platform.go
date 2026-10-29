@@ -124,6 +124,15 @@ func FixedDrives() []string {
 	return out
 }
 
+// DriveRemote reports whether a drive root ("Z:\") is a network drive.
+func DriveRemote(root string) bool {
+	p, err := windows.UTF16PtrFromString(root)
+	if err != nil {
+		return false
+	}
+	return windows.GetDriveType(p) == windows.DRIVE_REMOTE
+}
+
 // RealCase returns p with the capitalisation the file system uses (Steam
 // keeps its path lower-cased in the registry). p is returned unchanged
 // when it can't be opened or resolves somewhere else (a junction).

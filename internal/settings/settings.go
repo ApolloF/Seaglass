@@ -17,9 +17,12 @@ import (
 // an older settings file doesn't have them.
 type Settings struct {
 	// Library
-	Folders          []string `json:"folders"`          // extra folders whose subfolders are games
-	AutoFolders      bool     `json:"autoFolders"`      // also look in common game folders on every drive
-	DetectExternal   bool     `json:"detectExternal"`   // recognise games on Steam API emulators and from repacks
+	Folders        []string `json:"folders"`        // extra folders whose subfolders are games
+	AutoFolders    bool     `json:"autoFolders"`    // also look in common game folders on every drive
+	DetectExternal bool     `json:"detectExternal"` // recognise games on Steam API emulators and from repacks
+	// DetectEmulators adds the console games of emulators installed here
+	// (RPCS3, Dolphin, Cemu). Per PC, like the emulators.
+	DetectEmulators  bool     `json:"detectEmulators"`
 	ReviewUncertain  bool     `json:"reviewUncertain"`  // keep low-confidence matches in New on this PC for a check
 	ShowNotInstalled bool     `json:"showNotInstalled"` // list games that aren't installed (anymore)
 	ShowOwned        bool     `json:"showOwned"`        // list games connected store accounts own but aren't installed
@@ -73,16 +76,17 @@ type Settings struct {
 }
 
 // Sources are the libraries that can be hidden, as the interface groups
-// games: by store, then external copies, standalone installs and folders.
+// games: by store, then external copies, standalone installs, folders and
+// console games on emulators.
 var Sources = map[string]bool{
 	"steam": true, "epic": true, "gog": true, "ea": true, "ubisoft": true, "battlenet": true, "xbox": true,
-	"external": true, "standalone": true, "folder": true,
+	"external": true, "standalone": true, "folder": true, "emulated": true,
 }
 
 // Defaults are the settings on first start.
 func Defaults() Settings {
 	return Settings{
-		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectExternal: true, ReviewUncertain: true,
+		Folders: []string{}, HiddenSources: []string{}, AutoFolders: true, DetectExternal: true, DetectEmulators: true, ReviewUncertain: true,
 		Theme: "system", BigPictureLayout: "deck",
 		OpenBigPictureOnController: true, Haptics: true, Lightbar: true, PSButton: true, Glyphs: "auto",
 		CloseWhilePlaying: true, PadWhilePlaying: "listen", NoticeExternal: true,

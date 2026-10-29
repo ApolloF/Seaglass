@@ -495,3 +495,29 @@ func TestLookupRetriedAfterAFailure(t *testing.T) {
 		t.Errorf("readable on the next poll: %v, want 300", got)
 	}
 }
+
+// A script that boots an emulator through another program (and starts a
+// helper that keeps running) plays as long as the emulator runs: only
+// processes from the emulator's folder are the game.
+func TestFolderOnlyFollowsTheEmulator(t *testing.T) {
+	const emuDir = `C:\Emulators\RPCS3`
+	script := platform.Proc{PID: 100, PPID: 1, Name: "powershell.exe"}
+	helper := platform.Proc{PID: 150, PPID: 100, Name: "portal.exe"}
+	emu := platform.Proc{PID: 200, PPID: 300, Name: "rpcs3.exe"}
+	f := &fakePC{
+		paths: map[uint32]string{100: `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, 150: `C:\Tools\portal.exe`, 200: emuDir + `\rpcs3.exe`},
+		frames: [][]platform.Proc{
+			{script, helper}, {script, helper, emu}, {script, helper, emu}, {script, helper, emu},
+			{helper}, {helper}, {helper}, {helper}, {helper}, {helper},
+		},
+	}
+	m, r := newTest(f)
+	var played int64
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{emuDir}, FolderOnly: true,
+		Start:  func() (uint32, string, error) { return 100, "direct", nil },
+		Played: func(s int64) { played += s }})
+	s := wait(t, r)
+	if s.Phase != Ended || played != 4 {
+		t.Errorf("phase %s, played %d; want ended after the emulator's 4 s", s.Phase, played)
+	}
+}

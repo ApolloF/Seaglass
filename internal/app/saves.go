@@ -388,7 +388,7 @@ func syncerGame(g library.Game) syncer.Game {
 func (c *Core) syncerGames() []syncer.Game {
 	var out []syncer.Game
 	for _, g := range c.Lib.Games() {
-		if g.Installed && !g.Hidden {
+		if g.Installed && !g.Hidden && g.Console == nil {
 			out = append(out, syncerGame(g))
 		}
 	}

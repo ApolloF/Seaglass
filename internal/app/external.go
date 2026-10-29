@@ -110,7 +110,8 @@ func gameForPath(games []library.Game, path string) (library.Game, bool) {
 	var best library.Game
 	bestLen := 0
 	for _, g := range games {
-		if !g.Installed || g.Hidden || g.Dir == "" {
+		// An emulator started outside Seaglass could be playing any of its games.
+		if !g.Installed || g.Hidden || g.Dir == "" || g.Console != nil {
 			continue
 		}
 		for _, d := range launch.UsableDirs([]string{g.Dir}) {

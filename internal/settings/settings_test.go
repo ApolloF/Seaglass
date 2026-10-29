@@ -168,3 +168,22 @@ func TestControllerTranslatorSettings(t *testing.T) {
 		t.Error("steam isn't kept")
 	}
 }
+
+// Console games are a new library: on for settings saved before it
+// existed, per PC, and its library can be hidden like the others.
+func TestEmulatedGamesSettings(t *testing.T) {
+	old := filepath.Join(t.TempDir(), "old.json")
+	if err := os.WriteFile(old, []byte(`{"detectExternal":false,"hiddenSources":["emulated"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v := Open(old).Get()
+	if !v.DetectEmulators || len(v.HiddenSources) != 1 || v.HiddenSources[0] != "emulated" {
+		t.Fatalf("got %+v", v)
+	}
+	off := Defaults()
+	off.DetectEmulators = false
+	b, _ := json.Marshal(off.Portable())
+	if got, _ := Defaults().WithPortable(b); !got.DetectEmulators {
+		t.Fatal("another PC turned this PC's emulators off")
+	}
+}

@@ -33,14 +33,17 @@ type Game struct {
 	Repacker    string `json:"repacker,omitempty"`
 	DRMFree     string `json:"drmFree,omitempty"`
 
-	Installed  bool   `json:"installed"`
-	PadHint    string `json:"padHint,omitempty"` // the game ships libScePad or SDL
-	Dir        string `json:"dir"`
-	Exe        string `json:"exe,omitempty"`
-	Args       string `json:"args,omitempty"`
-	WorkDir    string `json:"workDir,omitempty"`
-	LaunchURI  string `json:"launchUri,omitempty"`
-	UserExe    bool   `json:"userExe,omitempty"`    // the user picked the executable; scans leave it alone
+	Installed bool   `json:"installed"`
+	PadHint   string `json:"padHint,omitempty"` // the game ships libScePad or SDL
+	Dir       string `json:"dir"`
+	Exe       string `json:"exe,omitempty"`
+	Args      string `json:"args,omitempty"`
+	WorkDir   string `json:"workDir,omitempty"`
+	LaunchURI string `json:"launchUri,omitempty"`
+	UserExe   bool   `json:"userExe,omitempty"` // the user picked the executable; scans leave it alone
+	// QuitArgs, with a program the user picked, make that program close
+	// the game (a launcher's quit command) instead of Seaglass ending it.
+	QuitArgs   string `json:"quitArgs,omitempty"`
 	Owned      bool   `json:"owned,omitempty"`      // a connected store account owns it
 	InstallURI string `json:"installUri,omitempty"` // asks the store to install it
 	SizeBytes  int64  `json:"sizeBytes,omitempty"`
@@ -74,7 +77,34 @@ type Game struct {
 	// can be in several.
 	Collections []string `json:"collections,omitempty"`
 
+	// Console is set for a console game played on an emulator.
+	Console *Console `json:"console,omitempty"`
+
 	Meta *Meta `json:"meta,omitempty"`
+}
+
+// Console is what's known about a console game played on an emulator.
+// The game's Exe and Args start the emulator with it.
+type Console struct {
+	Platform string `json:"platform"` // "PS3", "GameCube", "Wii", "Wii U"
+	Emulator string `json:"emulator"` // "RPCS3", "Dolphin", "Cemu"
+	// EmuDir is the emulator's folder: its processes are the game while
+	// it runs, whatever started it.
+	EmuDir string `json:"emuDir"`
+	File   string `json:"file"`             // what the emulator boots
+	Serial string `json:"serial,omitempty"` // BLES01689, RMCE01, …
+	// Title is the game's name without the serial a second copy gets,
+	// for looking up its art.
+	Title string `json:"title"`
+	// How the emulator starts it, for going back to that after the user
+	// picked another program.
+	Exe  string `json:"exe"`
+	Args string `json:"args"`
+	// Pictures that came with the game or the emulator downloaded, for
+	// when the art sources have none (local PNG files).
+	Cover    string `json:"cover,omitempty"`
+	Backdrop string `json:"backdrop,omitempty"`
+	Icon     string `json:"icon,omitempty"`
 }
 
 // Meta is store metadata and art, filled in by the metadata service.
@@ -126,6 +156,7 @@ type Found struct {
 	StorePlaytime               int64
 	StoreLastPlayed             int64
 	PadHint                     string
+	Console                     *Console
 }
 
 type fileData struct {
@@ -335,6 +366,11 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		}
 		g.EpicApp, g.How, g.SeenAt = f.EpicApp, f.How, ts
 		g.PadHint = f.PadHint
+		g.Console = nil
+		if f.Console != nil {
+			c := *f.Console
+			g.Console = &c
+		}
 		if g.Owned {
 			// The owned sync may know more (GOG Galaxy, Steam's web API);
 			// store playtime only goes up.
@@ -417,6 +453,10 @@ func writeAtomic(path string, b []byte) error {
 func copyGame(g *Game) Game {
 	c := *g
 	c.Collections = append([]string(nil), g.Collections...)
+	if g.Console != nil {
+		k := *g.Console
+		c.Console = &k
+	}
 	if g.Meta != nil {
 		m := *g.Meta
 		m.Developers = append([]string(nil), g.Meta.Developers...)

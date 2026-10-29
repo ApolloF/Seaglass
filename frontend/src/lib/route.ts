@@ -15,6 +15,7 @@ export function translatorOf(status: ControllerStatus | null, settings: Settings
 /** Auto mode would hand the game an Xbox controller: a PlayStation controller
  * is in use and the game supports controllers but not PlayStation ones. */
 function wantsXbox(g: Game, pad: PadState): boolean {
+  if (g.console) return false; // the emulator reads the controller itself
   if (!pad.connected || pad.kind !== "playstation" || g.padHint || !g.meta) return false;
   const ds = g.meta.dualSense ?? "";
   if (ds && ds !== "no") return false;
@@ -53,6 +54,7 @@ export function padExplain(g: Game, pad: PadState, tr: Translator): { short: str
       short: "Xbox controller",
       long: "Always starts with Seaglass's Xbox controller, so your controller works as an Xbox one." + (tr.viGEm ? "" : " Set it up in Settings first."),
     };
+  if (g.console) return { short: "Emulator", long: `Auto: ${g.console.emulator} reads the controller itself, so the game starts directly.` };
   const ds = g.meta?.dualSense ?? "";
   if (ds === "yes") return { short: "DualSense", long: "Auto: Steam lists DualSense support, so it starts directly." };
   if (g.padHint === "libScePad") return { short: "DualSense", long: "Auto: the game ships Sony's DualSense library, so it starts directly." };

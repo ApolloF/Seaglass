@@ -109,6 +109,15 @@ export function Rescan(): $CancellablePromise<void> {
 }
 
 /**
+ * ResetLaunch goes back to starting the game the way the scan found
+ * (a console game: its emulator), forgetting the chosen program and
+ * arguments.
+ */
+export function ResetLaunch(id: number): $CancellablePromise<library$0.Game> {
+    return $Call.ByID(2299542789, id);
+}
+
+/**
  * ScanState reports what the scanner is doing.
  */
 export function ScanState(): $CancellablePromise<$models.ScanState> {
@@ -149,6 +158,17 @@ export function SetFavorite(id: number, on: boolean): $CancellablePromise<librar
  */
 export function SetHidden(id: number, on: boolean): $CancellablePromise<library$0.Game> {
     return $Call.ByID(775406597, id, on);
+}
+
+/**
+ * SetLaunchArgs sets the command-line arguments the game's program gets,
+ * and the ones that make it close the game again (quit, "" for none: then
+ * Seaglass ends the game itself). Scans keep them, as they keep a chosen
+ * program. A console game can be started through a launcher or script
+ * this way (a figure portal's boot script, say).
+ */
+export function SetLaunchArgs(id: number, args: string, quitArgs: string): $CancellablePromise<library$0.Game> {
+    return $Call.ByID(1871014939, id, args, quitArgs);
 }
 
 /**

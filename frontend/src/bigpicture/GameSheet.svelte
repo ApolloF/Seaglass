@@ -29,7 +29,7 @@
   $effect(() => {
     const id = game.id;
     let live = true;
-    if (game.installed) api.saves.get(id).then((s) => live && (saves = s)).catch(() => {});
+    if (game.installed && !game.console) api.saves.get(id).then((s) => live && (saves = s)).catch(() => {});
     return () => (live = false);
   });
 

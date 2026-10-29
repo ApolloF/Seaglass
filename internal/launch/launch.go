@@ -137,7 +137,11 @@ type Plan struct {
 	Title  string
 	From   string   // where it was started (Session.From)
 	Dirs   []string // folders the game's processes run from
-	Before []Step
+	// FolderOnly counts only processes running from Dirs as the game, not
+	// everything the started program starts: an emulator is the game,
+	// whatever started it (a script that also starts a helper that stays).
+	FolderOnly bool
+	Before     []Step
 	// Start starts the game. It runs after the Before steps, which may
 	// change what it does (the route). pid is 0 when the game was handed
 	// to a store or Steam.
@@ -356,7 +360,11 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, p Plan) {
 // playtime. It returns the seconds played, or -1 when the session ended
 // without the game being seen.
 func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
-	t := newTracker(UsableDirs(p.Dirs), pid, uint32(os.Getpid()), m.image)
+	root := pid
+	if p.FolderOnly {
+		root = 0
+	}
+	t := newTracker(UsableDirs(p.Dirs), root, uint32(os.Getpid()), m.image)
 	timeout := p.DetectTimeout
 	if timeout <= 0 {
 		timeout = time.Minute

@@ -68,7 +68,26 @@ export interface Game {
   collections?: string[];
   hidden?: boolean;
   padMode?: string; // "" | "native" | "xbox" | "steam"
+  /** With a program the user chose: the arguments that make it close the game. */
+  quitArgs?: string;
+  /** Set for a console game played on an emulator. */
+  console?: Console;
   meta?: Meta;
+}
+
+/** A console game on an emulator. Mirrors internal/library.Console. */
+export interface Console {
+  platform: string; // "PS3", "GameCube", "Wii", "Wii U"
+  emulator: string; // "RPCS3", "Dolphin", "Cemu"
+  emuDir: string;
+  /** What the emulator boots. */
+  file: string;
+  serial?: string;
+  /** The title without the serial a second copy gets. */
+  title: string;
+  /** How the emulator starts it (the game's exe and args, unless the user picked others). */
+  exe: string;
+  args: string;
 }
 
 export type Layout = "deck" | "console" | "orbit";
@@ -77,6 +96,8 @@ export interface Settings {
   folders: string[];
   autoFolders: boolean;
   detectExternal: boolean;
+  /** Add the console games of emulators installed on this PC (per PC). */
+  detectEmulators: boolean;
   reviewUncertain: boolean;
   showNotInstalled: boolean;
   showOwned: boolean;
