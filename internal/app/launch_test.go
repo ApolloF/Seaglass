@@ -99,6 +99,15 @@ func TestParseArgs(t *testing.T) {
 	if a := ParseArgs([]string{"--quit"}); !a.Quit {
 		t.Errorf("ParseArgs(--quit) = %+v", a)
 	}
+	if a := ParseArgs([]string{`C:\Seaglass.exe`, "--bigpicture"}); !a.BigPicture || a.LeaveBigPicture || a.Tray {
+		t.Errorf("ParseArgs(--bigpicture) = %+v", a)
+	}
+	if a := ParseArgs([]string{"--leave-bigpicture"}); !a.LeaveBigPicture || a.BigPicture {
+		t.Errorf("ParseArgs(--leave-bigpicture) = %+v", a)
+	}
+	if a := ParseArgs([]string{"--big-picture", "--bigpicture=1"}); a.BigPicture || a.LeaveBigPicture {
+		t.Errorf("ParseArgs ignores unknown arguments, got %+v", a)
+	}
 }
 
 func TestGameForPath(t *testing.T) {

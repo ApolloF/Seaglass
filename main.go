@@ -69,12 +69,12 @@ func main() {
 		})
 		os.Exit(0) // it exited just now: nothing to hand over
 	}
-	if args.Quit {
-		return // nothing runs, nothing to close (the installer asks)
+	if args.Quit || args.LeaveBigPicture {
+		return // nothing runs, nothing to close or put back
 	}
 	// Only the instance that runs keeps a crash log (a second one exited above).
 	app.CaptureCrashes()
-	if args.Play == 0 && !args.Updated && app.ApplyPendingUpdate(version, args.Tray) {
+	if args.Play == 0 && !args.BigPicture && !args.Updated && app.ApplyPendingUpdate(version, args.Tray) {
 		return // the new version takes over
 	}
 
@@ -128,6 +128,10 @@ func main() {
 					application.Get().Quit()
 				case a.Play != 0:
 					launcher.PlayFromArgs(d.Args)
+				case a.BigPicture:
+					shell.EnterBigPicture()
+				case a.LeaveBigPicture:
+					shell.LeaveBigPicture()
 				case a.Tray, a.Updated: // already running
 				default:
 					shell.OpenMain()
@@ -152,6 +156,10 @@ func main() {
 		wa.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 			go launcher.PlayFromArgs(os.Args[1:])
 		})
+	case args.BigPicture:
+		// "--bigpicture": big picture for a game stream, this time only.
+		shell.EnterBigPicture()
+		shell.StartHidden()
 	case args.Tray:
 		// "--tray": started with Windows; only the tray icon until opened.
 		shell.StartHidden()

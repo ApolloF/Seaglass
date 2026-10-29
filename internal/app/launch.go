@@ -415,6 +415,10 @@ type Args struct {
 	Tray    bool  // --tray: start in the tray (at sign-in)
 	Quit    bool  // --quit: close the running Seaglass (installer)
 	Updated bool  // --updated: started by an update
+	// --bigpicture: open big picture for a game stream, without changing
+	// the settings; --leave-bigpicture puts the interface back afterwards.
+	BigPicture      bool
+	LeaveBigPicture bool
 	// --diagnostics: write a diagnostics report to the desktop and exit,
 	// for when the interface won't open.
 	Diagnostics bool
@@ -436,6 +440,10 @@ func ParseArgs(args []string) Args {
 			a.Updated = true
 		case "--diagnostics":
 			a.Diagnostics = true
+		case "--bigpicture":
+			a.BigPicture = true
+		case "--leave-bigpicture":
+			a.LeaveBigPicture = true
 		default:
 			parseDevArg(&a.Dev, s)
 		}

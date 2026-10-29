@@ -52,7 +52,7 @@ Seaglass is an independent project and is not affiliated with, endorsed by or sp
 - **Updates:** checked on GitHub when Seaglass starts, or by hand (*Settings → General*). New versions download in the background and install the next time Seaglass starts, or straight away while it waits in the tray. Each one must be signed with a release key that never leaves the maintainer's PC ([docs/RELEASING.md](docs/RELEASING.md)).
 - **Start with Windows:** *Settings → General*. Seaglass then waits in the tray.
 - **Games started elsewhere:** start a library game from Steam or a shortcut and Seaglass still counts its playtime and lets go of the controller (*Settings → Big picture → While playing*).
-- **Command line:** `--play <id>` starts a game without the interface (for shortcuts), `--tray` starts in the tray, `--quit` closes a running Seaglass, `--diagnostics` writes a report to the desktop.
+- **Command line:** `--play <id>` starts a game without the interface (for shortcuts), `--tray` starts in the tray, `--quit` closes a running Seaglass, `--diagnostics` writes a report to the desktop. For game streaming (Sunshine, Moonlight): `--bigpicture` opens big picture this time only, without changing your settings, and `--leave-bigpicture` puts Seaglass back the way it was (for the stream's undo command).
 - **Something wrong?** *Settings → About → Copy diagnostics*, then *Report a problem*. If the interface won't open: `Seaglass.exe --diagnostics`.
 - **Your data:** `%APPDATA%\Seaglass` (library, settings, encrypted keys, log) and `%LOCALAPPDATA%\Seaglass` (art, the game database, updates). Seaglass has no telemetry; [PRIVACY.md](PRIVACY.md) lists what it stores and which services it contacts.
 

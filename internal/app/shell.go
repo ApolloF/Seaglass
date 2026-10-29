@@ -27,6 +27,18 @@ type Shell struct {
 	closing  bool   // Seaglass closes a window itself (not the user)
 	waitGame int    // counts closeMainWhenGameInFront calls, so only the latest acts
 	made     int    // main windows made so far
+	// What --bigpicture switched away from, for --leave-bigpicture; nil
+	// when it hasn't switched.
+	beforeStream *uiState
+	// --leave-bigpicture came while the window was closed: the game ending
+	// leaves it as restored, rather than in the game's mode.
+	restored bool
+}
+
+// uiState is how the main window was: open or not, and in which mode.
+type uiState struct {
+	open bool
+	mode string
 }
 
 // NewShell makes the shell.
@@ -83,6 +95,7 @@ func (s *Shell) OpenMain() {
 		s.main = w
 	}
 	s.gameMode = false
+	s.restored = false
 	s.mu.Unlock()
 	s.bringForward(w)
 }
@@ -184,20 +197,30 @@ func (s *Shell) newMain(mode string) *application.WebviewWindow {
 // closeMainForGame closes the interface while a game runs.
 func (s *Shell) closeMainForGame() {
 	s.mu.Lock()
-	w := s.main
-	s.gameMode = w != nil
-	s.closing = true
+	s.gameMode = s.main != nil
 	s.mu.Unlock()
-	if w != nil {
-		w.Close()
+	if s.closeMain() {
 		logx.Printf("interface closed while playing")
 		// Hand the memory the interface's data used back to Windows now,
 		// rather than whenever the runtime gets round to it.
 		time.AfterFunc(3*time.Second, debug.FreeOSMemory)
 	}
+}
+
+// closeMain closes the main window, leaving Seaglass in the tray; it
+// reports whether the window was open.
+func (s *Shell) closeMain() bool {
+	s.mu.Lock()
+	w := s.main
+	s.closing = true
+	s.mu.Unlock()
+	if w != nil {
+		w.Close()
+	}
 	s.mu.Lock()
 	s.closing = false
 	s.mu.Unlock()
+	return w != nil
 }
 
 // closeMainWhenGameInFront closes the interface once the game's own window
@@ -235,7 +258,7 @@ func (s *Shell) reopenForGame(from string) {
 	s.mu.Lock()
 	s.waitGame++ // a close still waiting for the game is off
 	reopen := s.gameMode
-	if reopen && from != "" {
+	if reopen && from != "" && !s.restored {
 		s.uiMode = from
 	}
 	s.mu.Unlock()
@@ -250,14 +273,77 @@ func (s *Shell) reopenForGame(from string) {
 func (s *Shell) gameEnded(from string) {
 	s.CloseOverlay()
 	s.mu.Lock()
-	reopen := s.gameMode || (s.main == nil && from != "")
-	if reopen && from != "" {
+	reopen := s.gameMode || (s.main == nil && from != "" && !s.restored)
+	if reopen && from != "" && !s.restored {
 		s.uiMode = from
 	}
+	s.restored = false
 	s.mu.Unlock()
 	if reopen {
 		s.OpenMain()
 	}
+}
+
+// EnterBigPicture opens big picture for a game stream ("--bigpicture"),
+// remembering how the interface was so LeaveBigPicture can put it back.
+// Nothing is saved to the settings.
+func (s *Shell) EnterBigPicture() {
+	open := s.saveForStream()
+	s.OpenMain()
+	// A new window starts in big picture from its address (also before
+	// Seaglass runs, on a cold start); an open one is told to switch.
+	if open {
+		s.c.emit(EventUIMode, "bigpicture")
+	}
+}
+
+// LeaveBigPicture puts the interface back the way it was before
+// EnterBigPicture ("--leave-bigpicture", when the stream ends): back in
+// the tray, or back in its mode. It does nothing when Seaglass wasn't
+// switched.
+func (s *Shell) LeaveBigPicture() {
+	b, w := s.restoreAfterStream()
+	switch {
+	case b == nil || w == nil:
+	case !b.open:
+		s.closeMain()
+	default:
+		s.c.emit(EventUIMode, b.mode)
+	}
+}
+
+// saveForStream remembers how the interface is and switches it to big
+// picture; it reports whether the main window is open. A second
+// --bigpicture keeps what the first one saw. A window closed for a game
+// counts as open: it would have come back.
+func (s *Shell) saveForStream() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.beforeStream == nil {
+		s.beforeStream = &uiState{open: s.main != nil || s.gameMode, mode: s.uiMode}
+	}
+	s.uiMode = "bigpicture"
+	return s.main != nil
+}
+
+// restoreAfterStream takes back the state saveForStream remembered, if
+// any, and returns it with the main window when that is open. With the
+// window closed during a game, it comes back after the game the way it
+// was, or not at all.
+func (s *Shell) restoreAfterStream() (*uiState, *application.WebviewWindow) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b := s.beforeStream
+	s.beforeStream = nil
+	if b == nil {
+		return nil, nil
+	}
+	s.uiMode = b.mode
+	if s.main == nil {
+		s.gameMode = b.open
+		s.restored = true
+	}
+	return b, s.main
 }
 
 // ToggleOverlay opens or closes the in-game overlay.
