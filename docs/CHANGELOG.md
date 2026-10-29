@@ -19,7 +19,7 @@ Console games played on emulators are a new library next to the PC games, so Sea
 - **Playtime** is kept per console and serial (`console:ps3:bles01689`), never under a PC game's title.
 - **Settings**: *Add console games from emulators* (`detectEmulators`, on, per PC like the emulators), and a *Consoles* library that can be hidden (`hiddenSources: emulated`). A Seaglass older than 1.13 drops `emulated` from the hidden sources it syncs, so the synced settings carry `hideConsoles` too; when another PC's settings don't have it, the console games stay hidden or shown as they were.
 
-## 1.12.0 (unreleased): big picture for game streaming
+## 1.12.0 (2026-10-29): big picture for game streaming
 
 For streaming to another screen (Sunshine, Moonlight), Seaglass can open big picture from the command line without touching the settings, so desktop use stays as it was.
 
