@@ -12,7 +12,7 @@ Seaglass is made and published by ApolloF, in the Netherlands. Contact: me@apoll
 
 ## What Seaglass reads on your PC
 
-To find your games, Seaglass reads the libraries of the launchers installed on your PC (such as Steam, Epic, GOG Galaxy, EA, Ubisoft, Battle.net and Xbox), the folders you add, and achievement files games and launchers keep locally. It records playtime for games you start. All of this stays on your PC.
+To find your games, Seaglass reads the libraries of the launchers installed on your PC (such as Steam, Epic, GOG Galaxy, EA, Ubisoft, Battle.net and Xbox), the settings and game lists of the emulators installed on your PC (RPCS3, Dolphin, Cemu) and the game folders they point at, the folders you add, and achievement files games and launchers keep locally. It records playtime for games you start. All of this stays on your PC.
 
 Seaglass also reads which Steam account is signed in on this PC, from Steam's local files, and the Windows machine ID (only as a hash, to name this PC's files in the profile described under With Syncer).
 
@@ -57,7 +57,7 @@ If you use [Syncer](https://apps.apollof.nl/syncer/), Seaglass talks to it on yo
 
 Settings, your library, the profile, the log and crash logs stay in `%APPDATA%\Seaglass`. The log records events such as the titles of games started, play times and errors. Cached art, achievement data, the game database, update downloads and the data of the WebView2 component that draws Seaglass's window stay in `%LOCALAPPDATA%\Seaglass`. WebView2 is a Microsoft component; its own data handling follows Microsoft's and Windows' privacy settings, not Seaglass. Seaglass's interface loads no remote code (it has a strict Content Security Policy).
 
-Outside those folders Seaglass writes only when you turn the feature on: a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for *Start with Windows*, and Seaglass shortcuts in Steam's `shortcuts.vdf` for the Steam Input route for controllers. With HidHide installed, Seaglass adds your controller to HidHide's block list while a game runs and adds itself to HidHide's allow list; it notes the controllers it hid in `%APPDATA%\Seaglass\hidden-controllers.json` and takes exactly those off again when the game ends. It reads, but doesn't change, the store launchers' own files and registry entries.
+Outside those folders Seaglass writes only when you turn the feature on: a value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for *Start with Windows*, and Seaglass shortcuts in Steam's `shortcuts.vdf` for the Steam Input route for controllers. With HidHide installed, Seaglass adds your controller to HidHide's block list while a game runs and adds itself to HidHide's allow list; it notes the controllers it hid in `%APPDATA%\Seaglass\hidden-controllers.json` and takes exactly those off again when the game ends. It reads, but doesn't change, the store launchers' and emulators' own files and registry entries.
 
 *Copy diagnostics* (or `Seaglass.exe --diagnostics`, which writes a file to your desktop) creates a report only when you ask for it. It holds Seaglass, Windows and WebView2 versions, your settings (including game folders), library counts, the last crash and the end of the log. It holds no keys or tokens, and your user folder is shortened to `%USERPROFILE%`. It goes only where you paste or send it.
 

@@ -4,6 +4,20 @@ What each version of Seaglass (WaterLauncher until 1.4) changed and why, newest 
 
 Alongside Seaglass: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.15.0 and DLSS Updater 1.4.1.
 
+## 1.13.0 (unreleased): emulated games
+
+Console games played on emulators are a new library next to the PC games, so Seaglass can be the one launcher at the desk and on a stream. Nothing about PC games changes: console games get keys of their own (`emu:` and the file the emulator boots), so they never meet a PC game's folder.
+
+- **New `internal/emulated`**: finds RPCS3, Dolphin and Cemu (an `Emulators`, `Emulation` or `Emu` folder on any fixed drive, also under `Games`, Program Files, `%LOCALAPPDATA%\Programs`, Scoop) and the games their own files list: RPCS3's `config\games.yml`, `dev_hdd0\game` and `dev_hdd0\disc`, and the folders next to its listed games (a second copy of a disc it forgot); Dolphin's `ISOPath`s from `Dolphin.ini`, walked like Dolphin does; Cemu's `GamePaths`, `title_list_cache.xml` and games installed to `mlc01`. Another emulator (RetroArch, Ryujinx, PCSX2) is one more `emulator` value in that package.
+- **Titles** come from the game or the emulator, never the file name when there's better: `PARAM.SFO`, Dolphin's GameTDB list (`Sys\wiitdb-en.txt`) by disc id, Cemu's game list and `meta.xml`, then the disc's own name, then the folder (when the game is alone in it), then the file. The platform is the source label (PS3, GameCube, Wii, Wii U).
+- **Copies**: two files with the same serial, or the same name and size, are one game; a local copy beats one on a network drive (Cemu's list pointed at the server, the local copy is what plays). Different copies that are both there (two regions' discs) keep both, with the serial after the title.
+- **Bounded and untrusted**: every file is read with a size limit (`PARAM.SFO` 64 KB, `games.yml` 1 MB, title list 8 MB, …) and the parsers are fuzzed; paths from the emulators' files are cleaned, and device paths refused. The walk stops after 4 s or 60,000 entries, goes at most 5 folders down, skips folders with programs in them (PC games) and doesn't walk network drives (the games an emulator lists there are still found). On this PC: 7 games in about 110 ms.
+- **Launching**: RPCS3 `--no-gui --fullscreen`, Dolphin `-b -C Main.Display.Fullscreen=True -e`, Cemu `-f -g`. While a console game runs, only processes from the emulator's folder are the game (`launch.Plan.FolderOnly`), so a boot script and a helper it starts don't keep the session going. Auto never hands a console game an Xbox controller (the emulator reads the DualSense itself); saves steps and Syncer registration skip them; a running emulator isn't taken for one of its games.
+- **Launch options** (any game): the arguments its program starts with, and arguments that make it close the game again (`quitArgs`). Quit game then runs the program with those and ends the game itself after 20 s if it's still running. Combined with *Choose program…* this starts a console game through a launcher or script (a figure portal's boot script, say). Scans keep them; *Start with <emulator>* goes back.
+- **Art**: console games skip the Steam store and PCGamingWiki (a PC game of the same name isn't them). SteamGridDB is searched by the title without the serial, and the pictures the game came with fill the rest: a PS3 disc's 1920×1080 `PIC1.PNG` is the backdrop (and the hero and cover when there's no other), `ICON0.PNG` the icon, Dolphin's downloaded covers the cover. Local files are only read as PNG or JPEG, within the download limits.
+- **Playtime** is kept per console and serial (`console:ps3:bles01689`), never under a PC game's title.
+- **Settings**: *Add console games from emulators* (`detectEmulators`, on, per PC like the emulators), and a *Consoles* library that can be hidden (`hiddenSources: emulated`).
+
 ## 1.12.0 (unreleased): big picture for game streaming
 
 For streaming to another screen (Sunshine, Moonlight), Seaglass can open big picture from the command line without touching the settings, so desktop use stays as it was.
