@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -368,5 +369,33 @@ func TestConsoleGameScan(t *testing.T) {
 	r, _ := Open(path)
 	if g2, _ := r.Get(g.ID); g2.Console == nil || g2.Console.Platform != "PS3" || g2.QuitArgs == "" {
 		t.Fatalf("not read back: %+v", g2)
+	}
+}
+
+// A scan that didn't get to look for console games (their emulators'
+// network drive is slow) leaves them installed; a later look for them
+// alone leaves the PC games alone.
+func TestApplyScanOfLeavesOthersAlone(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "library.json"))
+	pc := Found{Key: `c:\games\hades`, Title: "Hades", SortTitle: "hades", Source: "folder", Dir: `C:\Games\Hades`}
+	emu := Found{Key: `emu:z:\wii u\mk8.wud`, Title: "Mario Kart 8", SortTitle: "mario kart 8", Source: "emulator", Dir: `Z:\Wii U`,
+		Console: &Console{Platform: "Wii U"}}
+	isEmu := func(k string) bool { return strings.HasPrefix(k, "emu:") }
+	s.ApplyScan([]Found{pc, emu}, time.Now())
+
+	if _, removed := s.ApplyScanOf([]Found{pc}, time.Now(), func(k string) bool { return !isEmu(k) }); removed != 0 {
+		t.Fatalf("removed %d", removed)
+	}
+	if _, removed := s.ApplyScanOf(nil, time.Now(), isEmu); removed != 1 {
+		t.Fatalf("console game not gone: removed %d", removed)
+	}
+	for _, g := range s.Games() {
+		if g.Installed != (g.Key == pc.Key) {
+			t.Fatalf("%s installed %v", g.Title, g.Installed)
+		}
+	}
+	// nil looks for everything, as ApplyScan does.
+	if _, removed := s.ApplyScanOf(nil, time.Now(), nil); removed != 1 {
+		t.Fatalf("removed %d", removed)
 	}
 }

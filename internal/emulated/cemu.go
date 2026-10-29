@@ -37,12 +37,19 @@ var cemu = &emulator{
 		if b, err := readSmall(filepath.Join(dir, "title_list_cache.xml"), 4<<20); err == nil {
 			for _, t := range parseCemuTitles(b) {
 				p := pathFrom(in.dir, t.path)
-				if p == "" || !platform.IsFile(p) {
+				if p == "" {
 					continue
 				}
-				g, ok := wiiUFile(p, fileSize(p))
-				if !ok {
-					continue
+				var g Game
+				if remote(p) {
+					// Cemu saw it there; a network drive isn't opened (its
+					// server may be away), so its size stays unknown.
+					g = Game{Platform: "Wii U", File: p, Title: cleanName(filepath.Base(p))}
+				} else {
+					var ok bool
+					if g, ok = wiiUFile(p, fileSize(p)); !ok || !isFile(p) {
+						continue
+					}
 				}
 				if name := cleanTitle(t.name); name != "" {
 					g.Title, g.BaseTitle, g.TitleFrom = titleCase(name), titleCase(name), "Cemu game list"
@@ -81,10 +88,10 @@ var cemu = &emulator{
 // cemuSettingsDir is where Cemu keeps settings.xml: a portable folder
 // beside it (2.0 and later), beside it (1.x), or in AppData.
 func cemuSettingsDir(dir string) string {
-	if p := filepath.Join(dir, "portable"); platform.IsFile(filepath.Join(p, "settings.xml")) {
+	if p := filepath.Join(dir, "portable"); isFile(filepath.Join(p, "settings.xml")) {
 		return p
 	}
-	if platform.IsFile(filepath.Join(dir, "settings.xml")) {
+	if isFile(filepath.Join(dir, "settings.xml")) {
 		return dir
 	}
 	return filepath.Join(platform.Roaming, "Cemu")

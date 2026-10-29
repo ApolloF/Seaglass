@@ -58,6 +58,15 @@ func ShowInExplorer(dir string) error {
 	return cmd.Start()
 }
 
+// CommandLine is the command line StartProcess runs exe with.
+func CommandLine(exe, args string) string {
+	cmdLine := syscall.EscapeArg(exe)
+	if args = strings.TrimSpace(args); args != "" {
+		cmdLine += " " + args
+	}
+	return cmdLine
+}
+
 // StartProcess starts exe with a raw argument string in workDir, detached
 // from Seaglass. It never goes through a shell. When the game asks for
 // administrator rights, Windows shows its UAC prompt.
@@ -70,10 +79,8 @@ func StartProcess(exe, args, workDir string) (int, error) {
 	}
 	cmd := exec.Command(exe)
 	cmd.Dir = workDir
-	cmdLine := syscall.EscapeArg(exe)
-	if args = strings.TrimSpace(args); args != "" {
-		cmdLine += " " + args
-	}
+	args = strings.TrimSpace(args)
+	cmdLine := CommandLine(exe, args)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CmdLine:       cmdLine,
 		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_BREAKAWAY_FROM_JOB,

@@ -68,8 +68,10 @@ export interface Game {
   collections?: string[];
   hidden?: boolean;
   padMode?: string; // "" | "native" | "xbox" | "steam"
-  /** With a program the user chose: the arguments that make it close the game. */
+  /** The arguments that make the program close the game (a launcher or script). */
   quitArgs?: string;
+  /** The user set the arguments: scans keep them. */
+  userArgs?: boolean;
   /** Set for a console game played on an emulator. */
   console?: Console;
   meta?: Meta;

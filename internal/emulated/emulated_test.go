@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // write creates files under root; a value of nil bytes makes a folder.
@@ -95,7 +97,11 @@ func under(prefix string, files map[string][]byte) map[string][]byte {
 
 func findIn(t *testing.T, dirs ...string) []Game {
 	t.Helper()
-	return find(context.Background(), findInstalls(dirs), time.Now().Add(time.Minute))
+	games, err := find(context.Background(), findInstalls(dirs), time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return games
 }
 
 func byTitle(games []Game) map[string]Game {
@@ -249,6 +255,52 @@ func TestCemuListAndCopies(t *testing.T) {
 	z := got["The Legend of Zelda Breath of the Wild"]
 	if z.Serial != "0005000010144F00" || !strings.HasSuffix(z.File, "Zelda.rpx") {
 		t.Fatalf("zelda: %+v (all %v)", z, got)
+	}
+}
+
+// Nothing on a network drive is opened (its server may be away and hang
+// the scan): not the folders RPCS3's games.yml and vfs.yml point at, not
+// Cemu's game folders. A game Cemu lists there still shows, from Cemu's
+// list alone, and a local copy of it wins.
+func TestNetworkPathsAreNeverOpened(t *testing.T) {
+	root := t.TempDir()
+	emu := filepath.Join(root, "Emu")
+	share := filepath.Join(root, "Share")
+	local := filepath.Join(root, "Local")
+	old := remote
+	remote = func(p string) bool { return platform.Within(share, p) }
+	t.Cleanup(func() { remote = old })
+
+	write(t, share, under("PS3/Flower", ps3Disc("BLES00001", "Flower", "DG")))
+	write(t, share, under("hdd/game/NPEB00002", map[string][]byte{
+		"PARAM.SFO":        sfo(map[string]string{"CATEGORY": "HG", "TITLE": "Journey", "TITLE_ID": "NPEB00002"}),
+		"USRDIR/EBOOT.BIN": []byte("x"),
+	}))
+	wud := bytes.Repeat([]byte{1}, 2<<20)
+	write(t, share, map[string][]byte{"Wii U/Mario Kart 8/fk-mk8.wud": wud, "Wii U/Splatoon/splatoon.wud": wud})
+	write(t, local, map[string][]byte{"Mario Kart 8/fk-mk8.wud": wud})
+	write(t, emu, map[string][]byte{
+		"RPCS3/rpcs3.exe":            []byte("x"),
+		"RPCS3/config/games.yml":     []byte("BLES00001: " + filepath.ToSlash(filepath.Join(share, "PS3", "Flower")) + "/\n"),
+		"RPCS3/config/vfs.yml":       []byte("/dev_hdd0/: " + filepath.ToSlash(filepath.Join(share, "hdd")) + "/\n"),
+		"Cemu/Cemu.exe":              []byte("x"),
+		"Cemu/portable/settings.xml": []byte(`<content><GamePaths><Entry>` + filepath.Join(share, "Wii U") + `</Entry><Entry>` + local + `</Entry></GamePaths></content>`),
+		"Cemu/portable/title_list_cache.xml": []byte(`<title_list>
+ <title titleId="000500001010ec00"><name>MARIO KART 8</name><path>` + filepath.ToSlash(filepath.Join(share, "Wii U", "Mario Kart 8", "fk-mk8.wud")) + `</path></title>
+ <title titleId="0005000010176900"><name>Splatoon</name><path>` + filepath.ToSlash(filepath.Join(share, "Wii U", "Splatoon", "splatoon.wud")) + `</path></title>
+</title_list>`),
+	})
+
+	got := byTitle(findIn(t, emu))
+	if len(got) != 2 {
+		t.Fatalf("want only Cemu's two listed games, got %v", got)
+	}
+	mk, sp := got["Mario Kart 8"], got["Splatoon"]
+	if !platform.Within(local, mk.File) || mk.Serial != "000500001010EC00" || mk.SizeBytes == 0 {
+		t.Fatalf("the local copy of Mario Kart 8 should win: %+v", mk)
+	}
+	if !platform.Within(share, sp.File) || sp.SizeBytes != 0 || sp.TitleFrom != "Cemu game list" {
+		t.Fatalf("splatoon, from Cemu's list without opening it: %+v", sp)
 	}
 }
 

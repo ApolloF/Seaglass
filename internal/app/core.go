@@ -87,6 +87,8 @@ type Core struct {
 	linkDirs atomic.Pointer[map[string]bool]
 	meta     *metaWorker
 	pruned   sync.Once // unused art is cleared once per start
+	consoles consoleSearch
+	picked   sync.Map // game id → the program PickProgram picked, for SetLaunch
 }
 
 // NewCore opens the library and settings.
@@ -100,6 +102,7 @@ func NewCore(version string) (*Core, error) {
 		Version: version, Lib: lib, Settings: settings.Open(settings.DefaultPath()),
 		Manifest: identify.NewManager(platform.CacheDir("manifest")),
 		ctx:      ctx, cancel: cancel, pending: make(chan struct{}, 1),
+		consoles: consoleSearch{find: emulated.Find},
 	}
 	c.meta = newMetaWorker(c)
 	c.Launch = launch.NewManager(c.onSession)
@@ -236,29 +239,26 @@ func (c *Core) scanNow() {
 	defer c.scanMu.Unlock()
 	c.setState(func(s *ScanState) { s.Running, s.Error = true, "" })
 	cfg := c.Settings.Get()
-	// Console games on emulators are looked for alongside the PC games.
-	var consoles []emulated.Game
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		if cfg.DetectEmulators {
-			consoles = emulated.Find(c.ctx)
-		}
-	}()
+	// Console games on emulators are looked for alongside the PC games,
+	// which never wait for them (see consoleSearch).
+	var consoles <-chan consoleResult
+	if cfg.DetectEmulators {
+		consoles = c.consoles.start(c.ctx)
+	}
 	res := scan.Run(c.ctx, scan.Options{Folders: cfg.Folders, AutoFolders: cfg.AutoFolders, DetectExternal: cfg.DetectExternal})
-	<-done
 	if c.ctx.Err() != nil {
 		return
 	}
 	ix := c.Manifest.Index()
-	found := make([]library.Found, 0, len(res.Games)+len(consoles))
+	found := make([]library.Found, 0, len(res.Games))
 	for _, g := range res.Games {
 		found = append(found, toFound(g, ix.Identify(g), cfg))
 	}
-	for _, g := range consoles {
+	r, ready := consoleResultNow(consoles)
+	for _, g := range r.games {
 		found = append(found, consoleFound(g))
 	}
-	added, removed := c.Lib.ApplyScan(found, time.Now())
+	added, removed := c.Lib.ApplyScanOf(found, time.Now(), lookedFor(cfg.DetectEmulators, ready, r.err))
 	logx.Printf("scan: %d games (%d new, %d gone) in %v", len(found), added, removed, res.Took.Round(time.Millisecond))
 	c.setState(func(s *ScanState) {
 		s.Running, s.LastScan, s.TookMs = false, time.Now().Unix(), res.Took.Milliseconds()
@@ -270,6 +270,9 @@ func (c *Core) scanNow() {
 	c.pruned.Do(func() { go c.pruneArt() })
 	if added > 0 || removed > 0 || !c.registered.Load() {
 		go c.registerWithSyncer()
+	}
+	if consoles != nil && !ready {
+		go c.lateConsoles(consoles)
 	}
 }
 

@@ -80,6 +80,15 @@ export function OpenFolder(id: number): $CancellablePromise<void> {
 }
 
 /**
+ * PickProgram lets the user pick a program for the game's launch options
+ * without saving it: SetLaunch takes it when they save. "" when they
+ * cancel.
+ */
+export function PickProgram(id: number): $CancellablePromise<string> {
+    return $Call.ByID(3276071030, id);
+}
+
+/**
  * RefreshMetadata fetches a game's metadata and art again.
  */
 export function RefreshMetadata(id: number): $CancellablePromise<void> {
@@ -161,14 +170,16 @@ export function SetHidden(id: number, on: boolean): $CancellablePromise<library$
 }
 
 /**
- * SetLaunchArgs sets the command-line arguments the game's program gets,
- * and the ones that make it close the game again (quit, "" for none: then
- * Seaglass ends the game itself). Scans keep them, as they keep a chosen
- * program. A console game can be started through a launcher or script
- * this way (a figure portal's boot script, say).
+ * SetLaunch sets the program that starts the game (exe: the one it has,
+ * or the one PickProgram just picked), its command-line arguments, and
+ * the ones that make it close the game again (quitArgs, "" for none:
+ * then Seaglass ends the game itself). Scans keep them. The person
+ * confirms the exact command lines in a Windows dialog first. A console
+ * game can be started through a launcher or script this way (a figure
+ * portal's boot script, say).
  */
-export function SetLaunchArgs(id: number, args: string, quitArgs: string): $CancellablePromise<library$0.Game> {
-    return $Call.ByID(1871014939, id, args, quitArgs);
+export function SetLaunch(id: number, exe: string, args: string, quitArgs: string): $CancellablePromise<library$0.Game> {
+    return $Call.ByID(844615898, id, exe, args, quitArgs);
 }
 
 /**

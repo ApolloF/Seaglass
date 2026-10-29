@@ -521,3 +521,73 @@ func TestFolderOnlyFollowsTheEmulator(t *testing.T) {
 		t.Errorf("phase %s, played %d; want ended after the emulator's 4 s", s.Phase, played)
 	}
 }
+
+// An emulator that was open already when Play was pressed isn't the
+// game: the session runs while the one the game started does, and ends
+// with it although the other one stays open.
+func TestFolderOnlyIgnoresAnEmulatorOpenBefore(t *testing.T) {
+	const emuDir = `C:\Emulators\RPCS3`
+	open := platform.Proc{PID: 200, PPID: 1, Name: "rpcs3.exe"}
+	script := platform.Proc{PID: 100, PPID: 1, Name: "powershell.exe"}
+	emu := platform.Proc{PID: 300, PPID: 100, Name: "rpcs3.exe"}
+	f := &fakePC{
+		paths: map[uint32]string{100: `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, 200: emuDir + `\rpcs3.exe`, 300: emuDir + `\rpcs3.exe`},
+		frames: [][]platform.Proc{
+			{open}, // before the game starts
+			{open, script}, {open, script}, {open, script, emu}, {open, script, emu}, {open, script, emu},
+			{open}, {open}, {open}, {open}, {open}, {open},
+		},
+	}
+	m, r := newTest(f)
+	var played int64
+	_ = m.Launch(context.Background(), Plan{Dirs: []string{emuDir}, FolderOnly: true, DetectTimeout: time.Minute,
+		Start:  func() (uint32, string, error) { return 100, "direct", nil },
+		Played: func(s int64) { played += s }})
+	s := wait(t, r)
+	if s.Phase != Ended || played != 4 {
+		t.Errorf("phase %s, played %d; want ended after the started emulator's 4 s", s.Phase, played)
+	}
+}
+
+// A boot script that takes longer than the detect timeout to start the
+// emulator (a figure portal's controller first) is waited for while it
+// runs; one that's gone isn't.
+func TestFolderOnlyWaitsForASlowStarter(t *testing.T) {
+	const emuDir = `C:\Emulators\RPCS3`
+	script := platform.Proc{PID: 100, PPID: 1, Name: "powershell.exe"}
+	emu := platform.Proc{PID: 300, PPID: 100, Name: "rpcs3.exe"}
+	paths := map[uint32]string{100: `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, 300: emuDir + `\rpcs3.exe`}
+	plan := func(played *int64) Plan {
+		return Plan{Dirs: []string{emuDir}, FolderOnly: true, DetectTimeout: 10 * time.Second, StarterTimeout: time.Minute,
+			Start:  func() (uint32, string, error) { return 100, "direct", nil },
+			Played: func(s int64) { *played += s }}
+	}
+	// 20 s of the script alone (2 s a poll), twice the detect timeout.
+	frames := [][]platform.Proc{{}}
+	for range 10 {
+		frames = append(frames, []platform.Proc{script})
+	}
+	frames = append(frames, []platform.Proc{script, emu}, []platform.Proc{script, emu}, []platform.Proc{script, emu})
+	for range 6 {
+		frames = append(frames, []platform.Proc{})
+	}
+	m, r := newTest(&fakePC{paths: paths, frames: frames})
+	var played int64
+	_ = m.Launch(context.Background(), plan(&played))
+	if s := wait(t, r); s.Phase != Ended || played != 4 || s.Note != "" {
+		t.Errorf("phase %s, played %d, note %q; want the game seen and played", s.Phase, played, s.Note)
+	}
+
+	// The script ended without starting the emulator: the detect timeout.
+	frames = [][]platform.Proc{{}, {script}}
+	for range 20 {
+		frames = append(frames, []platform.Proc{})
+	}
+	f := &fakePC{paths: paths, frames: frames}
+	m, r = newTest(f)
+	played = 0
+	_ = m.Launch(context.Background(), plan(&played))
+	if s := wait(t, r); s.Note == "" || f.i > 9 {
+		t.Errorf("polls %d, note %q; want it given up after the detect timeout", f.i, s.Note)
+	}
+}

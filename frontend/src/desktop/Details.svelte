@@ -179,6 +179,7 @@
   // Launch options: the program's arguments, and ones that make it close
   // the game (a launcher or script that wants to be told).
   let launchOpen = $state(false);
+  let exeDraft = $state("");
   let argsDraft = $state("");
   let quitDraft = $state("");
   $effect(() => {
@@ -187,19 +188,21 @@
   });
   function openLaunch() {
     menuOpen = false;
+    exeDraft = game.exe ?? "";
     argsDraft = game.args ?? "";
     quitDraft = game.quitArgs ?? "";
     launchOpen = true;
   }
   async function saveLaunch() {
-    if ((await lib.run(() => api.setLaunchArgs(game.id, argsDraft, quitDraft))) !== undefined) launchOpen = false;
+    if ((await lib.run(() => api.setLaunch(game.id, exeDraft, argsDraft, quitDraft))) !== undefined) launchOpen = false;
   }
   async function resetLaunch() {
     if ((await lib.run(() => api.resetLaunch(game.id))) !== undefined) launchOpen = false;
   }
+  // The program picked here is saved with the rest, or dropped on Cancel.
   async function chooseLaunchExe() {
-    const g = await lib.run(() => api.chooseExe(game.id));
-    if (g) argsDraft = g.args ?? "";
+    const p = await lib.run(() => api.pickProgram(game.id));
+    if (p) (exeDraft = p), (argsDraft = ""), (quitDraft = "");
   }
 
   function onmenukey(e: KeyboardEvent) {
@@ -360,7 +363,7 @@
           <span class="grow">Launch options</span>
         </div>
         <div class="prog">
-          <span class="ellipsis" title={game.exe}>{game.exe?.split("\\").pop()}</span>
+          <span class="ellipsis" title={exeDraft}>{exeDraft.split("\\").pop()}</span>
           <button type="button" class="btn small" onclick={chooseLaunchExe}>Choose program…</button>
         </div>
         <label class="field">
@@ -375,7 +378,7 @@
         <div class="row">
           <button type="submit" class="btn primary">Save</button>
           <button type="button" class="btn" onclick={() => (launchOpen = false)}>Cancel</button>
-          {#if game.userExe}
+          {#if game.userExe || game.userArgs}
             <button type="button" class="btn" onclick={resetLaunch}>{game.console ? `Start with ${game.console.emulator}` : "Use the program found"}</button>
           {/if}
         </div>

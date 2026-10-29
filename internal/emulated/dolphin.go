@@ -54,7 +54,7 @@ var dolphin = &emulator{
 		}
 		g.BaseTitle = g.Title
 		if d.id != "" {
-			if p := filepath.Join(dolphinUserDir(in.dir), "Cache", "GameCovers", d.id+".png"); platform.IsFile(p) {
+			if p := filepath.Join(dolphinUserDir(in.dir), "Cache", "GameCovers", d.id+".png"); isFile(p) {
 				g.Cover = p
 			}
 		}
@@ -66,11 +66,11 @@ var dolphin = &emulator{
 
 // dolphinUserDir is where Dolphin keeps its settings.
 func dolphinUserDir(dir string) string {
-	if platform.IsFile(filepath.Join(dir, "portable.txt")) {
+	if isFile(filepath.Join(dir, "portable.txt")) {
 		return filepath.Join(dir, "User")
 	}
 	if platform.Documents != "" {
-		if d := filepath.Join(platform.Documents, "Dolphin Emulator"); platform.IsDir(d) {
+		if d := filepath.Join(platform.Documents, "Dolphin Emulator"); isDir(d) {
 			return d
 		}
 	}

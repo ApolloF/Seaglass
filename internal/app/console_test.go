@@ -1,12 +1,19 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ApolloF/Seaglass/internal/emulated"
+	"github.com/ApolloF/Seaglass/internal/launch"
 	"github.com/ApolloF/Seaglass/internal/library"
 	"github.com/ApolloF/Seaglass/internal/pad"
+	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 func consoleGame() library.Game {
@@ -59,20 +66,277 @@ func TestConsoleExeAndTracking(t *testing.T) {
 	if consoleExeOK(other) {
 		t.Fatal("a program outside the emulator's folder isn't the game's")
 	}
-	if d := consoleDirs(g); !slices.Equal(d, []string{`C:\Emulators\RPCS3`}) {
-		t.Fatalf("dirs %v", d)
+	// Only the emulator's processes are the game, whatever started it: not
+	// PowerShell running a boot script, not a launcher that stays in the
+	// tray (a figure portal's controller).
+	c := ctlTestCore(t, false, nil, nil)
+	for _, exe := range []string{g.Exe, `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, `C:\Emulators\src\portal\portal-controller.exe`} {
+		k := g
+		k.UserExe, k.Exe = exe != g.Exe, exe
+		p := c.plan(k)
+		if !slices.Equal(p.Dirs, []string{`C:\Emulators\RPCS3`}) || !p.FolderOnly || p.StarterTimeout < 10*time.Minute {
+			t.Errorf("%s: dirs %v, folder only %v, starter timeout %v", exe, p.Dirs, p.FolderOnly, p.StarterTimeout)
+		}
 	}
-	// Started through PowerShell (a boot script): PowerShell's folder
-	// doesn't make every PowerShell window the game.
-	ps := g
-	ps.UserExe, ps.Exe = true, `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
-	if d := consoleDirs(ps); len(d) != 1 {
-		t.Fatalf("dirs %v", d)
+	// A PC game's plan is as it was.
+	pc := library.Game{ID: 2, Title: "G", Installed: true, Dir: `C:\G`, Exe: `C:\Tools\g.exe`, UserExe: true}
+	if p := c.plan(pc); !slices.Equal(p.Dirs, []string{`C:\G`, `C:\Tools`}) || p.FolderOnly || p.StarterTimeout != 0 {
+		t.Errorf("pc game: %+v", p)
 	}
-	tool := g
-	tool.UserExe, tool.Exe = true, `C:\Tools\Launcher\launch.exe`
-	if d := consoleDirs(tool); len(d) != 2 || d[1] != `C:\Tools\Launcher` {
-		t.Fatalf("dirs %v", d)
+}
+
+// With "ask who plays" on, a console game asks like any other; Syncer's
+// save steps are only for PC games.
+func TestConsoleAsksWhoPlays(t *testing.T) {
+	old := syncerInstalled
+	syncerInstalled = func() (string, bool) { return `C:\Syncer\syncer.exe`, true }
+	t.Cleanup(func() { syncerInstalled = old })
+	c := ctlTestCore(t, false, nil, nil)
+	cfg := c.Settings.Get()
+	cfg.AskWhoPlays, cfg.SyncSavesBefore, cfg.BackupSavesAfter = true, true, true
+	if _, err := c.Settings.Set(cfg); err != nil {
+		t.Fatal(err)
+	}
+	steps := func(p launch.Plan) (ids []string) {
+		for _, st := range append(p.Before, p.After...) {
+			ids = append(ids, st.ID)
+		}
+		return ids
+	}
+	pc := library.Game{ID: 2, Title: "G", Installed: true, Dir: `C:\G`, Exe: `C:\G\g.exe`}
+	pcSteps := steps(c.plan(pc))
+	if !slices.Contains(pcSteps, "whoPlays") || len(pcSteps) != 3 {
+		t.Errorf("pc game: %v", pcSteps)
+	}
+	if got := steps(c.plan(consoleGame())); !slices.Equal(got, []string{"whoPlays"}) {
+		t.Errorf("console game: %v", got)
+	}
+}
+
+type fakeSessions struct {
+	mu    sync.Mutex
+	cur   launch.Session
+	quits int
+}
+
+func (f *fakeSessions) Current() launch.Session {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cur
+}
+
+func (f *fakeSessions) Quit() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.quits++
+	return nil
+}
+
+func (f *fakeSessions) quitCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.quits
+}
+
+// Quit game runs a boot script's quit arguments and ends the game itself
+// when it's still running after that; with the emulator itself as the
+// program, it never starts a second emulator to quit the first.
+func TestQuitGameWithQuitArgs(t *testing.T) {
+	type start struct{ exe, args string }
+	var started []start
+	var mu sync.Mutex
+	oldStart, oldWait := startProcess, quitWait
+	startProcess = func(exe, args, _ string) (int, error) {
+		mu.Lock()
+		started = append(started, start{exe, args})
+		mu.Unlock()
+		return 1, nil
+	}
+	quitWait = 20 * time.Millisecond
+	t.Cleanup(func() { startProcess, quitWait = oldStart, oldWait })
+
+	c := ctlTestCore(t, false, nil, nil)
+	const ps = `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
+	script := consoleGame()
+	script.Exe, script.Args, script.QuitArgs, script.UserExe = ps, `-File C:\Emulators\tools\stream-skylanders.ps1 -Serial BLES01966`, `-File C:\Emulators\tools\stream-skylanders.ps1 -Quit`, true
+	emu := consoleGame()
+	emu.QuitArgs, emu.UserArgs = "--quit", true
+	ids := map[string]int64{}
+	for name, g := range map[string]library.Game{"script": script, "emu": emu} {
+		f := consoleFound(emulated.Game{File: `R:\PS3\` + name + `\EBOOT.BIN`, Dir: `R:\PS3\` + name, Title: name, EmuDir: `C:\Emulators\RPCS3`, Exe: g.Console.Exe})
+		c.Lib.ApplyScan([]library.Found{f}, time.Now())
+		var id int64
+		for _, x := range c.Lib.Games() {
+			if x.Key == f.Key {
+				id = x.ID
+			}
+		}
+		if _, err := c.Lib.Update(id, func(x *library.Game) {
+			x.Exe, x.Args, x.QuitArgs, x.UserExe, x.UserArgs = g.Exe, g.Args, g.QuitArgs, g.UserExe, g.UserArgs
+		}); err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = id
+	}
+
+	// The script quits the game; Seaglass ends it after the wait.
+	m := &fakeSessions{cur: launch.Session{ID: 7, GameID: ids["script"], Phase: launch.Running}}
+	if err := c.quitGame(m); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	if len(started) != 1 || started[0].exe != ps || started[0].args != script.QuitArgs {
+		t.Fatalf("started %+v", started)
+	}
+	mu.Unlock()
+	if m.quitCount() != 0 {
+		t.Fatal("ended right away instead of letting the script quit it")
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for m.quitCount() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("not ended after the wait")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	// The game closed after its quit arguments: nothing more to end.
+	m = &fakeSessions{cur: launch.Session{ID: 8, GameID: ids["script"], Phase: launch.Running}}
+	if err := c.quitGame(m); err != nil {
+		t.Fatal(err)
+	}
+	m.mu.Lock()
+	m.cur.Phase = launch.Ended
+	m.mu.Unlock()
+	time.Sleep(100 * time.Millisecond)
+	if m.quitCount() != 0 {
+		t.Fatal("ended a session that was over")
+	}
+
+	// The emulator as the program: Seaglass ends it, nothing is started.
+	mu.Lock()
+	started = nil
+	mu.Unlock()
+	m = &fakeSessions{cur: launch.Session{ID: 9, GameID: ids["emu"], Phase: launch.Running}}
+	if err := c.quitGame(m); err != nil || m.quitCount() != 1 {
+		t.Fatalf("err %v, quits %d", err, m.quitCount())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(started) != 0 {
+		t.Fatalf("started a second emulator: %+v", started)
+	}
+}
+
+func TestQuitsWithArgs(t *testing.T) {
+	g := consoleGame()
+	g.QuitArgs = "-Quit"
+	if quitsWithArgs(g) {
+		t.Error("the emulator itself")
+	}
+	g.Exe = `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
+	if !quitsWithArgs(g) {
+		t.Error("a boot script")
+	}
+	pc := library.Game{Dir: `C:\G`, Exe: `C:\G\g.exe`, QuitArgs: "-quit"}
+	if quitsWithArgs(pc) {
+		t.Error("a PC game's own program")
+	}
+	pc.Exe = `C:\Launcher\launcher.exe`
+	if !quitsWithArgs(pc) {
+		t.Error("a PC game's launcher")
+	}
+	pc.LaunchURI = "steam://run/1"
+	if quitsWithArgs(pc) {
+		t.Error("a store game")
+	}
+}
+
+// Launch options are saved only once the person confirms the exact
+// command lines in a Windows dialog. Arguments alone keep the program,
+// so its folder guard stays; a program is only taken from the picker.
+func TestSetLaunch(t *testing.T) {
+	var asked []string
+	answer := true
+	old := confirmLaunch
+	confirmLaunch = func(_, msg string) bool { asked = append(asked, msg); return answer }
+	t.Cleanup(func() { confirmLaunch = old })
+	c := ctlTestCore(t, false, nil, nil)
+	s := NewLibraryService(c)
+	dir := t.TempDir()
+	game := filepath.Join(dir, "game.exe")
+	tool := filepath.Join(t.TempDir(), "launcher.exe")
+	for _, p := range []string{game, tool} {
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c.Lib.ApplyScan([]library.Found{{Key: platform.Key(dir), Title: "G", SortTitle: "g", Source: "folder", Dir: dir, Exe: game, WorkDir: dir}}, time.Now())
+	id := c.Lib.Games()[0].ID
+
+	answer = false
+	if _, err := s.SetLaunch(id, "", "-windowed", ""); err == nil {
+		t.Fatal("saved without being confirmed")
+	}
+	if g, _ := c.Lib.Get(id); g.Args != "" {
+		t.Fatalf("args %q", g.Args)
+	}
+	answer = true
+	g, err := s.SetLaunch(id, game, "-windowed", "-quit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Args != "-windowed" || g.QuitArgs != "-quit" || g.UserExe || !g.UserArgs || g.Exe != game {
+		t.Fatalf("game %+v", g)
+	}
+	want := platform.CommandLine(game, "-windowed")
+	if n := len(asked); n != 2 || !strings.Contains(asked[1], want) || !strings.Contains(asked[1], platform.CommandLine(game, "-quit")) {
+		t.Fatalf("asked %q, want %q in it", asked, want)
+	}
+	// A rescan keeps the arguments, with the program it found.
+	c.Lib.ApplyScan([]library.Found{{Key: platform.Key(dir), Title: "G", SortTitle: "g", Source: "folder", Dir: dir, Exe: game, WorkDir: dir}}, time.Now())
+	if g, _ := c.Lib.Get(id); g.Args != "-windowed" {
+		t.Fatalf("rescan: args %q", g.Args)
+	}
+	// Nothing changed: nothing to confirm.
+	if _, err := s.SetLaunch(id, game, "-windowed", "-quit"); err != nil || len(asked) != 2 {
+		t.Fatalf("err %v, asked %d", err, len(asked))
+	}
+	// A program the interface names, but the person didn't pick.
+	if _, err := s.SetLaunch(id, tool, "", ""); err == nil {
+		t.Fatal("took a program that wasn't picked")
+	}
+	c.picked.Store(id, tool)
+	g, err = s.SetLaunch(id, tool, "--go", "")
+	if err != nil || g.Exe != tool || !g.UserExe || g.WorkDir != filepath.Dir(tool) || g.QuitArgs != "" {
+		t.Fatalf("err %v, game %+v", err, g)
+	}
+	if _, ok := c.picked.Load(id); ok {
+		t.Fatal("the pick is used up")
+	}
+	// Back to the program found: arguments and quit arguments are gone.
+	g, err = s.ResetLaunch(id)
+	if err != nil || g.UserExe || g.UserArgs || g.QuitArgs != "" {
+		t.Fatalf("reset: err %v, game %+v", err, g)
+	}
+}
+
+// Resetting a console game starts it with its emulator again, the way
+// the scan found.
+func TestResetLaunchConsole(t *testing.T) {
+	c := ctlTestCore(t, false, nil, nil)
+	g := consoleGame()
+	f := consoleFound(emulated.Game{File: g.Console.File, Dir: g.Dir, Title: g.Title, EmuDir: g.Console.EmuDir, Exe: g.Console.Exe, Args: g.Console.Args})
+	c.Lib.ApplyScan([]library.Found{f}, time.Now())
+	id := c.Lib.Games()[0].ID
+	if _, err := c.Lib.Update(id, func(x *library.Game) {
+		x.Exe, x.Args, x.QuitArgs, x.WorkDir, x.UserExe, x.UserArgs = `C:\Windows\powershell.exe`, "-File boot.ps1", "-File boot.ps1 -Quit", `C:\`, true, true
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := NewLibraryService(c).ResetLaunch(id)
+	if err != nil || got.Exe != g.Console.Exe || got.Args != g.Console.Args || got.WorkDir != g.Console.EmuDir || got.UserExe || got.UserArgs || got.QuitArgs != "" {
+		t.Fatalf("err %v, game %+v", err, got)
 	}
 }
 

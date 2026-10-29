@@ -426,11 +426,19 @@ export const mockApi: Api = {
   setPadMode: (id, mode) => update(id, (g) => (g.padMode = mode === "auto" ? "" : mode)),
   rename: (id, t) => update(id, (g) => (g.customTitle = t.trim())),
   confirmMatch: (id) => update(id, (g) => ((g.confirmed = true), (g.needsReview = false))),
-  chooseExe: (id) => update(id, (g) => ((g.exe = g.dir + "\\Game.exe"), (g.args = ""), (g.userExe = true))),
-  setLaunchArgs: (id, args, quitArgs) => update(id, (g) => ((g.args = args.trim()), (g.quitArgs = quitArgs.trim()), (g.userExe = true))),
+  chooseExe: (id) => update(id, (g) => ((g.exe = g.dir + "\\Game.exe"), (g.args = ""), (g.quitArgs = ""), (g.userArgs = false), (g.userExe = true))),
+  async pickProgram() {
+    return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+  },
+  setLaunch: (id, exe, args, quitArgs) =>
+    update(id, (g) => {
+      if (exe && exe !== g.exe) (g.exe = exe), (g.userExe = true);
+      (g.args = args.trim()), (g.quitArgs = quitArgs.trim()), (g.userArgs = true);
+    }),
   resetLaunch: (id) =>
     update(id, (g) => {
       g.userExe = false;
+      g.userArgs = false;
       g.quitArgs = "";
       if (g.console) (g.exe = g.console.exe), (g.args = g.console.args), (g.workDir = g.console.emuDir);
     }),

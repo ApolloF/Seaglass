@@ -10,6 +10,7 @@ package emulated
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -50,7 +51,12 @@ type Game struct {
 
 // Key is the game's identity in the library: what's booted, so two
 // copies of a game, or two games in one folder, stay apart.
-func (g Game) Key() string { return "emu:" + platform.Key(g.File) }
+func (g Game) Key() string { return keyPrefix + platform.Key(g.File) }
+
+const keyPrefix = "emu:"
+
+// IsKey reports whether a library key is a console game's.
+func IsKey(k string) bool { return strings.HasPrefix(k, keyPrefix) }
 
 // install is one emulator found on this PC.
 type install struct {
@@ -92,18 +98,26 @@ type emulator struct {
 // could play is offered to them.
 var emulators = []*emulator{rpcs3, dolphin, cemu}
 
+// ErrIncomplete means Find didn't get to look everywhere (it was
+// cancelled, ran out of time or hit something it couldn't read): games it
+// didn't return may still be there.
+var ErrIncomplete = errors.New("console games: not all folders were looked through")
+
 // Find returns the console games of the emulators installed on this PC.
-// It never fails: what can't be read is left out.
-func Find(ctx context.Context) []Game {
+// What can't be read is left out; ErrIncomplete comes with the games it
+// did find when it didn't finish.
+func Find(ctx context.Context) (games []Game, err error) {
+	defer recoverLog("find", &err) // finding the emulators, or sorting out copies
 	return find(ctx, findInstalls(installDirs()), time.Now().Add(walkBudget))
 }
 
-func find(ctx context.Context, ins []*install, deadline time.Time) []Game {
+func find(ctx context.Context, ins []*install, deadline time.Time) ([]Game, error) {
 	var games []Game
 	var roots []root
+	var err error
 	for _, in := range ins {
 		func() {
-			defer recoverLog(in.emu.name)
+			defer recoverLog(in.emu.name, &err)
 			gs, rs := in.emu.listed(in)
 			for i := range gs {
 				gs[i].listed = true
@@ -118,12 +132,13 @@ func find(ctx context.Context, ins []*install, deadline time.Time) []Game {
 	}
 	for _, r := range mergeRoots(roots) {
 		func() {
-			defer recoverLog("walk " + r.path)
+			defer recoverLog("walk "+r.path, &err)
 			w.walk(r)
 		}()
 	}
 	if w.stopped != "" {
 		logx.Printf("emulated games: folder walk stopped early (%s)", w.stopped)
+		err = ErrIncomplete
 	}
 	games = append(games, w.found...)
 	games = collapse(games)
@@ -134,7 +149,10 @@ func find(ctx context.Context, ins []*install, deadline time.Time) []Game {
 		}
 		return platform.Key(games[i].File) < platform.Key(games[j].File)
 	})
-	return games
+	if err == nil && ctx.Err() != nil {
+		err = ErrIncomplete
+	}
+	return games, err
 }
 
 // fill completes a game an emulator found with what's the same for all
@@ -148,7 +166,7 @@ func (in *install) fill(g Game) Game {
 	if g.BaseTitle == "" {
 		g.BaseTitle = g.Title
 	}
-	g.remote = isRemote(g.File)
+	g.remote = remote(g.File)
 	return g
 }
 
@@ -209,7 +227,14 @@ func sameGame(a, b Game) bool {
 	if a.Serial != "" && b.Serial != "" {
 		return strings.EqualFold(a.Serial, b.Serial)
 	}
-	return a.SizeBytes > 0 && a.SizeBytes == b.SizeBytes && strings.EqualFold(filepath.Base(a.File), filepath.Base(b.File))
+	if !strings.EqualFold(filepath.Base(a.File), filepath.Base(b.File)) {
+		return false
+	}
+	// A file on a network drive isn't opened, so its size is unknown.
+	if a.remote && a.SizeBytes == 0 || b.remote && b.SizeBytes == 0 {
+		return true
+	}
+	return a.SizeBytes > 0 && a.SizeBytes == b.SizeBytes
 }
 
 // better says whether a is the copy to keep rather than b.
@@ -287,7 +312,7 @@ func findInstalls(dirs []string) []*install {
 			for _, x := range e.exes {
 				if real, ok := names[x]; ok {
 					exe := filepath.Join(dir, real)
-					if platform.IsFile(exe) {
+					if isFile(exe) {
 						have[e] = true
 						out = append(out, &install{emu: e, dir: filepath.Clean(dir), exe: exe})
 						break
@@ -297,7 +322,7 @@ func findInstalls(dirs []string) []*install {
 		}
 	}
 	for _, d := range dirs {
-		if !platform.IsDir(d) {
+		if !isDir(d) {
 			continue
 		}
 		check(d)
@@ -368,6 +393,9 @@ func lowerNames(dir string, limit int) map[string]string {
 
 // readDir lists at most limit entries of a folder.
 func readDir(dir string, limit int) ([]os.DirEntry, error) {
+	if remote(dir) {
+		return nil, errRemote
+	}
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -383,6 +411,9 @@ func readDir(dir string, limit int) ([]os.DirEntry, error) {
 // readSmall reads a whole file of at most limit bytes; larger files are
 // refused rather than cut short.
 func readSmall(p string, limit int64) ([]byte, error) {
+	if remote(p) {
+		return nil, errRemote
+	}
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
@@ -400,6 +431,9 @@ func readSmall(p string, limit int64) ([]byte, error) {
 
 // readAt reads n bytes at off (a disc image's header).
 func readAt(p string, off int64, n int) ([]byte, error) {
+	if remote(p) {
+		return nil, errRemote
+	}
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
@@ -514,6 +548,18 @@ func cleanTitle(s string) string {
 	return strings.ToValidUTF8(s, "")
 }
 
+// remote reports whether a path is on a network drive; tests stand in
+// for one with it.
+var remote = isRemote
+
+var errRemote = errors.New("on a network drive")
+
+// isDir and isFile never touch a path on a network drive: one whose
+// server is away can hang a scan for minutes. Every file this package
+// reads goes through them or readDir, readSmall and readAt.
+func isDir(p string) bool  { return !remote(p) && platform.IsDir(p) }
+func isFile(p string) bool { return !remote(p) && platform.IsFile(p) }
+
 func isRemote(p string) bool {
 	if strings.HasPrefix(p, `\\`) {
 		return true
@@ -525,9 +571,12 @@ func isRemote(p string) bool {
 	return platform.DriveRemote(vol + `\`)
 }
 
-func recoverLog(what string) {
+// recoverLog, deferred, logs a panic of a step and makes *err
+// ErrIncomplete: the games the step would have found are missing.
+func recoverLog(what string, err *error) {
 	if r := recover(); r != nil {
 		logx.Printf("emulated games %s: panic: %v", what, r)
+		*err = ErrIncomplete
 	}
 }
 

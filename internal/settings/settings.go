@@ -123,6 +123,10 @@ type Portable struct {
 	Achievements           bool     `json:"achievements"`
 	ShowHiddenAchievements bool     `json:"showHiddenAchievements"`
 	AutoUpdate             bool     `json:"autoUpdate"`
+	// HideConsoles says whether "emulated" is in HiddenSources. A Seaglass
+	// older than console games drops it from the list, and doesn't send
+	// this: then the console games stay hidden or shown as they were.
+	HideConsoles bool `json:"hideConsoles"`
 }
 
 // Portable returns the settings that go with a person.
@@ -135,8 +139,12 @@ func (v Settings) Portable() Portable {
 		NoticeExternal: v.NoticeExternal, SyncSavesBefore: v.SyncSavesBefore, BackupSavesAfter: v.BackupSavesAfter,
 		SyncWait: v.SyncWait, Achievements: v.Achievements,
 		ShowHiddenAchievements: v.ShowHiddenAchievements, AutoUpdate: v.AutoUpdate,
+		HideConsoles: slices.Contains(v.HiddenSources, consoles),
 	}
 }
+
+// consoles is the source of console games on emulators.
+const consoles = "emulated"
 
 // WithPortable returns v with another PC's portable settings, given as
 // JSON. Settings the JSON doesn't have (an older Seaglass saved it) stay
@@ -149,6 +157,13 @@ func (v Settings) WithPortable(b []byte) (Settings, error) {
 	var keys map[string]json.RawMessage
 	if json.Unmarshal(b, &keys) == nil {
 		legacyExternal(&p.DetectExternal, keys)
+	}
+	if _, ok := keys["hideConsoles"]; !ok {
+		p.HideConsoles = slices.Contains(v.HiddenSources, consoles)
+	}
+	p.HiddenSources = slices.DeleteFunc(slices.Clone(p.HiddenSources), func(s string) bool { return s == consoles })
+	if p.HideConsoles {
+		p.HiddenSources = append(p.HiddenSources, consoles)
 	}
 	v.DetectExternal, v.ReviewUncertain, v.ShowNotInstalled = p.DetectExternal, p.ReviewUncertain, p.ShowNotInstalled
 	v.ShowOwned, v.HiddenSources, v.Theme = p.ShowOwned, p.HiddenSources, p.Theme

@@ -90,35 +90,65 @@ func (s *LaunchService) Answer(questionID int, option string) { s.c.Launch.Answe
 func (s *LaunchService) Cancel() { s.c.Launch.Cancel() }
 
 // QuitGame ends the running game's processes right away.
-func (s *LaunchService) QuitGame() error {
-	cur := s.c.Launch.Current()
-	if g, ok := s.c.Lib.Get(cur.GameID); ok && cur.Phase == launch.Running && g.UserExe && g.QuitArgs != "" {
+func (s *LaunchService) QuitGame() error { return s.c.quitGame(s.c.Launch) }
+
+// sessions is what quitting a game needs of the launch manager.
+type sessions interface {
+	Current() launch.Session
+	Quit() error
+}
+
+func (c *Core) quitGame(m sessions) error {
+	cur := m.Current()
+	if g, ok := c.Lib.Get(cur.GameID); ok && cur.Phase == launch.Running && quitsWithArgs(g) {
 		// The program that started the game knows how to close it (a
 		// launcher that wants to be told); Seaglass ends it if that doesn't.
-		_, err := platform.StartProcess(g.Exe, g.QuitArgs, g.WorkDir)
+		_, err := startProcess(g.Exe, g.QuitArgs, g.WorkDir)
 		if err == nil {
 			logx.Printf("quit game %q with its quit arguments", cur.Title)
-			go s.c.quitIfStillRunning(cur.ID, 20*time.Second)
+			go c.quitIfStillRunning(m, cur.ID, quitWait)
 			return nil
 		}
 		logx.Printf("quit game %q with its quit arguments: %v", cur.Title, err)
 	}
-	err := s.c.Launch.Quit()
+	err := m.Quit()
 	if err == nil {
-		logx.Printf("quit game %q", s.c.Launch.Current().Title)
+		logx.Printf("quit game %q", m.Current().Title)
 	}
 	return err
 }
 
+// syncerInstalled is syncer.Installed; tests stand in for it.
+var syncerInstalled = syncer.Installed
+
+// startProcess is platform.StartProcess; tests stand in for it.
+var startProcess = platform.StartProcess
+
+// quitWait is how long a game gets to close after its quit arguments.
+var quitWait = 20 * time.Second
+
+// quitsWithArgs reports whether Quit game runs the game's program with
+// its quit arguments: only when that program isn't the game itself (a
+// launcher or script). The game's own program would start a second copy.
+func quitsWithArgs(g library.Game) bool {
+	if g.QuitArgs == "" || g.Exe == "" || g.LaunchURI != "" {
+		return false
+	}
+	if g.Console != nil {
+		return !platform.Within(g.Console.EmuDir, g.Exe)
+	}
+	return !platform.Within(g.Dir, g.Exe)
+}
+
 // quitIfStillRunning ends session id's game if it's still running after d.
-func (c *Core) quitIfStillRunning(id int64, d time.Duration) {
+func (c *Core) quitIfStillRunning(m sessions, id int64, d time.Duration) {
 	select {
 	case <-c.ctx.Done():
 		return
 	case <-time.After(d):
 	}
-	if cur := c.Launch.Current(); cur.ID == id && cur.Phase == launch.Running {
-		if err := c.Launch.Quit(); err == nil {
+	if cur := m.Current(); cur.ID == id && cur.Phase == launch.Running {
+		if err := m.Quit(); err == nil {
 			logx.Printf("quit game %q: still running after its quit arguments", cur.Title)
 		}
 	}
@@ -222,20 +252,22 @@ func (c *Core) plan(g library.Game) launch.Plan {
 	bridged := false
 	var before, after []launch.Step
 	cfg := c.Settings.Get()
-	// Syncer doesn't know console games: their saves are the emulator's.
-	if _, ok := syncer.Installed(); ok && g.Console == nil {
+	if _, ok := syncerInstalled(); ok {
+		// Syncer doesn't know console games: their saves are the
+		// emulator's. Who plays them is asked all the same.
+		saves := g.Console == nil
 		if cfg.AskWhoPlays {
 			before = append(before, c.whoPlaysStep(g))
-		} else if !cfg.SyncSavesBefore && c.profile != nil {
+		} else if (!cfg.SyncSavesBefore || !saves) && c.profile != nil {
 			c.profile.changed() // who's playing now (savesBefore looks otherwise)
 		}
 		known := false
-		if cfg.SyncSavesBefore {
+		if cfg.SyncSavesBefore && saves {
 			before = append(before, c.savesBeforeStep(g, &known))
 		} else {
 			known = true // not checked: let the backup step ask Syncer itself
 		}
-		if cfg.BackupSavesAfter {
+		if cfg.BackupSavesAfter && saves {
 			after = append(after, c.savesAfterStep(g, &known, true))
 		}
 	}
@@ -252,15 +284,19 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		dirs = append(dirs, filepath.Dir(g.Exe))
 	}
 	folderOnly := false
+	var starter time.Duration
 	if g.Console != nil {
-		dirs, folderOnly = consoleDirs(g), true
+		dirs, folderOnly = []string{g.Console.EmuDir}, true
+		// A boot script can take minutes to start the emulator (a figure
+		// portal's controller first); it's waited for while it runs.
+		starter = 15 * time.Minute
 	}
 	detect := 2 * time.Minute // a UAC prompt can wait a while
 	if r == RouteStore || r == RouteSteamInput {
 		detect = 5 * time.Minute // stores update, sign in, build shader caches
 	}
 	return launch.Plan{
-		GameID: g.ID, Title: title, Dirs: dirs, FolderOnly: folderOnly, Before: before, After: after, DetectTimeout: detect,
+		GameID: g.ID, Title: title, Dirs: dirs, FolderOnly: folderOnly, StarterTimeout: starter, Before: before, After: after, DetectTimeout: detect,
 		Start: func() (uint32, string, error) {
 			var err error
 			var pid int
@@ -520,16 +556,4 @@ func consoleExeOK(g library.Game) bool {
 	k := g.Console
 	return k != nil && k.EmuDir != "" && platform.Within(k.EmuDir, g.Exe) && strings.EqualFold(g.Exe, k.Exe) &&
 		platform.Within(g.Dir, k.File)
-}
-
-// consoleDirs are where a console game's processes run from: the
-// emulator's folder, and the folder of a program the user picked to start
-// it, unless that's a part of Windows (PowerShell running a script) whose
-// other processes aren't the game.
-func consoleDirs(g library.Game) []string {
-	dirs := []string{g.Console.EmuDir}
-	if g.UserExe && g.Exe != "" && !platform.Within(g.Console.EmuDir, g.Exe) && !platform.Within(platform.WindowsDir, g.Exe) {
-		dirs = append(dirs, filepath.Dir(g.Exe))
-	}
-	return dirs
 }

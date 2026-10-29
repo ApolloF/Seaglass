@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"path/filepath"
 	"strings"
-
-	"github.com/ApolloF/Seaglass/internal/platform"
 )
 
 // rpcs3 is the PlayStation 3 emulator. Its game list is config\games.yml
@@ -20,7 +18,7 @@ var rpcs3 = &emulator{
 		var games []Game
 		var roots []root
 		cfg := filepath.Join(in.dir, "config")
-		if !platform.IsDir(cfg) {
+		if !isDir(cfg) {
 			cfg = in.dir // before 0.0.30 its files were next to the program
 		}
 		if b, err := readSmall(filepath.Join(cfg, "games.yml"), 1<<20); err == nil {
@@ -76,11 +74,11 @@ var rpcs3 = &emulator{
 // aren't games.
 func ps3Game(dir string) (Game, bool) {
 	base := dir
-	if platform.IsDir(filepath.Join(dir, "PS3_GAME")) {
+	if isDir(filepath.Join(dir, "PS3_GAME")) {
 		base = filepath.Join(dir, "PS3_GAME")
 	}
 	eboot := filepath.Join(base, "USRDIR", "EBOOT.BIN")
-	if !platform.IsFile(eboot) {
+	if !isFile(eboot) {
 		return Game{}, false
 	}
 	b, err := readSmall(filepath.Join(base, "PARAM.SFO"), maxSFO)
@@ -105,10 +103,10 @@ func ps3Game(dir string) (Game, bool) {
 		g.Title, g.TitleFrom = cleanName(filepath.Base(dir)), "folder name"
 	}
 	g.BaseTitle = g.Title
-	if p := filepath.Join(base, "PIC1.PNG"); platform.IsFile(p) {
+	if p := filepath.Join(base, "PIC1.PNG"); isFile(p) {
 		g.Backdrop = p
 	}
-	if p := filepath.Join(base, "ICON0.PNG"); platform.IsFile(p) {
+	if p := filepath.Join(base, "ICON0.PNG"); isFile(p) {
 		g.Icon = p
 	}
 	return g, g.Title != ""

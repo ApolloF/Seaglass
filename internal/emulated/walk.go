@@ -33,12 +33,9 @@ type walker struct {
 }
 
 func (w *walker) walk(r root) {
-	if w.stopped != "" || !platform.IsDir(r.path) {
-		return
-	}
 	// A network folder could take minutes to walk, or hang while its
-	// server is away; the games an emulator lists there are still found.
-	if isRemote(r.path) {
+	// server is away: it's checked for before anything is read there.
+	if w.stopped != "" || remote(r.path) || !isDir(r.path) {
 		return
 	}
 	w.dir(r.path, min(r.depth, maxDepth), true)
@@ -174,6 +171,9 @@ func isPlatformName(s string) bool {
 
 // fileSize is a file's size, 0 when it can't be read.
 func fileSize(p string) int64 {
+	if remote(p) {
+		return 0
+	}
 	fi, err := os.Stat(p)
 	if err != nil {
 		return 0

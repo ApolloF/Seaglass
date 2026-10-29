@@ -140,7 +140,12 @@ type Plan struct {
 	// FolderOnly counts only processes running from Dirs as the game, not
 	// everything the started program starts: an emulator is the game,
 	// whatever started it (a script that also starts a helper that stays).
-	FolderOnly bool
+	// Processes from Dirs that ran before the game was started aren't it
+	// (the emulator, open already). While the started program still runs
+	// (a boot script that's slow to start the emulator), the game is
+	// waited for up to StarterTimeout rather than DetectTimeout.
+	FolderOnly     bool
+	StarterTimeout time.Duration
 	Before     []Step
 	// Start starts the game. It runs after the Before steps, which may
 	// change what it does (the route). pid is 0 when the game was handed
@@ -338,6 +343,10 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, p Plan) {
 			return
 		}
 	}
+	var before map[uint32]string
+	if p.FolderOnly {
+		before = runningNow(m.procs)
+	}
 	pid, route, err := p.Start()
 	if err != nil {
 		m.update(func(s *Session) { s.Phase, s.Error = Failed, err.Error() })
@@ -345,7 +354,7 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, p Plan) {
 	}
 	m.update(func(s *Session) { s.Phase, s.Route = Starting, route })
 
-	played := m.follow(ctx, p, pid)
+	played := m.follow(ctx, p, pid, before)
 	if played < 0 {
 		return // cancelled or never seen
 	}
@@ -359,15 +368,21 @@ func (m *Manager) run(ctx context.Context, cancel context.CancelFunc, p Plan) {
 // follow waits for the game to run and until it closes, counting
 // playtime. It returns the seconds played, or -1 when the session ended
 // without the game being seen.
-func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
+func (m *Manager) follow(ctx context.Context, p Plan, pid uint32, before map[uint32]string) int64 {
 	root := pid
 	if p.FolderOnly {
 		root = 0
 	}
 	t := newTracker(UsableDirs(p.Dirs), root, uint32(os.Getpid()), m.image)
+	t.before = before
 	timeout := p.DetectTimeout
 	if timeout <= 0 {
 		timeout = time.Minute
+	}
+	starterTimeout := max(p.StarterTimeout, timeout)
+	starterName := ""
+	if p.FolderOnly && pid != 0 {
+		starterName = "?" // learned from the first snapshot it's in
 	}
 	began := m.now()
 	var seenAt, last time.Time
@@ -418,7 +433,11 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 		ps, err := m.procs()
 		now := m.now()
 		var game map[uint32]uint64
+		starting := false // the started program still runs
 		if err == nil {
+			if starterName != "" {
+				starterName, starting = starter(ps, pid, starterName)
+			}
 			game = t.update(ps)
 			m.mu.Lock()
 			m.tracked = game
@@ -479,7 +498,7 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 				}
 				secs := int64(total)
 				m.update(func(s *Session) { s.Seconds = secs })
-			case now.Sub(began) > timeout:
+			case now.Sub(began) > timeout && !(starting && now.Sub(began) <= starterTimeout):
 				m.update(func(s *Session) {
 					s.Phase = Ended
 					s.Note = "Seaglass couldn't see the game running, so no playtime was counted."
@@ -503,6 +522,35 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32) int64 {
 		case <-tick.C:
 		}
 	}
+}
+
+// runningNow lists the processes running now by id, with their names;
+// nil when they can't be read.
+func runningNow(procs func() ([]platform.Proc, error)) map[uint32]string {
+	ps, err := procs()
+	if err != nil {
+		return nil
+	}
+	out := make(map[uint32]string, len(ps))
+	for _, p := range ps {
+		out[p.PID] = p.Name
+	}
+	return out
+}
+
+// starter reports whether the started process pid still runs, by the
+// name it had when it was first seen ("?" before that). Once it's gone
+// it's "" for good: its id may be handed to another process.
+func starter(ps []platform.Proc, pid uint32, name string) (string, bool) {
+	for _, p := range ps {
+		if p.PID == pid && (name == "?" || strings.EqualFold(name, p.Name)) {
+			return p.Name, true
+		}
+	}
+	if name == "?" {
+		return name, false // not in a snapshot yet
+	}
+	return "", false
 }
 
 func (m *Manager) step(ctx context.Context, st Step, list *[]StepState) error {

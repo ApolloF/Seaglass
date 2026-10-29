@@ -41,9 +41,12 @@ type Game struct {
 	WorkDir   string `json:"workDir,omitempty"`
 	LaunchURI string `json:"launchUri,omitempty"`
 	UserExe   bool   `json:"userExe,omitempty"` // the user picked the executable; scans leave it alone
-	// QuitArgs, with a program the user picked, make that program close
-	// the game (a launcher's quit command) instead of Seaglass ending it.
-	QuitArgs   string `json:"quitArgs,omitempty"`
+	// QuitArgs make the game's program close the game (a launcher's or
+	// script's quit command) instead of Seaglass ending it.
+	QuitArgs string `json:"quitArgs,omitempty"`
+	// UserArgs: the user set Args and QuitArgs; scans leave them alone,
+	// with the program the scan found (UserExe keeps that too).
+	UserArgs   bool   `json:"userArgs,omitempty"`
 	Owned      bool   `json:"owned,omitempty"`      // a connected store account owns it
 	InstallURI string `json:"installUri,omitempty"` // asks the store to install it
 	SizeBytes  int64  `json:"sizeBytes,omitempty"`
@@ -320,6 +323,13 @@ func (s *Store) SetPlayed(fn func(g *Game) (playtime, lastPlayed int64, ok bool)
 // refreshed; games no longer found are kept (with their playtime) but
 // marked not installed. User choices are never overwritten.
 func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
+	return s.ApplyScanOf(found, now, nil)
+}
+
+// ApplyScanOf is ApplyScan for a scan that looked only for the games
+// whose key looked reports (nil: all of them). Games it didn't look for
+// stay as they are when it doesn't find them.
+func (s *Store) ApplyScanOf(found []Found, now time.Time, looked func(key string) bool) (added, removed int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ts := now.Unix()
@@ -355,7 +365,11 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		g.EmuDir = f.EmuDir
 		g.Installed, g.Dir, g.LaunchURI, g.SizeBytes = true, f.Dir, f.LaunchURI, f.SizeBytes
 		if !g.UserExe {
+			args := g.Args
 			g.Exe, g.Args, g.WorkDir = f.Exe, f.Args, f.WorkDir
+			if g.UserArgs {
+				g.Args = args
+			}
 		}
 		if !g.Confirmed && !byStore {
 			if g.SteamAppID != f.SteamAppID && g.Meta != nil {
@@ -380,7 +394,7 @@ func (s *Store) ApplyScan(found []Found, now time.Time) (added, removed int) {
 		}
 	}
 	for k, g := range s.byKey {
-		if !seen[k] && g.Installed {
+		if !seen[k] && g.Installed && (looked == nil || looked(k)) {
 			g.Installed = false
 			removed++
 		}

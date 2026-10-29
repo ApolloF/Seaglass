@@ -110,6 +110,12 @@ export interface Game {
     "quitArgs"?: string;
 
     /**
+     * UserArgs: the user set Args and QuitArgs; scans leave them alone,
+     * with the program the scan found (UserExe keeps that too).
+     */
+    "userArgs"?: boolean;
+
+    /**
      * a connected store account owns it
      */
     "owned"?: boolean;
