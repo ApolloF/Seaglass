@@ -4,7 +4,14 @@ What each version of Seaglass (WaterLauncher until 1.4) changed and why, newest 
 
 Alongside Seaglass: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.15.0 and DLSS Updater 1.4.1.
 
-## 1.11.0 (unreleased): a controller slow to answer
+## 1.12.0 (unreleased): big picture for game streaming
+
+For streaming to another screen (Sunshine, Moonlight), Seaglass can open big picture from the command line without touching the settings, so desktop use stays as it was.
+
+- **`--bigpicture`** opens the main window in big picture, on a cold start or in the running Seaglass (handed over like `--play`). The shell remembers how the interface was (window open or only the tray, and its mode); nothing is written to `settings.json`, and a pending update isn't installed at that start.
+- **`--leave-bigpicture`** (the stream's undo command) puts it back: the window closes again if Seaglass was only in the tray, or goes back to desktop mode. If the stream ends during a game, the window comes back after the game the way it was, or not at all. Without a running Seaglass, or without an earlier `--bigpicture`, it does nothing.
+
+## 1.11.0 (2026-10-21): a controller slow to answer
 
 The DualSense was found 25 to 300 s late after Seaglass started, and again after games, from 2026-10-03 on (it had been instant every time before, and `internal/pad` hadn't changed). It reproduced with SDL alone: with HIDAPI on, `SDL_Init` took 17 to 30 s and the pad was added up to 61 s later; with HIDAPI off, the RawInput and GameInput backends took 30 s or never reported it. After a replug, both took 0.15 s, 48 times out of 48. So the controller (or Windows' HID stack for it) answered every request only after a timeout, and Seaglass's controller thread waited through each SDL restart: at start, when a game starts and when it ends. Switching HIDAPI at runtime instead of restarting doesn't work: SDL removes the pad, and no other backend picks it up, so the PS button would stop working while a game runs.
 
@@ -21,11 +28,6 @@ Seaglass also got its own Xbox controller, so Xbox-only games no longer need Ste
 - **The real controller is hidden only while the game runs** (`hidePadWhilePlaying`, on, per PC), so games that also read it directly don't see every press twice. HidHide's released versions (up to 1.5.230) only have the block list saved with its settings, so Seaglass writes each controller it adds there to `hidden-controllers.json` first. It takes exactly those off again when the game ends, when Seaglass starts or quits (so a crash is undone at the next start), and from **Unhide controller** in Settings. A HidHide with the per-process list (1.7, unreleased so far) is used instead when it's there.
 - **Without ViGEmBus, Auto starts Xbox-only games directly** with a hint to set it up, instead of going through Steam Input, which worked badly. Steam can still be chosen in Settings or per game.
 - ViGEmBus results are handled as ViGEmClient does: a report submit only fails on "access denied" (the live test against ViGEmBus 1.22 found the bus ends good submits with other errors).
-
-For streaming to another screen (Sunshine, Moonlight), Seaglass can open big picture from the command line without touching the settings, so desktop use stays as it was.
-
-- **`--bigpicture`** opens the main window in big picture, on a cold start or in the running Seaglass (handed over like `--play`). The shell remembers how the interface was (window open or only the tray, and its mode); nothing is written to `settings.json`, and a pending update isn't installed at that start.
-- **`--leave-bigpicture`** (the stream's undo command) puts it back: the window closes again if Seaglass was only in the tray, or goes back to desktop mode. If the stream ends during a game, the window comes back after the game the way it was, or not at all. Without a running Seaglass, or without an earlier `--bigpicture`, it does nothing.
 
 ## 1.10.0 (2026-10-03): controller and audit fixes
 
