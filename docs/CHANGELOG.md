@@ -4,7 +4,7 @@ What each version of Seaglass (WaterLauncher until 1.4) changed and why, newest 
 
 Alongside Seaglass: [gamekit](https://github.com/ApolloF/gamekit) v0.1.0, Syncer 0.15.0 and DLSS Updater 1.4.1.
 
-## 1.13.0 (unreleased): emulated games
+## 1.13.0 (2026-10-29): emulated games
 
 Console games played on emulators are a new library next to the PC games, so Seaglass can be the one launcher at the desk and on a stream. Nothing about PC games changes: console games get keys of their own (`emu:` and the file the emulator boots), so they never meet a PC game's folder.
 
