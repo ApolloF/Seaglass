@@ -284,9 +284,15 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		dirs = append(dirs, filepath.Dir(g.Exe))
 	}
 	folderOnly := false
+	var names []string
 	var starter time.Duration
 	if g.Console != nil {
 		dirs, folderOnly = []string{g.Console.EmuDir}, true
+		// A boot script can start its own copy of the emulator from
+		// another folder: that's the game too.
+		if g.Console.Exe != "" {
+			names = []string{filepath.Base(g.Console.Exe)}
+		}
 		// A boot script can take minutes to start the emulator (a figure
 		// portal's controller first); it's waited for while it runs.
 		starter = 15 * time.Minute
@@ -296,7 +302,7 @@ func (c *Core) plan(g library.Game) launch.Plan {
 		detect = 5 * time.Minute // stores update, sign in, build shader caches
 	}
 	return launch.Plan{
-		GameID: g.ID, Title: title, Dirs: dirs, FolderOnly: folderOnly, StarterTimeout: starter, Before: before, After: after, DetectTimeout: detect,
+		GameID: g.ID, Title: title, Dirs: dirs, FolderOnly: folderOnly, ExeNames: names, StarterTimeout: starter, Before: before, After: after, DetectTimeout: detect,
 		Start: func() (uint32, string, error) {
 			var err error
 			var pid int

@@ -144,7 +144,11 @@ type Plan struct {
 	// (the emulator, open already). While the started program still runs
 	// (a boot script that's slow to start the emulator), the game is
 	// waited for up to StarterTimeout rather than DetectTimeout.
-	FolderOnly     bool
+	FolderOnly bool
+	// ExeNames are program file names (rpcs3.exe) that are the game from
+	// any folder: a boot script can start another copy of the emulator.
+	// With FolderOnly, ones that ran before the game was started aren't it.
+	ExeNames       []string
 	StarterTimeout time.Duration
 	Before         []Step
 	// Start starts the game. It runs after the Before steps, which may
@@ -374,7 +378,7 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32, before map[uin
 		root = 0
 	}
 	t := newTracker(UsableDirs(p.Dirs), root, uint32(os.Getpid()), m.image)
-	t.before = before
+	t.before, t.names = before, p.ExeNames
 	timeout := p.DetectTimeout
 	if timeout <= 0 {
 		timeout = time.Minute

@@ -53,6 +53,8 @@ type tracker struct {
 	// before are the processes that ran before the game was started (id
 	// to name), with Plan.FolderOnly: they aren't the game.
 	before map[uint32]string
+	// names are exe file names that are the game from any folder.
+	names []string
 }
 
 func newTracker(dirs []string, root, self uint32, image func(uint32) (string, uint64, error)) *tracker {
@@ -105,6 +107,12 @@ func (t *tracker) update(ps []platform.Proc) map[uint32]uint64 {
 			}
 			for _, d := range t.dirs {
 				if platform.Within(d, path) {
+					info.game = true
+					break
+				}
+			}
+			for _, n := range t.names {
+				if strings.EqualFold(n, filepath.Base(path)) {
 					info.game = true
 					break
 				}
