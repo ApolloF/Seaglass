@@ -10,7 +10,7 @@ A console game started through a boot script that runs its own copy of the emula
 
 - While a console game runs, a process whose program has the emulator's file name (`rpcs3.exe`, `Dolphin.exe`, `Cemu.exe`, from the scan, any case) is the game from any folder too (`launch.Plan.ExeNames`), next to the processes from the emulator's folder. Only ones that started after Play count, as before, so an emulator that was open already doesn't. The folder of a program picked in the launch options still isn't tracked, so a launcher that stays in the tray doesn't keep the session going. PC games are tracked as before.
 
-## 1.13.0 (unreleased): emulated games
+## 1.13.0 (2026-10-29): emulated games
 
 Console games played on emulators are a new library next to the PC games, so Seaglass can be the one launcher at the desk and on a stream. Nothing about PC games changes: console games get keys of their own (`emu:` and the file the emulator boots), so they never meet a PC game's folder.
 
