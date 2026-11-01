@@ -90,9 +90,16 @@ jobs:
         working-directory: frontend
         run: npm test
 
-      - name: Third-party notices up to date
-        # Fails when a dependency changed without regenerating the file.
-        run: go run ./tools/notices -check
+      - name: Third-party notices
+        # Regenerated so every build ships the notices of the dependencies it
+        # was built with. A stale committed copy (every Dependabot bump) is a
+        # warning: run go run ./tools/notices and commit the result.
+        run: |
+          go run ./tools/notices
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (git status --porcelain -- THIRD_PARTY_NOTICES.txt) {
+            echo "::warning::THIRD_PARTY_NOTICES.txt is out of date: run go run ./tools/notices and commit the result"
+          }
 
       - name: Sign
         if: env.SIGNPATH != 'true'
