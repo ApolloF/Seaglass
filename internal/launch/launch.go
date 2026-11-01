@@ -502,7 +502,7 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32, before map[uin
 				}
 				secs := int64(total)
 				m.update(func(s *Session) { s.Seconds = secs })
-			case now.Sub(began) > timeout && !(starting && now.Sub(began) <= starterTimeout):
+			case now.Sub(began) > timeout && (!starting || now.Sub(began) > starterTimeout):
 				m.update(func(s *Session) {
 					s.Phase = Ended
 					s.Note = "Seaglass couldn't see the game running, so no playtime was counted."
@@ -512,7 +512,6 @@ func (m *Manager) follow(ctx context.Context, p Plan, pid uint32, before map[uin
 		}
 		select {
 		case <-m.stop:
-			total += gap
 			unsaved += gap
 			flush()
 			return -1

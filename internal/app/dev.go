@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Dev flags drive the real app from a test harness (tools/harness). They
+// DevArgs are flags that drive the real app from a test harness (tools/harness). They
 // only work in dev builds: a release build ignores them.
 //
 //	--virtual-pad[=ps|xbox]  plug in a virtual controller (SDL's own)

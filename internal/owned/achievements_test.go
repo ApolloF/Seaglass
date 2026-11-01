@@ -156,15 +156,15 @@ func TestGOGCode(t *testing.T) {
 
 func TestGOGAchievementsAPI(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/token":
+		switch r.URL.Path {
+		case "/token":
 			q := r.URL.Query()
 			if q.Get("client_id") != gogClientID || q.Get("grant_type") != "refresh_token" || q.Get("refresh_token") != "r1" {
 				w.WriteHeader(400)
 				return
 			}
 			w.Write([]byte(`{"access_token":"a2","refresh_token":"r2","user_id":"u1","expires_in":3600}`))
-		case r.URL.Path == "/clients/5134/users/u1/achievements":
+		case "/clients/5134/users/u1/achievements":
 			if r.Header.Get("Authorization") != "Bearer a2" {
 				w.WriteHeader(401)
 				return

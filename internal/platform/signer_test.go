@@ -43,8 +43,8 @@ func TestSigner(t *testing.T) {
 func TestCommandExe(t *testing.T) {
 	for in, want := range map[string]string{
 		`"C:\Program Files\Seaglass\Seaglass.exe" --tray`: `C:\Program Files\Seaglass\Seaglass.exe`,
-		`C:\WL\Seaglass.exe --tray`:                            `C:\WL\Seaglass.exe`,
-		`"unterminated`:                                             ``,
+		`C:\WL\Seaglass.exe --tray`:                       `C:\WL\Seaglass.exe`,
+		`"unterminated`:                                   ``,
 	} {
 		if got := commandExe(in); got != want {
 			t.Errorf("commandExe(%q) = %q, want %q", in, got, want)

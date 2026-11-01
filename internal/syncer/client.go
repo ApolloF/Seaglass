@@ -250,10 +250,10 @@ func checkServer(conn net.Conn) error {
 	return nil
 }
 
-var procGetNamedPipeServerProcessId = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetNamedPipeServerProcessId")
+var procGetNamedPipeServerProcessID = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetNamedPipeServerProcessId")
 
 func getNamedPipeServerProcessID(h windows.Handle, pid *uint32) error {
-	r, _, err := procGetNamedPipeServerProcessId.Call(uintptr(h), uintptr(unsafe.Pointer(pid)))
+	r, _, err := procGetNamedPipeServerProcessID.Call(uintptr(h), uintptr(unsafe.Pointer(pid)))
 	if r == 0 {
 		return err
 	}

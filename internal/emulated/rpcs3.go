@@ -61,7 +61,7 @@ var rpcs3 = &emulator{
 		return games, roots
 	},
 	folder: func(in *install, dir string, names map[string]bool) (Game, bool) {
-		if !names["ps3_game"] && !(names["param.sfo"] && names["usrdir"]) {
+		if !names["ps3_game"] && (!names["param.sfo"] || !names["usrdir"]) {
 			return Game{}, false
 		}
 		return ps3Game(dir)
@@ -118,7 +118,7 @@ func isSerial(s string) bool {
 		return false
 	}
 	for i, r := range s {
-		if i < 4 && !(r >= 'A' && r <= 'Z') || i >= 4 && !(r >= '0' && r <= '9') {
+		if i < 4 && (r < 'A' || r > 'Z') || i >= 4 && (r < '0' || r > '9') {
 			return false
 		}
 	}

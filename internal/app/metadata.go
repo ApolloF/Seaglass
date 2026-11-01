@@ -75,7 +75,7 @@ func (w *metaWorker) queueMissing() {
 	now := time.Now()
 	w.mu.Lock()
 	for _, g := range games {
-		if !(g.Installed || showOwned && g.Owned) || g.Hidden || w.queued[g.ID] {
+		if !g.Installed && (!showOwned || !g.Owned) || g.Hidden || w.queued[g.ID] {
 			continue
 		}
 		if t, ok := w.failed[g.ID]; ok && now.Sub(t) < metaRetryGap {
