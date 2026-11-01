@@ -19,7 +19,7 @@ var (
 	procTranslateMessage         = user32.NewProc("TranslateMessage")
 	procDispatchMessageW         = user32.NewProc("DispatchMessageW")
 	procPostThreadMessageW       = user32.NewProc("PostThreadMessageW")
-	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+	procGetWindowThreadProcessID = user32.NewProc("GetWindowThreadProcessId")
 	procGetForegroundWindow      = user32.NewProc("GetForegroundWindow")
 )
 
@@ -30,7 +30,7 @@ func ForegroundPID() uint32 {
 		return 0
 	}
 	var pid uint32
-	procGetWindowThreadProcessId.Call(h, uintptr(unsafe.Pointer(&pid)))
+	procGetWindowThreadProcessID.Call(h, uintptr(unsafe.Pointer(&pid)))
 	return pid
 }
 
@@ -51,7 +51,7 @@ var (
 
 func foregroundCallback(hook, event, hwnd, idObject, idChild, thread, when uintptr) uintptr {
 	var pid uint32
-	procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
+	procGetWindowThreadProcessID.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
 	fgMu.Lock()
 	fn := fgFn
 	fgMu.Unlock()

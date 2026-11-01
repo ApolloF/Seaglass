@@ -434,7 +434,7 @@ func PruneArt(artDir string, keep map[string]bool, grace time.Duration) (removed
 	cutoff := time.Now().Add(-grace)
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || keep[artPrefix+name] || !(reArtName.MatchString(name) || strings.HasSuffix(name, ".tmp")) {
+		if e.IsDir() || keep[artPrefix+name] || (!reArtName.MatchString(name) && !strings.HasSuffix(name, ".tmp")) {
 			continue
 		}
 		fi, err := e.Info()

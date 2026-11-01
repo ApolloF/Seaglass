@@ -82,7 +82,6 @@ type profileState struct {
 	mu    sync.Mutex
 	info  Profile
 	unl   map[string]map[string]int64 // merged achievements by game key
-	pcs   string                      // PC the settings came from
 	data  time.Time                   // last launcherData call that worked
 	kick  chan struct{}
 }

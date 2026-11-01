@@ -1,0 +1,35 @@
+# golangci-lint (v2 config; the version CI runs is pinned in
+# .github/workflows/build.yml). Locally: golangci-lint run ./internal/... ./tools/...
+# (the root package needs frontend/dist from a build).
+#
+# errcheck and gosec are not on yet: the first run reported 189 and 259
+# findings. They get turned on once those are worked through; see the
+# follow-ups in the PR that added this file.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
+  settings:
+    staticcheck:
+      # golangci-lint's default set, minus ST1005: error strings here start
+      # with product names (Steam, Syncer, Epic, Seaglass) and are shown to
+      # the user as they are.
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1005
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+
+formatters:
+  enable:
+    - gofmt

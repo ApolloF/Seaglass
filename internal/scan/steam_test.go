@@ -16,7 +16,7 @@ func TestSteamCandidatesOldLibraryFormat(t *testing.T) {
 		"steamapps/libraryfolders.vdf": `"LibraryFolders" { "TimeNextStatsReport" "1" "1" "` + vdfPath + `" }`,
 	})
 	mk(t, lib, map[string]string{
-		"steamapps/appmanifest_413150.acf": `"AppState" { "appid" "413150" "name" "Stardew Valley" "StateFlags" "4" "installdir" "Stardew Valley" }`,
+		"steamapps/appmanifest_413150.acf":                   `"AppState" { "appid" "413150" "name" "Stardew Valley" "StateFlags" "4" "installdir" "Stardew Valley" }`,
 		"steamapps/common/Stardew Valley/Stardew Valley.exe": "x",
 	})
 	libs := SteamLibraries(root)

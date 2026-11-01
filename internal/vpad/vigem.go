@@ -117,7 +117,7 @@ func NewX360() (*X360, error) {
 	if err != nil || len(paths) == 0 {
 		return nil, ErrNoViGEm
 	}
-	var last error = ErrNoViGEm
+	last := ErrNoViGEm
 	for _, p := range paths {
 		h, err := openBus(p)
 		if err != nil {

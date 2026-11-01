@@ -44,7 +44,7 @@ func main() {
 		platform.WaitInstanceGone(oldUniqueID, 15*time.Second)
 	}
 	var moved []string
-	if !(dev && args.Dev.DataDir != "") && !platform.InstanceRunning(uniqueID) {
+	if (!dev || args.Dev.DataDir == "") && !platform.InstanceRunning(uniqueID) {
 		// WaterLauncher's library and settings.
 		moved = platform.MoveOldData(platform.InstanceRunning(oldUniqueID))
 	}

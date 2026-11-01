@@ -88,9 +88,7 @@ func (f *fakeGitHub) publish(tag string, files map[string][]byte, extra ...map[s
 		f.files[name] = b
 		assets = append(assets, map[string]any{"name": name, "size": len(b), "browser_download_url": f.srv.URL + "/download/" + name})
 	}
-	for _, e := range extra {
-		assets = append(assets, e)
-	}
+	assets = append(assets, extra...)
 	f.release = map[string]any{"tag_name": tag, "body": "notes", "html_url": "https://github.com/ApolloF/Seaglass/releases/tag/" + tag, "assets": assets}
 }
 

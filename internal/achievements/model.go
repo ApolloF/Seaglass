@@ -53,7 +53,7 @@ type List struct {
 	Partial bool `json:"-"`
 }
 
-// FixUplayINI: Seaglass can turn achievements on in the game's Uplay
+// FixUplayINI marks that Seaglass can turn achievements on in the game's Uplay
 // emulator ini (EnableUplay).
 const FixUplayINI = "uplay-ini"
 

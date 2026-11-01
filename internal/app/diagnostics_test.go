@@ -19,7 +19,7 @@ func TestCrashCapture(t *testing.T) {
 		captureCrashes(os.Getenv("WL_CRASH_DIR"))
 		go func() { // outside the test's own recover
 			var m map[string]int
-			m["boom"] = 1 // nil map: an unhandled panic
+			m["boom"] = 1 //nolint:staticcheck // nil map: an unhandled panic, which is the point of this test
 		}()
 		// Wait for the crash to end the process. Nothing may signal back
 		// from the panicking goroutine: its deferred calls run while the

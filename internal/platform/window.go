@@ -57,7 +57,7 @@ func BringToFront(hwnd uintptr) bool {
 	if fg == 0 {
 		return false
 	}
-	fgThread, _, _ := procGetWindowThreadProcessId.Call(fg, 0)
+	fgThread, _, _ := procGetWindowThreadProcessID.Call(fg, 0)
 	self := uintptr(windows.GetCurrentThreadId())
 	if fgThread != 0 && fgThread != self {
 		procAttachThreadInput.Call(self, fgThread, 1)

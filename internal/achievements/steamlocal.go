@@ -33,7 +33,7 @@ func validLang(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_') {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && r != '_' {
 			return false
 		}
 	}

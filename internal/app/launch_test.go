@@ -119,13 +119,13 @@ func TestGameForPath(t *testing.T) {
 		{ID: 5, Title: "Too broad", Installed: true, Dir: `C:\Program Files`},
 	}
 	for path, want := range map[string]int64{
-		`D:\Games\Hades\x64\Hades.exe`:     2, // the most specific folder
-		`D:\Games\Other\Other.exe`:         1,
-		`D:\Games\Gone\Gone.exe`:           1, // not installed: only the folder around it counts
-		`C:\Tools\Editor\editor.exe`:       0, // hidden
-		`C:\Program Files\Some\app.exe`:    0, // too broad a folder
-		`D:\Games\Hades\Seaglass.exe`: 0,
-		`C:\Windows\System32\notepad.exe`:  0,
+		`D:\Games\Hades\x64\Hades.exe`:    2, // the most specific folder
+		`D:\Games\Other\Other.exe`:        1,
+		`D:\Games\Gone\Gone.exe`:          1, // not installed: only the folder around it counts
+		`C:\Tools\Editor\editor.exe`:      0, // hidden
+		`C:\Program Files\Some\app.exe`:   0, // too broad a folder
+		`D:\Games\Hades\Seaglass.exe`:     0,
+		`C:\Windows\System32\notepad.exe`: 0,
 	} {
 		g, ok := gameForPath(games, path)
 		if got := map[bool]int64{true: g.ID, false: 0}[ok]; got != want {

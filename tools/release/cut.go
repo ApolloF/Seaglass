@@ -15,17 +15,17 @@ import (
 // cut releases a version from main, one checked step at a time; the first
 // failing check stops it before anything that can't be undone.
 //
-//	go run ./tools/release cut v1.2.0 [--pr 12] [--dry-run]
+//		go run ./tools/release cut v1.2.0 [--pr 12] [--dry-run]
 //
-//  1. This PC's release key is one the updater trusts.
-//  2. The tag is a version, its notes exist, it isn't used yet.
-//  3. The working tree is clean, on main, level with origin/main.
-//  4. With --pr: that pull request is merged and its merge commit is in main.
-//  5. CI passed for main's head (waits while it runs).
-//  6. "Version X.Y.Z" (build/windows/info.json) goes into main through a
-//     pull request, since main takes nothing else; skipped if already there.
-//  7. The tag is pushed; CI builds and tests it and makes a draft release.
-//  8. publish signs the draft with the release key and makes it public.
+//	 1. This PC's release key is one the updater trusts.
+//	 2. The tag is a version, its notes exist, it isn't used yet.
+//	 3. The working tree is clean, on main, level with origin/main.
+//	 4. With --pr: that pull request is merged and its merge commit is in main.
+//	 5. CI passed for main's head (waits while it runs).
+//	 6. "Version X.Y.Z" (build/windows/info.json) goes into main through a
+//	    pull request, since main takes nothing else; skipped if already there.
+//	 7. The tag is pushed; CI builds and tests it and makes a draft release.
+//	 8. publish signs the draft with the release key and makes it public.
 func cut(tag string, pr string, dry bool) error {
 	num, err := versionNumber(tag)
 	if err != nil {

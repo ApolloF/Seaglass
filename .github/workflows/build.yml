@@ -15,9 +15,12 @@ jobs:
     env:
       # Optional code signing (docs/SIGNING.md). Without these the build is
       # unsigned; everything else works the same. SignPath signs tagged
-      # builds; a .pfx (SIGN_PFX_*) signs every build.
+      # builds; a .pfx (SIGN_PFX_*) signs pushes to main and tags. Pull
+      # requests are never signed: Dependabot's and forks' runs have no
+      # secrets, and the job has to pass for them too.
       SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
       SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+      SIGN: ${{ github.event_name != 'pull_request' }}
       SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' && startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v7
@@ -71,6 +74,15 @@ jobs:
       - name: Build
         run: wails3 build VERSION=${{ env.WL_VERSION }}
 
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        # Pinned like Wails; bump on purpose. The config is .golangci.yml.
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+
       - name: Test
         run: go test ./...
 
@@ -102,7 +114,7 @@ jobs:
           }
 
       - name: Sign
-        if: env.SIGNPATH != 'true'
+        if: env.SIGN == 'true' && env.SIGNPATH != 'true'
         run: ./build/windows/sign.ps1 bin/Seaglass.exe
 
       - name: WebView2 bootstrapper
@@ -148,12 +160,12 @@ jobs:
           if ($env:SIGNPATH -eq 'true') {
             Copy-Item signed-binaries/Seaglass.exe, signed-binaries/uninstall.exe bin/ -Force
             $defs += "-DSIGNED_UNINSTALLER=$pwd\bin\uninstall.exe"
-          } elseif ($env:SIGN_PFX_BASE64) {
+          } elseif ($env:SIGN -eq 'true' -and $env:SIGN_PFX_BASE64) {
             $defs += "-DSIGN_CMD=powershell -NoProfile -ExecutionPolicy Bypass -File $pwd\build\windows\sign.ps1"
           }
           & $env:MAKENSIS -V2 @defs build/windows/nsis/project.nsi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:SIGNPATH -ne 'true') { ./build/windows/sign.ps1 bin/Seaglass-setup.exe }
+          if ($env:SIGN -eq 'true' -and $env:SIGNPATH -ne 'true') { ./build/windows/sign.ps1 bin/Seaglass-setup.exe }
 
       - name: Upload installer for signing
         id: unsigned-installer
